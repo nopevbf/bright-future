@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas-base: #FAF7F1;
+  --color-canvas-tint: #F1ECE1;
+  --color-sage-deep: #3F5A46;
+  --color-sage-primary: #6F8F76;
+  --color-terracotta-accent: #C1683F;
+  --color-terracotta-soft: #EFC9AE;
+  --color-ink-base: #2A2823;
+  --color-ink-muted: #6B675F;
+  --color-line-subtle: rgba(42, 40, 35, 0.10);
+
+  --font-sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  --shadow-glass: 0 1px 1px rgba(42, 40, 35, 0.04), 0 12px 32px rgba(63, 90, 70, 0.10);
+  --shadow-glow: 0 10px 24px -4px rgba(193, 104, 63, 0.32);
+}
+
+@layer utilities {
+  .liquid-glass {
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.35));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 1px 1px rgba(42, 40, 35, 0.04), 0 12px 32px rgba(63, 90, 70, 0.10);
+  }
+
+  .liquid-glass-accent {
+    background: linear-gradient(155deg, rgba(254, 246, 240, 0.90), rgba(255, 255, 255, 0.50));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(239, 201, 174, 0.7);
+    box-shadow: 0 1px 1px rgba(42, 40, 35, 0.04), 0 12px 32px rgba(193, 104, 63, 0.08);
+  }
+
+  .liquid-glass-sage {
+    background: linear-gradient(155deg, rgba(240, 247, 242, 0.92), rgba(255, 255, 255, 0.55));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid rgba(177, 208, 183, 0.65);
+    box-shadow: 0 1px 1px rgba(42, 40, 35, 0.04), 0 12px 32px rgba(63, 90, 70, 0.08);
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-canvas-base);
+  color: var(--color-ink-base);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 110px;
+}
+
+section[id],
+div[id] {
+  scroll-margin-top: 110px;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+

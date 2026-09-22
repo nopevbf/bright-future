@@ -1,0 +1,6 @@
+{
+  "name": "Bright Future",
+  "description": "Platform Digital Learning Center & Bimbel Privat House-to-House dengan presensi geofence, modul LKPD interaktif, dan integrasi pembayaran Midtrans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

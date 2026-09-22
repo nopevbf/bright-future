@@ -1,0 +1,297 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#13233A"/>
+      <stop offset="60%" stop-color="#0B1422"/>
+      <stop offset="100%" stop-color="#060C16"/>
+    </radialGradient>
+
+    <!-- Gold Gradients -->
+    <linearGradient id="goldLinear" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF2B2"/>
+      <stop offset="25%" stop-color="#F3CA65"/>
+      <stop offset="50%" stop-color="#D9A036"/>
+      <stop offset="75%" stop-color="#FCDA7C"/>
+      <stop offset="100%" stop-color="#B27E22"/>
+    </linearGradient>
+
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5C8"/>
+      <stop offset="45%" stop-color="#F7D472"/>
+      <stop offset="100%" stop-color="#D69B29"/>
+    </linearGradient>
+
+    <linearGradient id="goldDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9E7019"/>
+      <stop offset="50%" stop-color="#D6A136"/>
+      <stop offset="100%" stop-color="#845A10"/>
+    </linearGradient>
+
+    <!-- Bulb Glow & Surface -->
+    <radialGradient id="bulbGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFEFA8" stop-opacity="0.8"/>
+      <stop offset="40%" stop-color="#F6C543" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#F6C543" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="bulbSurface" cx="42%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#FFF8D6"/>
+      <stop offset="25%" stop-color="#FED766"/>
+      <stop offset="70%" stop-color="#F6B82F"/>
+      <stop offset="100%" stop-color="#D78E18"/>
+    </radialGradient>
+
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Base Circular Badge -->
+  <circle cx="250" cy="250" r="244" fill="url(#bgGrad)"/>
+  <circle cx="250" cy="250" r="244" fill="none" stroke="url(#goldLinear)" stroke-width="4.5"/>
+  <circle cx="250" cy="250" r="236" fill="none" stroke="#D9A036" stroke-width="1.2" opacity="0.6"/>
+  <circle cx="250" cy="250" r="230" fill="none" stroke="#F3CA65" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+
+  <!-- Background Light Rays radiating from Bulb -->
+  <g opacity="0.25">
+    <circle cx="250" cy="180" r="140" fill="url(#bulbGlow)"/>
+    <path d="M250 180 L230 40 L270 40 Z" fill="#FFE58F"/>
+    <path d="M250 180 L140 70 L170 50 Z" fill="#FFE58F"/>
+    <path d="M250 180 L330 50 L360 70 Z" fill="#FFE58F"/>
+    <path d="M250 180 L70 140 L90 120 Z" fill="#FFE58F"/>
+    <path d="M250 180 L410 120 L430 140 Z" fill="#FFE58F"/>
+    <path d="M250 180 L50 200 L60 225 Z" fill="#FFE58F"/>
+    <path d="M250 180 L440 225 L450 200 Z" fill="#FFE58F"/>
+  </g>
+
+  <!-- Stars & Educational Motifs (Gold) -->
+  <!-- Top Center 5-pointed Star -->
+  <path d="M250 56 L253.5 65.5 L263.5 66 L256 72 L258.5 81.5 L250 76.5 L241.5 81.5 L244 72 L236.5 66 L246.5 65.5 Z" fill="url(#goldLight)"/>
+
+  <!-- Flanking Sparkle Stars -->
+  <path d="M218 84 Q223 88 228 88 Q223 88 218 92 Q223 88 218 84 Z" fill="#FFF2B2"/>
+  <path d="M282 84 Q277 88 272 88 Q277 88 282 92 Q277 88 282 84 Z" fill="#FFF2B2"/>
+  <circle cx="218" cy="88" r="1.5" fill="#FFF"/>
+  <circle cx="282" cy="88" r="1.5" fill="#FFF"/>
+
+  <path d="M165 118 Q170 122 175 122 Q170 122 165 126 Q170 122 165 118 Z" fill="#F3CA65"/>
+  <circle cx="335" cy="115" r="2.5" fill="#F3CA65"/>
+  <circle cx="380" cy="138" r="2.5" fill="#F3CA65"/>
+  <circle cx="120" cy="138" r="2.5" fill="#F3CA65"/>
+
+  <!-- Left: Open Book Motif -->
+  <g transform="translate(130, 140) rotate(-12)" stroke="url(#goldLight)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-2 18 C-12 14 -24 16 -34 20 L-34 -12 C-24 -16 -12 -14 -2 -10 Z" fill="#0E192D" fill-opacity="0.8"/>
+    <path d="M2 18 C12 14 24 16 34 20 L34 -12 C24 -16 12 -14 2 -10 Z" fill="#0E192D" fill-opacity="0.8"/>
+    <line x1="0" y1="-10" x2="0" y2="18"/>
+    <line x1="-28" y1="-5" x2="-8" y2="-2" stroke-width="1.5" opacity="0.8"/>
+    <line x1="-28" y1="2" x2="-8" y2="5" stroke-width="1.5" opacity="0.8"/>
+    <line x1="-28" y1="9" x2="-12" y2="12" stroke-width="1.5" opacity="0.8"/>
+    <line x1="8" y1="-2" x2="28" y2="-5" stroke-width="1.5" opacity="0.8"/>
+    <line x1="8" y1="5" x2="28" y2="2" stroke-width="1.5" opacity="0.8"/>
+    <line x1="8" y1="12" x2="24" y2="9" stroke-width="1.5" opacity="0.8"/>
+  </g>
+
+  <!-- Right Top: Atom Symbol -->
+  <g transform="translate(358, 118)" stroke="url(#goldLight)" stroke-width="1.8" fill="none">
+    <ellipse cx="0" cy="0" rx="20" ry="7" transform="rotate(30)"/>
+    <ellipse cx="0" cy="0" rx="20" ry="7" transform="rotate(-30)"/>
+    <ellipse cx="0" cy="0" rx="20" ry="7" transform="rotate(90)"/>
+    <circle cx="0" cy="0" r="3" fill="#FFF2B2"/>
+  </g>
+
+  <!-- Right Lower: Pencil Motif -->
+  <g transform="translate(372, 168) rotate(42)" stroke="url(#goldLight)" stroke-width="1.8" fill="#0E192D" fill-opacity="0.8" stroke-linejoin="round">
+    <rect x="-5" y="-22" width="10" height="28" rx="1.5"/>
+    <line x1="-1.5" y1="-22" x2="-1.5" y2="6" stroke-width="1"/>
+    <line x1="1.5" y1="-22" x2="1.5" y2="6" stroke-width="1"/>
+    <polygon points="-5,6 5,6 0,16" fill="url(#goldLight)"/>
+    <polygon points="-2,12 2,12 0,16" fill="#0B1422"/>
+    <path d="M-5,-22 C-5,-26 5,-26 5,-22 Z" fill="#D9A036"/>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- LIGHTBULB CHARACTER (Head, Face, Screw Base)   -->
+  <!-- ============================================== -->
+  <g id="lightbulbCharacter" filter="url(#subtleShadow)">
+    <!-- Screw Base of Bulb -->
+    <g transform="translate(250, 230)">
+      <rect x="-17" y="-5" width="34" height="6" rx="3" fill="url(#goldDark)" stroke="#FED766" stroke-width="0.8"/>
+      <rect x="-15" y="2" width="30" height="6" rx="3" fill="url(#goldDark)" stroke="#FED766" stroke-width="0.8"/>
+      <rect x="-13" y="9" width="26" height="5" rx="2.5" fill="url(#goldDark)" stroke="#FED766" stroke-width="0.8"/>
+      <path d="M-8 15 C-8 19 8 19 8 15 Z" fill="#4A340B"/>
+    </g>
+
+    <!-- Bulb Glass Body -->
+    <path d="M 218 226
+             C 212 220 205 205 204 190
+             C 200 155 220 135 250 135
+             C 280 135 300 155 296 190
+             C 295 205 288 220 282 226
+             Z"
+          fill="url(#bulbSurface)" stroke="url(#goldLight)" stroke-width="3"/>
+
+    <!-- Cute Round Ears -->
+    <circle cx="204" cy="188" r="7" fill="url(#bulbSurface)" stroke="url(#goldLight)" stroke-width="2"/>
+    <circle cx="296" cy="188" r="7" fill="url(#bulbSurface)" stroke="url(#goldLight)" stroke-width="2"/>
+    <path d="M 203 186 C 202 189 205 190 205 188" stroke="#B87B15" stroke-width="1.2" fill="none"/>
+    <path d="M 297 186 C 298 189 295 190 295 188" stroke="#B87B15" stroke-width="1.2" fill="none"/>
+
+    <!-- Friendly Face Details -->
+    <!-- Eyebrows -->
+    <path d="M 226 164 Q 235 158 243 163" stroke="#5D3E0C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M 257 163 Q 265 158 274 164" stroke="#5D3E0C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Big Anime / Cartoon Eyes -->
+    <g>
+      <ellipse cx="235" cy="177" rx="8" ry="11" fill="#0D1624"/>
+      <ellipse cx="233" cy="173" rx="3.5" ry="4.5" fill="#FFFFFF"/>
+      <circle cx="238" cy="182" r="1.6" fill="#FFFFFF"/>
+
+      <ellipse cx="265" cy="177" rx="8" ry="11" fill="#0D1624"/>
+      <ellipse cx="263" cy="173" rx="3.5" ry="4.5" fill="#FFFFFF"/>
+      <circle cx="268" cy="182" r="1.6" fill="#FFFFFF"/>
+    </g>
+
+    <!-- Rosy Cheek Blush -->
+    <ellipse cx="221" cy="188" rx="6.5" ry="3.5" fill="#E87635" opacity="0.45"/>
+    <ellipse cx="279" cy="188" rx="6.5" ry="3.5" fill="#E87635" opacity="0.45"/>
+
+    <!-- Happy Open Smile -->
+    <path d="M 239 192 Q 250 212 261 192 Z" fill="#0D1624"/>
+    <path d="M 244 202 Q 250 197 256 202 Q 250 212 244 202 Z" fill="#E85848"/>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- GRADUATION CAP (Mortarboard & Gold Tassel)     -->
+  <!-- ============================================== -->
+  <g id="graduationCap" filter="url(#subtleShadow)">
+    <path d="M 224 140 C 224 125 276 125 276 140 Z" fill="#09121E" stroke="url(#goldLight)" stroke-width="1.8"/>
+
+    <polygon points="250,92 318,118 250,142 182,118"
+             fill="#0F1B2E" stroke="url(#goldLight)" stroke-width="3" stroke-linejoin="round"/>
+    <polygon points="250,96 312,118 250,138 188,118"
+             fill="#0A1321" stroke="#D9A036" stroke-width="1" opacity="0.8"/>
+
+    <ellipse cx="250" cy="118" rx="4.5" ry="3.5" fill="url(#goldLight)"/>
+
+    <path d="M 250 118 C 230 118 198 126 186 146" fill="none" stroke="url(#goldLight)" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="183" y="146" width="6" height="3" rx="1" fill="#FFF2B2"/>
+    <path d="M 183 149 L 179 170 C 186 172 192 172 193 170 L 189 149 Z" fill="url(#goldLight)"/>
+    <line x1="186" y1="152" x2="186" y2="168" stroke="#A8751B" stroke-width="1"/>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- SHIELD CREST & DOUBLE GOLD BORDER              -->
+  <!-- ============================================== -->
+  <g id="shieldCrest" filter="url(#subtleShadow)">
+    <path d="M 112 218
+             L 388 218
+             C 392 218 395 221 395 225
+             L 395 338
+             C 395 408 254 456 250 458
+             C 246 456 105 408 105 338
+             L 105 225
+             C 105 221 108 218 112 218 Z"
+          fill="#091322" stroke="url(#goldLinear)" stroke-width="5.5" stroke-linejoin="round"/>
+
+    <path d="M 120 226
+             L 380 226
+             L 386 336
+             C 386 398 253 444 250 446
+             C 247 444 114 398 114 336
+             L 120 226 Z"
+          fill="#0C1729" stroke="url(#goldLight)" stroke-width="1.8" opacity="0.9"/>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- LAUREL WREATH (Wheat Leaves) Flanking Shield   -->
+  <!-- ============================================== -->
+  <g id="laurelWreath" fill="url(#goldLight)" stroke="#A0721B" stroke-width="0.8">
+    <!-- Left Branch -->
+    <path d="M 98 226 C 90 220 74 225 76 235 C 82 235 94 233 98 226 Z"/>
+    <path d="M 94 238 C 84 236 74 246 80 254 C 88 250 94 246 94 238 Z"/>
+    <path d="M 90 256 C 78 254 70 268 78 276 C 86 270 90 264 90 256 Z"/>
+    <path d="M 88 278 C 76 278 70 292 80 300 C 88 292 90 286 88 278 Z"/>
+    <path d="M 88 302 C 76 304 74 320 84 326 C 90 318 90 310 88 302 Z"/>
+    <path d="M 90 328 C 80 332 80 348 92 352 C 96 342 94 334 90 328 Z"/>
+    <path d="M 96 354 C 88 360 92 376 104 378 C 106 368 102 360 96 354 Z"/>
+    <path d="M 106 380 C 100 388 108 402 120 402 C 120 392 114 384 106 380 Z"/>
+    <path d="M 124 406 C 96 384 84 310 96 226" fill="none" stroke="url(#goldLinear)" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Right Branch (Mirrored) -->
+    <path d="M 402 226 C 410 220 426 225 424 235 C 418 235 406 233 402 226 Z"/>
+    <path d="M 406 238 C 416 236 426 246 420 254 C 412 250 406 246 406 238 Z"/>
+    <path d="M 410 256 C 422 254 430 268 422 276 C 414 270 410 264 410 256 Z"/>
+    <path d="M 412 278 C 424 278 430 292 420 300 C 412 292 410 286 412 278 Z"/>
+    <path d="M 412 302 C 424 304 426 320 416 326 C 410 318 410 310 412 302 Z"/>
+    <path d="M 410 328 C 420 332 420 348 408 352 C 404 342 406 334 410 328 Z"/>
+    <path d="M 404 354 C 412 360 408 376 396 378 C 394 368 398 360 404 354 Z"/>
+    <path d="M 394 380 C 400 388 392 402 380 402 C 380 392 386 384 394 380 Z"/>
+    <path d="M 376 406 C 404 384 416 310 404 226" fill="none" stroke="url(#goldLinear)" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- TEXT INSIDE SHIELD: "BRIGHT FUTURE"            -->
+  <!-- ============================================== -->
+  <g id="shieldText" filter="url(#subtleShadow)">
+    <text x="250" y="290"
+          font-family="'Plus Jakarta Sans', 'Cinzel', 'Georgia', 'Arial Black', sans-serif"
+          font-size="44"
+          font-weight="900"
+          letter-spacing="3"
+          text-anchor="middle"
+          fill="url(#goldLight)"
+          stroke="#52380A"
+          stroke-width="1.2">
+      BRIGHT
+    </text>
+
+    <text x="250" y="340"
+          font-family="'Plus Jakarta Sans', 'Cinzel', 'Georgia', 'Arial Black', sans-serif"
+          font-size="44"
+          font-weight="900"
+          letter-spacing="3"
+          text-anchor="middle"
+          fill="url(#goldLight)"
+          stroke="#52380A"
+          stroke-width="1.2">
+      FUTURE
+    </text>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- GOLD BANNER RIBBON: "BIMBINGAN BELAJAR"        -->
+  <!-- ============================================== -->
+  <g id="bannerRibbon" filter="url(#subtleShadow)">
+    <path d="M 98 376 L 118 360 L 118 386 Z" fill="#916415"/>
+    <path d="M 402 376 L 382 360 L 382 386 Z" fill="#916415"/>
+
+    <path d="M 104 366
+             Q 250 376 396 366
+             L 396 392
+             Q 250 402 104 392 Z"
+          fill="url(#goldLinear)" stroke="#6E4B0B" stroke-width="1.8"/>
+
+    <path d="M 108 370 Q 250 379 392 370" fill="none" stroke="#FFF7D1" stroke-width="1" opacity="0.7"/>
+    <path d="M 108 388 Q 250 398 392 388" fill="none" stroke="#9E6E17" stroke-width="1" opacity="0.7"/>
+
+    <text x="250" y="386"
+          font-family="'Plus Jakarta Sans', 'Manrope', 'Arial', sans-serif"
+          font-size="14.5"
+          font-weight="800"
+          letter-spacing="3"
+          text-anchor="middle"
+          fill="#0B1422">
+      BIMBINGAN BELAJAR
+    </text>
+  </g>
+
+  <!-- Lower Crest Flourish & Star -->
+  <g transform="translate(250, 416)" stroke="url(#goldLight)" stroke-width="1.5" fill="none" stroke-linecap="round">
+    <line x1="-55" y1="0" x2="-14" y2="0"/>
+    <line x1="14" y1="0" x2="55" y2="0"/>
+    <path d="M0 -7 Q0 0 7 0 Q0 0 0 7 Q0 0 -7 0 Q0 0 0 -7 Z" fill="url(#goldLight)" stroke="none"/>
+  </g>
+</svg>
