@@ -56,8 +56,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div
         className={`max-w-7xl mx-auto h-16 sm:h-20 px-3 sm:px-6 rounded-[20px] sm:rounded-[22px] flex items-center justify-between pointer-events-auto border transition-all duration-300 ${
           isScrolled
-            ? 'liquid-glass shadow-glass border-white/80'
-            : 'bg-[#FAF7F1]/80 backdrop-blur-md border-[rgba(42,40,35,0.08)] shadow-sm'
+            ? 'bg-[#FAF7F1]/95 sm:liquid-glass backdrop-blur-xl shadow-glass border-white/80'
+            : 'bg-[#FAF7F1]/95 sm:bg-[#FAF7F1]/90 backdrop-blur-md border-[rgba(42,40,35,0.08)] shadow-sm'
         }`}
       >
         {/* Brand Logo */}
@@ -139,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden pointer-events-auto max-w-7xl mx-auto mt-2 p-5 rounded-[22px] liquid-glass border border-white/80 shadow-glass">
+        <div className="lg:hidden pointer-events-auto max-w-7xl mx-auto mt-2 p-5 rounded-[22px] bg-[#FAF7F1]/98 backdrop-blur-2xl border border-white/90 shadow-glass">
           <div className="flex flex-col space-y-2">
             {navLinks.map((item) => (
               <a
