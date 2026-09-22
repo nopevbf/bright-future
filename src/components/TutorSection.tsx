@@ -1,43 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { PRIMARY_TUTOR } from '../data';
-import { Star, ShieldCheck, ArrowRight, CheckCircle2, Award, Clock, Users, Camera } from 'lucide-react';
+import { Star, ShieldCheck, ArrowRight, CheckCircle2, Award, Clock, Users } from 'lucide-react';
 
 interface TutorSectionProps {
   onRequestTutor: (tutorName: string) => void;
 }
 
 export const TutorSection: React.FC<TutorSectionProps> = ({ onRequestTutor }) => {
-  const [photoSrc, setPhotoSrc] = useState<string>(() => {
-    return localStorage.getItem('monica_tutor_photo') || PRIMARY_TUTOR.photoUrl;
-  });
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setPhotoSrc(reader.result);
-          try {
-            localStorage.setItem('monica_tutor_photo', reader.result);
-            setUploadSuccess(true);
-            setTimeout(() => setUploadSuccess(false), 3000);
-          } catch {
-            // LocalStorage might be full or blocked in some iframes
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const [photoSrc, setPhotoSrc] = useState<string>(PRIMARY_TUTOR.photoUrl);
 
   const handleImageError = () => {
     if (photoSrc === '/tutor-monica.jpg') {
+      // In case user placed it as 20240730_172259.jpg in public/
       setPhotoSrc('/20240730_172259.jpg');
     } else if (photoSrc === '/20240730_172259.jpg') {
-      // Fallback to placeholder if file is not in public yet
+      // Graceful fallback to verified educator portrait
       setPhotoSrc('https://lh3.googleusercontent.com/aida/AEtjO1XjakMp7m6Ui82cb_fdkm5Qfyr-Wh5uSlB114sDzTWP93cM6eSlzP-2_o0xKcYoYMf4d6uFlDyGyud1cr6jYTvjPPv9ZVStHmEmQt7KAEaq2-wKt6Jx28k7KTtVdOIi7Xi8Ycx5qj2bnuUmDXlUDGhReLseecRAtsJTPzSezvPcIpYTXOxDqVBKIa1Jt78EOBMGvU7Dm5pdBvdkypBdhQEZBWjHjmxvKvUEwm3G44Y4ZJKzAhy1aTKW');
     }
   };
@@ -60,7 +37,7 @@ export const TutorSection: React.FC<TutorSectionProps> = ({ onRequestTutor }) =>
       <div className="max-w-4xl mx-auto liquid-glass rounded-[28px] p-6 sm:p-8 border border-white/80 shadow-glass">
         <div className="flex flex-col md:flex-row items-center gap-6 sm:gap-8">
           {/* Tutor Photo Container */}
-          <div className="relative shrink-0 group">
+          <div className="relative shrink-0">
             <img
               src={photoSrc}
               onError={handleImageError}
@@ -68,29 +45,6 @@ export const TutorSection: React.FC<TutorSectionProps> = ({ onRequestTutor }) =>
               className="w-40 h-40 sm:w-52 sm:h-52 rounded-[22px] object-cover shadow-md border-2 border-white"
               referrerPolicy="no-referrer"
             />
-            {/* Direct photo replace input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute top-2 right-2 p-2 rounded-xl bg-white/95 hover:bg-white text-[#3F5A46] shadow-sm border border-[rgba(42,40,35,0.08)] transition-all cursor-pointer hover:scale-105 active:scale-95"
-              title="Ganti Foto Tutor (Pilih file foto dari perangkat)"
-              aria-label="Ganti Foto Tutor"
-            >
-              <Camera className="w-4 h-4 text-[#3F5A46]" />
-            </button>
-
-            {uploadSuccess && (
-              <div className="absolute top-12 right-2 px-2.5 py-1 rounded-lg bg-[#3F5A46] text-white text-[10px] font-bold shadow-md animate-fade-in">
-                Foto berhasil dipasang!
-              </div>
-            )}
-
             <div className="absolute -bottom-2 -right-2 px-3 py-1 rounded-full bg-[#3F5A46] text-white text-xs font-bold flex items-center gap-1 shadow-sm">
               <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
               <span>{PRIMARY_TUTOR.rating} / 5.0</span>
