@@ -21,6 +21,7 @@ import {
   ManagedStudent,
   INITIAL_MANAGED_STUDENTS,
 } from './admin/studentData';
+import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -110,6 +111,92 @@ const INITIAL_SCHEDULES: ScheduleItem[] = [
   },
 ];
 
+export interface AdminInvoiceItem {
+  inv: string;
+  parent: string;
+  studentName?: string;
+  packageType: 'paket' | 'non_paket';
+  package: string;
+  channel: string;
+  amount: number;
+  status: 'LUNAS' | 'PENDING' | 'TERLAMBAT (H+2)' | 'TERLAMBAT';
+  date: string;
+  periodMonth?: string;
+  meetingDates?: number[];
+  meetingDatesRaw?: string;
+  costPerMeeting?: number;
+  totalMeetings?: number;
+  whatsapp?: string;
+}
+
+const INITIAL_INVOICES: AdminInvoiceItem[] = [
+  {
+    inv: 'BF-INV-2026-09-088',
+    parent: 'Ibu Deasy (Naufal)',
+    studentName: 'Naufal Al-Ghifari',
+    packageType: 'paket',
+    package: 'Paket 8 Sesi SD UMUM',
+    channel: 'QRIS Gopay',
+    amount: 280000,
+    status: 'LUNAS',
+    date: '20 Sep 2026',
+    whatsapp: '085173230198',
+  },
+  {
+    inv: 'BF-INV-2026-09-089',
+    parent: 'Bpk. Hendra Gunawan (Michelle)',
+    studentName: 'Michelle Gunawan',
+    packageType: 'paket',
+    package: 'Paket 8 Sesi SD UMUM',
+    channel: 'BCA Virtual Account',
+    amount: 280000,
+    status: 'LUNAS',
+    date: '20 Sep 2026',
+    whatsapp: '081234567890',
+  },
+  {
+    inv: 'BF-INV-2026-09-092',
+    parent: 'Ibu Farida (Krincing)',
+    studentName: 'Farhan Ramadhan',
+    packageType: 'paket',
+    package: 'Paket 8 Sesi SD UMUM',
+    channel: 'Menunggu Pembayaran',
+    amount: 280000,
+    status: 'PENDING',
+    date: 'Jatuh Tempo Hari Ini',
+    whatsapp: '085678901234',
+  },
+  {
+    inv: 'BF-INV-2026-09-074',
+    parent: 'Bpk. Rudi Hartono (Alifa)',
+    studentName: 'Alifa Khansa',
+    packageType: 'paket',
+    package: 'Paket 8 Sesi Calistung',
+    channel: 'BCA Virtual Account',
+    amount: 280000,
+    status: 'TERLAMBAT (H+2)',
+    date: '18 Sep 2026',
+    whatsapp: '081398765432',
+  },
+  {
+    inv: 'BF-INV-2026-09-065',
+    parent: 'Ibu Ratna Kumala (Kinan)',
+    studentName: 'Kinan Larasati',
+    packageType: 'non_paket',
+    package: 'Non Paket (Fleksibel)',
+    channel: 'Mandiri Virtual Account',
+    amount: 210000,
+    status: 'LUNAS',
+    date: '15 Sep 2026',
+    periodMonth: 'September 2026',
+    meetingDates: [3, 8, 12, 17, 22, 27],
+    meetingDatesRaw: '3, 8, 12, 17, 22, 27',
+    costPerMeeting: 35000,
+    totalMeetings: 6,
+    whatsapp: '082134567899',
+  },
+];
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onViewLanding }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabType>('ringkasan');
@@ -145,10 +232,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   const [newVisitTime, setNewVisitTime] = useState<string>('15:00 WIB');
   const [newVisitAddress, setNewVisitAddress] = useState<string>('');
 
+  // Invoices list state & details
+  const [invoices, setInvoices] = useState<AdminInvoiceItem[]>(INITIAL_INVOICES);
+  const [selectedInvoiceForDetail, setSelectedInvoiceForDetail] = useState<AdminInvoiceItem | null>(null);
+
   // New invoice state
   const [newInvoiceStudent, setNewInvoiceStudent] = useState<string>('');
+  const [newInvoiceParent, setNewInvoiceParent] = useState<string>('');
+  const [newInvoiceWhatsapp, setNewInvoiceWhatsapp] = useState<string>('085173230198');
+  const [newInvoicePackage, setNewInvoicePackage] = useState<string>('Paket 8 Sesi SD UMUM (Rp 280.000)');
   const [newInvoiceAmount, setNewInvoiceAmount] = useState<number>(280000);
-  const [newInvoicePackage, setNewInvoicePackage] = useState<string>('Paket 8 Sesi Bulanan');
+  const [newInvoicePaymentChannel, setNewInvoicePaymentChannel] = useState<string>('Midtrans QRIS / Virtual Account');
+  // Non-paket fields: Periode Bulan, Tanggal Pertemuan, Biaya per Pertemuan
+  const [newInvoicePeriodMonth, setNewInvoicePeriodMonth] = useState<string>('September 2026');
+  const [newInvoiceMeetingDates, setNewInvoiceMeetingDates] = useState<string>('2, 5, 9, 12');
+  const [newInvoiceCostPerMeeting, setNewInvoiceCostPerMeeting] = useState<number>(35000);
 
   // Database credentials & accounts state
   const [adminCredential, setAdminCredential] = useState<AdminCredentialDoc>(DEFAULT_ADMIN_CREDENTIAL);
@@ -409,6 +507,163 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       setActionFeedback(`Ekspor data format ${format.toUpperCase()} berhasil disiapkan.`);
     }
     setTimeout(() => setActionFeedback(null), 3500);
+  };
+
+  // Meeting dates parser (splits by comma, filters valid numbers 1-31)
+  const parseMeetingDates = (raw: string): number[] => {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '' && !isNaN(Number(s)) && Number(s) >= 1 && Number(s) <= 31)
+      .map((s) => Number(s));
+  };
+
+  const handlePackageChange = (pkg: string) => {
+    setNewInvoicePackage(pkg);
+    if (pkg === 'Non Paket') {
+      const dates = parseMeetingDates(newInvoiceMeetingDates);
+      setNewInvoiceAmount(dates.length * (newInvoiceCostPerMeeting || 0));
+    } else if (pkg.includes('SD UMUM') || pkg.includes('Calistung')) {
+      setNewInvoiceAmount(280000);
+    } else if (pkg.includes('SMP')) {
+      setNewInvoiceAmount(360000);
+    } else if (pkg.includes('SMA')) {
+      setNewInvoiceAmount(400000);
+    } else {
+      setNewInvoiceAmount(280000);
+    }
+  };
+
+  const handleMeetingDatesChange = (val: string) => {
+    setNewInvoiceMeetingDates(val);
+    const dates = parseMeetingDates(val);
+    const total = dates.length * (newInvoiceCostPerMeeting || 0);
+    setNewInvoiceAmount(total);
+  };
+
+  const handleCostPerMeetingChange = (cost: number) => {
+    setNewInvoiceCostPerMeeting(cost);
+    const dates = parseMeetingDates(newInvoiceMeetingDates);
+    const total = dates.length * (cost || 0);
+    setNewInvoiceAmount(total);
+  };
+
+  const handlePublishInvoice = () => {
+    if (!newInvoiceStudent.trim()) {
+      alert('Silakan masukkan nama siswa atau pilih siswa.');
+      return;
+    }
+
+    const isNonPaket = newInvoicePackage === 'Non Paket';
+    const dates = isNonPaket ? parseMeetingDates(newInvoiceMeetingDates) : [];
+    const finalAmount = isNonPaket
+      ? dates.length * (newInvoiceCostPerMeeting || 0)
+      : newInvoiceAmount;
+
+    if (isNonPaket && dates.length === 0) {
+      alert('Silakan masukkan minimal satu tanggal pertemuan yang valid (contoh: 2, 5, 9, 12).');
+      return;
+    }
+
+    const nextId = String(invoices.length + 95).padStart(3, '0');
+    const invoiceNumber = `BF-INV-2026-09-${nextId}`;
+
+    const newInv: AdminInvoiceItem = {
+      inv: invoiceNumber,
+      parent: newInvoiceParent.trim()
+        ? `${newInvoiceParent.trim()} (${newInvoiceStudent.trim()})`
+        : newInvoiceStudent.trim(),
+      studentName: newInvoiceStudent.trim(),
+      packageType: isNonPaket ? 'non_paket' : 'paket',
+      package: isNonPaket ? 'Non Paket' : newInvoicePackage,
+      channel: newInvoicePaymentChannel,
+      amount: finalAmount,
+      status: 'PENDING',
+      date: 'Hari ini',
+      periodMonth: isNonPaket ? newInvoicePeriodMonth : undefined,
+      meetingDates: isNonPaket ? dates : undefined,
+      meetingDatesRaw: isNonPaket ? newInvoiceMeetingDates : undefined,
+      costPerMeeting: isNonPaket ? newInvoiceCostPerMeeting : undefined,
+      totalMeetings: isNonPaket ? dates.length : undefined,
+      whatsapp: newInvoiceWhatsapp || '085173230198',
+    };
+
+    setInvoices((prev) => [newInv, ...prev]);
+    setIsInvoiceModalOpen(false);
+    setActionFeedback(`Invoice ${invoiceNumber} untuk ${newInvoiceStudent} berhasil diterbitkan & ditambahkan ke tabel!`);
+    setTimeout(() => setActionFeedback(null), 4000);
+
+    // Reset student / parent input
+    setNewInvoiceStudent('');
+    setNewInvoiceParent('');
+  };
+
+  const handleToggleInvoiceStatus = (invNum: string) => {
+    setInvoices((prev) =>
+      prev.map((item) => {
+        if (item.inv === invNum) {
+          const next = item.status === 'LUNAS' ? 'PENDING' : 'LUNAS';
+          return { ...item, status: next };
+        }
+        return item;
+      })
+    );
+    setActionFeedback(`Status invoice ${invNum} berhasil diperbarui!`);
+    setTimeout(() => setActionFeedback(null), 3000);
+  };
+
+  const handleDeleteInvoice = (invNum: string) => {
+    if (window.confirm(`Hapus invoice ${invNum}?`)) {
+      setInvoices((prev) => prev.filter((item) => item.inv !== invNum));
+      setActionFeedback(`Invoice ${invNum} telah dihapus.`);
+      setTimeout(() => setActionFeedback(null), 3000);
+    }
+  };
+
+  const handleSendInvoiceWA = (inv: AdminInvoiceItem) => {
+    const cleanPhone = (inv.whatsapp || '085173230198').replace(/[^0-9]/g, '');
+    const phoneTarget = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+
+    let text = '';
+    if (inv.packageType === 'non_paket') {
+      text =
+        `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
+        `📄 *No. Invoice:* ${inv.inv}\n` +
+        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `📚 *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
+        `🗓️ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
+        `📅 *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
+        `Tanggal: ${inv.meetingDatesRaw || inv.meetingDates?.join(', ') || '-'}\n` +
+        `💰 *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
+        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `💳 *Kanal Bayar:* ${inv.channel}\n` +
+        `📌 *Status:* ${inv.status}\n\n` +
+        `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Bukti pembayaran otomatis terverifikasi di sistem kami. Terima kasih!`;
+    } else {
+      text =
+        `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
+        `📄 *No. Invoice:* ${inv.inv}\n` +
+        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `📚 *Paket:* ${inv.package}\n` +
+        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `💳 *Kanal Bayar:* ${inv.channel}\n` +
+        `📌 *Status:* ${inv.status}\n\n` +
+        `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Terima kasih!`;
+    }
+
+    window.open(`https://wa.me/${phoneTarget}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleDownloadInvoicePdf = (inv: AdminInvoiceItem) => {
+    try {
+      generateAndDownloadInvoicePdf(inv);
+      setActionFeedback(`Invoice ${inv.inv} berhasil diunduh dalam format PDF!`);
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setActionFeedback('Gagal mengunduh PDF, silakan coba lagi.');
+      setTimeout(() => setActionFeedback(null), 3500);
+    }
   };
 
   const pendingCount = firestoreRegistrations.filter((r) => r.paymentStatus === 'pending').length;
@@ -1766,109 +2021,244 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2823]/10">
                 <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold uppercase tracking-wider">
+                      Modul Keuangan &amp; Midtrans
+                    </span>
+                    <span className="text-xs text-[#6B675F]">• Rekonsiliasi Otomatis</span>
+                  </div>
                   <h1 className="text-2xl font-bold text-[#2A2823]">
                     {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat' : 'Tagihan & Transaksi Midtrans'}
                   </h1>
                   <p className="text-xs sm:text-sm text-[#6B675F]">
-                    Rekonsiliasi otomatis Midtrans Snap, Virtual Account BCA/Mandiri, QRIS, dan status invoice.
+                    Rekonsiliasi otomatis Midtrans Snap, Virtual Account BCA/Mandiri, QRIS, dan tagihan les Non-Paket per pertemuan.
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsInvoiceModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-[#284230] text-white text-xs font-bold shadow-xs hover:bg-[#3F5A46] cursor-pointer inline-flex items-center gap-1.5 self-start sm:self-auto"
-                >
-                  <span className="material-symbols-outlined text-[17px]">receipt</span>
-                  <span>+ Buat Invoice Baru</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={() => {
+                      setNewInvoicePackage('Paket 8 Sesi SD UMUM (Rp 280.000)');
+                      setNewInvoiceAmount(280000);
+                      setIsInvoiceModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold shadow-xs hover:bg-[#3F5A46] cursor-pointer inline-flex items-center gap-1.5 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">receipt</span>
+                    <span>+ Buat Invoice Baru</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Quick Summary Metric Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Total Invoice</span>
+                  <span className="text-xl font-extrabold text-[#2A2823] mt-1 block">{invoices.length} Tagihan</span>
+                  <span className="text-[10px] text-[#3F5A46] font-bold mt-1 block">
+                    {invoices.filter((i) => i.packageType === 'non_paket').length} Non-Paket Terdaftar
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Invoice Lunas</span>
+                  <span className="text-xl font-extrabold text-emerald-700 mt-1 block">
+                    {invoices.filter((i) => i.status === 'LUNAS').length} Lunas
+                  </span>
+                  <span className="text-[10px] text-[#6B675F] mt-1 block">Midtrans Terverifikasi</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Menunggu Bayar</span>
+                  <span className="text-xl font-extrabold text-amber-700 mt-1 block">
+                    {invoices.filter((i) => i.status === 'PENDING').length} Pending
+                  </span>
+                  <span className="text-[10px] text-amber-700 font-bold mt-1 block">Siap Follow-up WA</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Total Nilai Tagihan</span>
+                  <span className="text-xl font-extrabold text-[#3F5A46] mt-1 block">
+                    Rp {invoices.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('id-ID')}
+                  </span>
+                  <span className="text-[10px] text-[#6B675F] mt-1 block">Termasuk Sesi Non-Paket</span>
+                </div>
+              </div>
+
+              {/* Invoices Table */}
               <div className="bg-white rounded-3xl border border-[#2A2823]/10 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#FAF7F1] text-[#6B675F] uppercase font-bold text-[10px] border-b border-[#2A2823]/10">
-                    <tr>
-                      <th className="py-3 px-4">No. Invoice</th>
-                      <th className="py-3 px-4">Wali &amp; Siswa</th>
-                      <th className="py-3 px-4">Paket Les</th>
-                      <th className="py-3 px-4">Kanal Bayar</th>
-                      <th className="py-3 px-4">Nominal</th>
-                      <th className="py-3 px-4">Status Midtrans</th>
-                      <th className="py-3 px-4 text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#2A2823]/8">
-                    {[
-                      {
-                        inv: 'BF-INV-2026-09-088',
-                        parent: 'Ibu Deasy (Naufal)',
-                        package: 'Paket 8 Sesi SD UMUM',
-                        channel: 'QRIS Gopay',
-                        amount: 280000,
-                        status: 'LUNAS',
-                        date: '20 Sep 2026',
-                      },
-                      {
-                        inv: 'BF-INV-2026-09-089',
-                        parent: 'Bpk. Hendra Gunawan (Michelle)',
-                        package: 'Paket 8 Sesi SD UMUM',
-                        channel: 'BCA Virtual Account',
-                        amount: 280000,
-                        status: 'LUNAS',
-                        date: '20 Sep 2026',
-                      },
-                      {
-                        inv: 'BF-INV-2026-09-092',
-                        parent: 'Ibu Farida (Krincing)',
-                        package: 'Paket 8 Sesi SD UMUM',
-                        channel: 'Menunggu Pembayaran',
-                        amount: 280000,
-                        status: 'PENDING',
-                        date: 'Jatuh Tempo Hari Ini',
-                      },
-                      {
-                        inv: 'BF-INV-2026-09-074',
-                        parent: 'Bpk. Rudi Hartono (Alifa)',
-                        package: 'Paket 8 Sesi Calistung',
-                        channel: 'BCA Virtual Account',
-                        amount: 280000,
-                        status: 'TERLAMBAT (H+2)',
-                        date: '18 Sep 2026',
-                      },
-                    ]
-                      .filter((row) => (activeTab === 'terlambat' ? row.status.includes('TERLAMBAT') : true))
-                      .map((inv, idx) => (
-                        <tr key={idx} className="hover:bg-[#FAF7F1]/60 transition-colors">
-                          <td className="py-3 px-4 font-mono font-bold text-[#284230]">{inv.inv}</td>
-                          <td className="py-3 px-4 font-semibold text-[#2A2823]">{inv.parent}</td>
-                          <td className="py-3 px-4 text-[#6B675F]">{inv.package}</td>
-                          <td className="py-3 px-4 text-[#2A2823]">{inv.channel}</td>
-                          <td className="py-3 px-4 font-bold text-[#3F5A46]">
-                            Rp {inv.amount.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                inv.status === 'LUNAS'
-                                  ? 'bg-[#c8ebce] text-[#284230]'
-                                  : inv.status === 'PENDING'
-                                  ? 'bg-amber-100 text-amber-900'
-                                  : 'bg-[#EFC9AE] text-[#6b2702]'
-                              }`}
-                            >
-                              {inv.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <button
-                              onClick={() => alert(`Invoice ${inv.inv} dikirim ke WhatsApp wali murid`)}
-                              className="px-2.5 py-1 rounded-lg bg-[#25D366] text-white font-bold text-[10px] hover:bg-emerald-600 cursor-pointer"
-                            >
-                              Kirim WA
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                <div className="p-4 bg-[#FAF7F1] border-b border-[#2A2823]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-[#3F5A46]">receipt_long</span>
+                    <span className="font-bold text-sm text-[#2A2823]">
+                      {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat' : 'Data Rekapitulasi Tagihan & Invoice'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#284230] text-white text-[10px] font-bold">
+                      {invoices.filter((row) => (activeTab === 'terlambat' ? row.status.includes('TERLAMBAT') : true)).length} Item
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FAF7F1] text-[#6B675F] uppercase font-bold text-[10px] border-b border-[#2A2823]/10">
+                      <tr>
+                        <th className="py-3.5 px-4">No. Invoice &amp; Tanggal</th>
+                        <th className="py-3.5 px-4">Wali &amp; Siswa</th>
+                        <th className="py-3.5 px-4">Paket / Rincian Sesi</th>
+                        <th className="py-3.5 px-4">Kanal Bayar</th>
+                        <th className="py-3.5 px-4">Nominal</th>
+                        <th className="py-3.5 px-4">Status Midtrans</th>
+                        <th className="py-3.5 px-4 text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2A2823]/8">
+                      {invoices
+                        .filter((row) => (activeTab === 'terlambat' ? row.status.includes('TERLAMBAT') : true))
+                        .map((inv, idx) => (
+                          <tr key={idx} className="hover:bg-[#FAF7F1]/70 transition-colors">
+                            <td className="py-3.5 px-4 align-top">
+                              <span className="font-mono font-bold text-[#284230] block text-xs">{inv.inv}</span>
+                              <span className="text-[10px] text-[#6B675F] flex items-center gap-1 mt-0.5">
+                                <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                {inv.date}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 align-top">
+                              <div className="font-bold text-[#2A2823]">{inv.parent}</div>
+                              {inv.studentName && (
+                                <div className="text-[11px] text-[#6B675F] flex items-center gap-1 mt-0.5">
+                                  <span className="material-symbols-outlined text-[12px] text-[#3F5A46]">face</span>
+                                  <span>{inv.studentName}</span>
+                                </div>
+                              )}
+                              {inv.whatsapp && (
+                                <div className="text-[10px] font-mono text-[#6B675F] mt-0.5">
+                                  WA: {inv.whatsapp}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 align-top max-w-[280px]">
+                              {inv.packageType === 'non_paket' ? (
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px]">
+                                      NON PAKET
+                                    </span>
+                                    <span className="text-[11px] font-bold text-[#284230]">
+                                      Periode: {inv.periodMonth || 'September 2026'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-[#2A2823] font-medium bg-[#fcfaf6] p-1.5 rounded-lg border border-[#2A2823]/8">
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="font-bold text-[#3F5A46]">
+                                        {inv.totalMeetings || inv.meetingDates?.length || 0} Pertemuan
+                                      </span>
+                                      <span className="text-[#6B675F]">
+                                        @ Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')}
+                                      </span>
+                                    </div>
+                                    {inv.meetingDates && inv.meetingDates.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1 pt-1 border-t border-[#2A2823]/6">
+                                        <span className="text-[10px] text-[#6B675F] font-semibold mr-0.5">Tgl:</span>
+                                        {inv.meetingDates.map((d, i) => (
+                                          <span
+                                            key={i}
+                                            className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-mono font-bold shadow-xs"
+                                          >
+                                            {d}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-md bg-[#c8ebce] text-[#284230] font-bold text-[10px]">
+                                      PAKET REGULER
+                                    </span>
+                                  </div>
+                                  <div className="font-semibold text-xs text-[#2A2823]">{inv.package}</div>
+                                  <div className="text-[10px] text-[#6B675F]">8 Sesi Terjadwal • House-to-House</div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 align-top">
+                              <span className="font-medium text-[#2A2823] block text-xs">{inv.channel}</span>
+                              <span className="text-[10px] text-[#6B675F]">Midtrans Gateway</span>
+                            </td>
+                            <td className="py-3.5 px-4 align-top">
+                              <div className="font-extrabold text-sm text-[#284230]">
+                                Rp {inv.amount.toLocaleString('id-ID')}
+                              </div>
+                              {inv.packageType === 'non_paket' && (
+                                <span className="text-[10px] text-[#6B675F] block mt-0.5">
+                                  ({inv.totalMeetings || inv.meetingDates?.length || 0} × Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')})
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 align-top">
+                              <div className="space-y-1.5">
+                                <span
+                                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                    inv.status === 'LUNAS'
+                                      ? 'bg-[#c8ebce] text-[#284230] border border-[#284230]/20'
+                                      : inv.status === 'PENDING'
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      : 'bg-[#EFC9AE] text-[#6b2702] border border-[#C1683F]/30'
+                                  }`}
+                                >
+                                  {inv.status}
+                                </span>
+                                <div>
+                                  <button
+                                    onClick={() => handleToggleInvoiceStatus(inv.inv)}
+                                    className="text-[10px] text-[#3F5A46] font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                                    title="Ubah status Lunas / Pending"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">swap_horiz</span>
+                                    <span>Ubah Status</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 align-top text-center">
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => handleSendInvoiceWA(inv)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#25D366] text-white font-bold text-[10px] hover:bg-emerald-600 transition-all shadow-xs cursor-pointer"
+                                  title="Kirim rincian invoice ke WhatsApp wali murid"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">send</span>
+                                  <span>Kirim WA</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadInvoicePdf(inv)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600 text-white font-bold text-[10px] hover:bg-red-700 transition-all shadow-xs cursor-pointer"
+                                  title="Unduh Invoice Resmi format PDF"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
+                                  <span>PDF</span>
+                                </button>
+                                <button
+                                  onClick={() => setSelectedInvoiceForDetail(inv)}
+                                  className="p-1.5 rounded-xl bg-[#f0eee8] text-[#2A2823] hover:bg-[#ebe8e2] transition-colors cursor-pointer"
+                                  title="Lihat Rincian & Cetak Slip"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">print</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteInvoice(inv.inv)}
+                                  className="p-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                                  title="Hapus Invoice"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -2395,71 +2785,432 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
         </div>
       )}
 
-      {/* QUICK MODAL: + BUAT TAGIHAN */}
+      {/* QUICK MODAL: + BUAT TAGIHAN (DENGAN DUKUNGAN NON PAKET) */}
       {isInvoiceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full border border-[#2A2823]/10 shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-[#2A2823]/10 shadow-2xl p-6 space-y-4 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-[#2A2823]/10">
-              <h3 className="font-bold text-base text-[#2A2823]">Buat Tagihan SPP Baru (Midtrans)</h3>
-              <button onClick={() => setIsInvoiceModalOpen(false)} className="text-[#6B675F] cursor-pointer">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#c8ebce] flex items-center justify-center text-[#284230]">
+                  <span className="material-symbols-outlined text-[22px]">receipt_long</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-[#2A2823]">Buat Tagihan SPP &amp; Invoice</h3>
+                  <p className="text-[11px] text-[#6B675F]">Dukungan Paket Bulanan &amp; Non Paket Fleksibel</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="text-[#6B675F] hover:text-[#2A2823] cursor-pointer"
+              >
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-4 text-xs">
+              {/* Field 1: Pilih atau Masukkan Nama Siswa */}
               <div>
-                <label className="block font-bold text-[#2A2823] mb-1">Nama Siswa / Wali</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Michelle Gunawan"
-                  value={newInvoiceStudent}
-                  onChange={(e) => setNewInvoiceStudent(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none"
-                />
+                <label className="block font-bold text-[#2A2823] mb-1">
+                  Nama Siswa / Pilih dari Database <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val) {
+                        const found = managedStudents.find((s) => s.studentName === val);
+                        if (found) {
+                          setNewInvoiceStudent(found.studentName);
+                          setNewInvoiceParent(found.parentName);
+                          setNewInvoiceWhatsapp(found.whatsapp);
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs bg-[#FAF7F1] cursor-pointer outline-none focus:ring-2 focus:ring-[#3F5A46]"
+                  >
+                    <option value="">-- Pilih Cepat dari Siswa Aktif (Opsional) --</option>
+                    {managedStudents.map((s) => (
+                      <option key={s.id} value={s.studentName}>
+                        {s.studentName} ({s.level} - {s.grade})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Atau ketik nama siswa manual (contoh: Michelle Gunawan)"
+                    value={newInvoiceStudent}
+                    onChange={(e) => setNewInvoiceStudent(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none font-semibold text-[#2A2823]"
+                    required
+                  />
+                </div>
               </div>
 
+              {/* Field: Nama Wali & WhatsApp */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#2A2823] mb-1">Nama Orang Tua / Wali</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Ibu Deasy / Bpk. Hendra"
+                    value={newInvoiceParent}
+                    onChange={(e) => setNewInvoiceParent(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-[#2A2823] mb-1">No. WhatsApp Wali</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 085173230198"
+                    value={newInvoiceWhatsapp}
+                    onChange={(e) => setNewInvoiceWhatsapp(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Field 2: Paket Belajar (Includes 'Non Paket') */}
               <div>
-                <label className="block font-bold text-[#2A2823] mb-1">Paket Belajar</label>
+                <label className="block font-bold text-[#2A2823] mb-1">
+                  Paket Belajar <span className="text-red-500">*</span>
+                </label>
                 <select
                   value={newInvoicePackage}
-                  onChange={(e) => setNewInvoicePackage(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none cursor-pointer"
+                  onChange={(e) => handlePackageChange(e.target.value)}
+                  className={`w-full px-3 py-2.5 rounded-xl border text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none cursor-pointer font-bold ${
+                    newInvoicePackage === 'Non Paket'
+                      ? 'border-amber-400 bg-amber-50/50 text-amber-950'
+                      : 'border-[#2A2823]/15 bg-white text-[#2A2823]'
+                  }`}
                 >
-                  <option>Paket 8 Sesi SD UMUM (Rp 280.000)</option>
-                  <option>Paket 8 Sesi Calistung (Rp 280.000)</option>
-                  <option>Paket 8 Sesi SMP (Rp 360.000)</option>
-                  <option>Paket 8 Sesi SMA UTBK (Rp 400.000)</option>
+                  <option value="Paket 8 Sesi SD UMUM (Rp 280.000)">Paket 8 Sesi SD UMUM (Rp 280.000)</option>
+                  <option value="Paket 8 Sesi Calistung (Rp 280.000)">Paket 8 Sesi Calistung (Rp 280.000)</option>
+                  <option value="Paket 8 Sesi SMP (Rp 360.000)">Paket 8 Sesi SMP (Rp 360.000)</option>
+                  <option value="Paket 8 Sesi SMA UTBK (Rp 400.000)">Paket 8 Sesi SMA UTBK (Rp 400.000)</option>
+                  <option value="Non Paket">Non Paket</option>
                 </select>
+                {newInvoicePackage === 'Non Paket' ? (
+                  <p className="text-[11px] text-amber-800 font-semibold mt-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">info</span>
+                    <span>Mode Non Paket: tagihan dihitung otomatis berdasarkan jumlah tanggal pertemuan dikali biaya per sesi.</span>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-[#6B675F] mt-1">Paket bulanan reguler 8 pertemuan (70 menit/sesi).</p>
+                )}
               </div>
 
+              {/* DYNAMIC FIELDS FOR 'Non Paket' */}
+              {newInvoicePackage === 'Non Paket' ? (
+                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3.5">
+                  <div className="flex items-center gap-2 pb-2 border-b border-amber-200/70 text-amber-900 font-bold text-xs">
+                    <span className="material-symbols-outlined text-[17px] text-[#C1683F]">edit_calendar</span>
+                    <span>Rincian Sesi &amp; Biaya Non Paket</span>
+                  </div>
+
+                  {/* Field: Periode Bulan */}
+                  <div>
+                    <label className="block font-bold text-[#2A2823] mb-1">
+                      Periode Bulan <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: September 2026 / Oktober 2026"
+                      value={newInvoicePeriodMonth}
+                      onChange={(e) => setNewInvoicePeriodMonth(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none font-semibold text-[#2A2823]"
+                    />
+                  </div>
+
+                  {/* Field: Tanggal Pertemuan (masukin angka di pisahin kalo pake koma) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-[#2A2823]">
+                        Tanggal Pertemuan <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-amber-800 font-medium">Pisahkan angka dengan koma</span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 2, 5, 9, 12, 16, 23"
+                      value={newInvoiceMeetingDates}
+                      onChange={(e) => handleMeetingDatesChange(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none font-mono font-bold text-[#2A2823]"
+                    />
+
+                    {/* Preview of Parsed Dates */}
+                    <div className="mt-2 p-2.5 rounded-xl bg-white/90 border border-amber-200/80">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-amber-950 mb-1.5">
+                        <span>Jumlah Tanggal Pertemuan:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 font-extrabold text-[11px]">
+                          {parseMeetingDates(newInvoiceMeetingDates).length} Sesi Pertemuan
+                        </span>
+                      </div>
+                      {parseMeetingDates(newInvoiceMeetingDates).length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {parseMeetingDates(newInvoiceMeetingDates).map((d, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-mono font-bold text-[11px] shadow-xs"
+                            >
+                              Tgl {d}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-700 italic">
+                          Belum ada tanggal valid. Masukkan angka tanggal (1-31) dipisahkan koma, contoh: 2, 5, 9, 12
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Field: Biaya per Pertemuan */}
+                  <div>
+                    <label className="block font-bold text-[#2A2823] mb-1">
+                      Biaya per Pertemuan (Rp) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-[#6B675F]">Rp</span>
+                      <input
+                        type="number"
+                        placeholder="35000"
+                        value={newInvoiceCostPerMeeting}
+                        onChange={(e) => handleCostPerMeetingChange(Number(e.target.value))}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none font-bold text-[#2A2823]"
+                      />
+                    </div>
+                    <span className="text-[10px] text-[#6B675F] mt-0.5 block">
+                      Tarif per kunjungan house-to-house (70 menit).
+                    </span>
+                  </div>
+
+                  {/* Auto-Calculated Nominal Tagihan */}
+                  <div className="p-3 rounded-xl bg-white border-2 border-emerald-400 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#2A2823]">Nominal Tagihan (Otomatis):</span>
+                      <span className="text-base font-extrabold text-[#284230]">
+                        Rp {newInvoiceAmount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-emerald-800 font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[15px] text-emerald-700">calculate</span>
+                      <span>
+                        Rumus: {parseMeetingDates(newInvoiceMeetingDates).length} Pertemuan × Rp {(newInvoiceCostPerMeeting || 0).toLocaleString('id-ID')} = <strong>Rp {newInvoiceAmount.toLocaleString('id-ID')}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* REGULAR PACKAGE NOMINAL TAGIHAN */
+                <div>
+                  <label className="block font-bold text-[#2A2823] mb-1">Nominal Tagihan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-xs font-bold text-[#6B675F]">Rp</span>
+                    <input
+                      type="number"
+                      value={newInvoiceAmount}
+                      onChange={(e) => setNewInvoiceAmount(Number(e.target.value))}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs font-bold text-[#284230] focus:ring-2 focus:ring-[#3F5A46] outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Field: Kanal Pembayaran */}
               <div>
-                <label className="block font-bold text-[#2A2823] mb-1">Nominal Tagihan (Rp)</label>
-                <input
-                  type="number"
-                  value={newInvoiceAmount}
-                  onChange={(e) => setNewInvoiceAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none"
-                />
+                <label className="block font-bold text-[#2A2823] mb-1">Kanal Pembayaran</label>
+                <select
+                  value={newInvoicePaymentChannel}
+                  onChange={(e) => setNewInvoicePaymentChannel(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none cursor-pointer"
+                >
+                  <option value="Midtrans QRIS / Virtual Account">Midtrans QRIS / Virtual Account</option>
+                  <option value="BCA Virtual Account (Midtrans)">BCA Virtual Account (Midtrans)</option>
+                  <option value="Mandiri Virtual Account (Midtrans)">Mandiri Virtual Account (Midtrans)</option>
+                  <option value="QRIS Gopay / ShopeePay (Midtrans)">QRIS Gopay / ShopeePay (Midtrans)</option>
+                  <option value="Transfer Manual Rekening BCA">Transfer Manual Rekening BCA</option>
+                </select>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#2A2823]/10 flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setIsInvoiceModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-[#2A2823]/15 text-xs font-semibold text-[#6B675F] cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-[#2A2823]/15 text-xs font-semibold text-[#6B675F] hover:bg-[#FAF7F1] cursor-pointer"
               >
                 Batal
               </button>
               <button
-                onClick={() => {
-                  setActionFeedback(`Invoice SPP Rp ${newInvoiceAmount.toLocaleString('id-ID')} dibuat!`);
-                  setIsInvoiceModalOpen(false);
-                  setTimeout(() => setActionFeedback(null), 3500);
-                }}
-                className="px-4 py-2 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer"
+                type="button"
+                onClick={handlePublishInvoice}
+                className="px-5 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
               >
-                Terbitkan Invoice Midtrans
+                <span className="material-symbols-outlined text-[17px]">send</span>
+                <span>Terbitkan Invoice Midtrans</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DETAIL & CETAK INVOICE SLIP */}
+      {selectedInvoiceForDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-[#2A2823]/15 shadow-2xl p-6 sm:p-8 space-y-5 my-8">
+            {/* Header Receipt */}
+            <div className="flex items-start justify-between pb-4 border-b border-[#2A2823]/10">
+              <div className="flex items-center gap-3">
+                <img src="/logo.svg" alt="Logo" className="w-11 h-11 object-contain rounded-xl shadow-xs" />
+                <div>
+                  <h3 className="font-extrabold text-base text-[#284230]">Bright Future Learning Center</h3>
+                  <p className="text-[11px] text-[#6B675F]">Lembaga Bimbingan Belajar Privat House-to-House</p>
+                  <p className="text-[10px] text-[#6B675F]">Kabupaten Magelang, Jawa Tengah • WA: 0851-7323-0198</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedInvoiceForDetail(null)}
+                className="text-[#6B675F] hover:text-[#2A2823] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Invoice Meta */}
+            <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[#2A2823]/8 flex flex-col sm:flex-row justify-between gap-3 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#6B675F] block">Nomor Invoice</span>
+                <span className="font-mono font-bold text-[#284230] text-sm">{selectedInvoiceForDetail.inv}</span>
+                <span className="text-[10px] text-[#6B675F] block mt-0.5">Tanggal: {selectedInvoiceForDetail.date}</span>
+              </div>
+              <div className="sm:text-right">
+                <span className="text-[10px] uppercase font-bold text-[#6B675F] block">Status Pembayaran</span>
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-0.5 ${
+                    selectedInvoiceForDetail.status === 'LUNAS'
+                      ? 'bg-[#c8ebce] text-[#284230]'
+                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}
+                >
+                  {selectedInvoiceForDetail.status}
+                </span>
+                <span className="text-[10px] text-[#6B675F] block mt-0.5">{selectedInvoiceForDetail.channel}</span>
+              </div>
+            </div>
+
+            {/* Bill To */}
+            <div className="text-xs space-y-1">
+              <span className="text-[10px] uppercase font-bold text-[#6B675F] block">Ditagihkan Kepada:</span>
+              <div className="font-bold text-sm text-[#2A2823]">{selectedInvoiceForDetail.parent}</div>
+              {selectedInvoiceForDetail.studentName && (
+                <div className="text-[#6B675F]">Nama Siswa: {selectedInvoiceForDetail.studentName}</div>
+              )}
+              {selectedInvoiceForDetail.whatsapp && (
+                <div className="font-mono text-[#6B675F]">WhatsApp: {selectedInvoiceForDetail.whatsapp}</div>
+              )}
+            </div>
+
+            {/* Itemized Table */}
+            <div className="rounded-2xl border border-[#2A2823]/10 overflow-hidden text-xs">
+              <table className="w-full text-left">
+                <thead className="bg-[#FAF7F1] text-[#6B675F] font-bold text-[10px] uppercase border-b border-[#2A2823]/10">
+                  <tr>
+                    <th className="py-2.5 px-3">Deskripsi Tagihan</th>
+                    <th className="py-2.5 px-3 text-center">Sesi / Tanggal</th>
+                    <th className="py-2.5 px-3 text-right">Tarif</th>
+                    <th className="py-2.5 px-3 text-right">Jumlah</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2A2823]/8">
+                  {selectedInvoiceForDetail.packageType === 'non_paket' ? (
+                    <tr>
+                      <td className="py-3 px-3">
+                        <span className="font-bold text-[#2A2823] block">Bimbel Non Paket (Sesi Fleksibel)</span>
+                        <span className="text-[10px] text-[#6B675F]">
+                          Periode: {selectedInvoiceForDetail.periodMonth || 'September 2026'}
+                        </span>
+                        {selectedInvoiceForDetail.meetingDates && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <span className="text-[9px] text-[#6B675F]">Tgl:</span>
+                            {selectedInvoiceForDetail.meetingDates.map((d, i) => (
+                              <span key={i} className="px-1 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[9px] font-mono">
+                                {d}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-[#3F5A46]">
+                        {selectedInvoiceForDetail.totalMeetings || selectedInvoiceForDetail.meetingDates?.length || 0} Pertemuan
+                      </td>
+                      <td className="py-3 px-3 text-right text-[#6B675F]">
+                        Rp {(selectedInvoiceForDetail.costPerMeeting || 35000).toLocaleString('id-ID')}
+                      </td>
+                      <td className="py-3 px-3 text-right font-extrabold text-[#284230]">
+                        Rp {selectedInvoiceForDetail.amount.toLocaleString('id-ID')}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <td className="py-3 px-3">
+                        <span className="font-bold text-[#2A2823] block">{selectedInvoiceForDetail.package}</span>
+                        <span className="text-[10px] text-[#6B675F]">Paket Belajar Reguler Bulanan</span>
+                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-[#3F5A46]">8 Sesi</td>
+                      <td className="py-3 px-3 text-right text-[#6B675F]">-</td>
+                      <td className="py-3 px-3 text-right font-extrabold text-[#284230]">
+                        Rp {selectedInvoiceForDetail.amount.toLocaleString('id-ID')}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot className="bg-[#FAF7F1] border-t border-[#2A2823]/10 font-bold">
+                  <tr>
+                    <td colSpan={3} className="py-3 px-3 text-right text-xs">Total Pembayaran:</td>
+                    <td className="py-3 px-3 text-right text-sm text-[#284230]">
+                      Rp {selectedInvoiceForDetail.amount.toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoiceForDetail(null)}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-[#2A2823]/15 text-xs font-semibold text-[#6B675F] hover:bg-[#FAF7F1] cursor-pointer"
+              >
+                Tutup
+              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleSendInvoiceWA(selectedInvoiceForDetail)}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#25D366] text-white font-bold text-xs hover:bg-emerald-600 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">send</span>
+                  <span>Kirim WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadInvoicePdf(selectedInvoiceForDetail)}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition-all cursor-pointer shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                  <span>Unduh PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#284230] text-white font-bold text-xs hover:bg-[#3F5A46] transition-all cursor-pointer shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-[16px]">print</span>
+                  <span>Cetak Slip</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
