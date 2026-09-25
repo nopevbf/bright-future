@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "Data pendaftaran siswa baru les privat Bright Future Kabupaten Magelang",
+      "type": "object",
+      "properties": {
+        "studentId": {
+          "type": "string",
+          "description": "Nomor identitas unik pendaftaran siswa",
+          "maxLength": 64
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Nama lengkap calon siswa",
+          "maxLength": 128
+        },
+        "level": {
+          "type": "string",
+          "description": "Jenjang bimbingan belajar",
+          "enum": ["calistung", "tk", "sd", "smp", "sma"]
+        },
+        "parentName": {
+          "type": "string",
+          "description": "Nama orang tua atau wali murid",
+          "maxLength": 128
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Nomor WhatsApp aktif wali murid",
+          "maxLength": 32
+        },
+        "homeAddress": {
+          "type": "string",
+          "description": "Alamat lengkap kunjungan tutor di Kab. Magelang",
+          "maxLength": 500
+        },
+        "selectedSchedule": {
+          "type": "array",
+          "description": "Slot hari dan jam les yang dipilih"
+        },
+        "totalSessions": {
+          "type": "number",
+          "description": "Total sesi paket bimbingan belajar (contoh: 8 sesi bulanan)"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total nominal investasi SPP bulanan"
+        },
+        "appliedDiscount": {
+          "type": "number",
+          "description": "Nominal potongan diskon paket"
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Nomor tagihan invoice pendaftaran",
+          "maxLength": 64
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Status pembayaran pendaftaran",
+          "enum": ["pending", "paid", "verified"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pendaftaran dikirimkan"
+        }
+      },
+      "required": [
+        "studentId",
+        "studentName",
+        "level",
+        "parentName",
+        "whatsapp",
+        "homeAddress",
+        "totalSessions",
+        "totalAmount",
+        "invoiceNumber",
+        "paymentStatus",
+        "createdAt"
+      ]
+    },
+    "AdminCredential": {
+      "title": "AdminCredential",
+      "description": "Kredensial akun admin operasional Bright Future yang tersimpan di Firestore",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Alamat email login resmi admin",
+          "maxLength": 128
+        },
+        "password": {
+          "type": "string",
+          "description": "Kata sandi akun admin",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama pengelola atau super admin",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "Peran hak akses sistem",
+          "enum": ["super_admin", "admin", "finance", "academic"]
+        },
+        "lastLogin": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp login terakhir kali"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp pembaruan kredensial"
+        }
+      },
+      "required": ["email", "password", "role"]
+    },
+    "PortalCredential": {
+      "title": "PortalCredential",
+      "description": "Kredensial akun multi-peran (tutor, siswa, orang tua) di Firestore",
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string",
+          "description": "ID Siswa, email, atau nomor WhatsApp pengguna",
+          "maxLength": 128
+        },
+        "password": {
+          "type": "string",
+          "description": "Kata sandi masuk portal",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "Peran pengguna dalam sistem",
+          "enum": ["admin", "tutor", "siswa", "orang_tua"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Nama lengkap pemilik akun",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan akun"
+        }
+      },
+      "required": ["identifier", "password", "role"]
+    }
+  },
+  "firestore": {
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Koleksi data pendaftaran siswa baru les privat"
+    },
+    "/admin_credentials/{credId}": {
+      "schema": "AdminCredential",
+      "description": "Koleksi kredensial login admin dan otentikasi database"
+    },
+    "/portal_credentials/{credId}": {
+      "schema": "PortalCredential",
+      "description": "Koleksi akun dan kredensial multi-role portal"
+    }
+  }
+}

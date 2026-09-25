@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EducationalLevel, SubmittedRegistration } from './types';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -19,14 +19,31 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { LoginModal } from './components/LoginModal';
 import { MidtransDemoModal } from './components/MidtransDemoModal';
 import { Footer } from './components/Footer';
+import { AdminDashboard } from './components/AdminDashboard';
 
 export default function App() {
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
+    return (
+      sessionStorage.getItem('bf_admin_session') === 'true' ||
+      window.location.hash === '#admin'
+    );
+  });
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState<boolean>(false);
   const [selectedLevel, setSelectedLevel] = useState<EducationalLevel | ''>('sd');
   const [tutorNotes, setTutorNotes] = useState<string>('');
   const [activeMidtransSubmission, setActiveMidtransSubmission] =
     useState<SubmittedRegistration | null>(null);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+        setIsAdminLoggedIn(true);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const scrollToRegistration = () => {
     const el = document.getElementById('form-daftar');
@@ -64,6 +81,23 @@ export default function App() {
     setSelectedLevel(level);
     scrollToRegistration();
   };
+
+  // If Admin is logged in, show the Admin Operational Dashboard
+  if (isAdminLoggedIn) {
+    return (
+      <AdminDashboard
+        onLogout={() => {
+          sessionStorage.removeItem('bf_admin_session');
+          setIsAdminLoggedIn(false);
+          window.location.hash = '';
+        }}
+        onViewLanding={() => {
+          setIsAdminLoggedIn(false);
+          window.location.hash = '';
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF7F1] text-[#2A2823] flex flex-col selection:bg-[#6F8F76]/25 selection:text-[#3F5A46]">
@@ -115,7 +149,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onOpenAdminLogin={() => setIsLoginOpen(true)} />
 
       {/* Floating WhatsApp Hotline Button */}
       <a
@@ -131,22 +165,28 @@ export default function App() {
         <span className="hidden sm:inline font-bold text-xs">WhatsApp Hotline</span>
       </a>
 
-      {/* Multi-role Login Portal Modal */}
-      {isLoginOpen && <LoginModal onClose={() => setIsLoginOpen(false)} />}
+      {/* Multi-role Login Portal Modal with Admin Authentication */}
+      {isLoginOpen && (
+        <LoginModal
+          onClose={() => setIsLoginOpen(false)}
+          onAdminLoginSuccess={() => {
+            sessionStorage.setItem('bf_admin_session', 'true');
+            setIsAdminLoggedIn(true);
+            window.location.hash = '#admin';
+          }}
+        />
+      )}
 
       {/* Calculator Modal Triggered from Header */}
       {isCalculatorModalOpen && (
         <CostCalculator
           isModal
           onClose={() => setIsCalculatorModalOpen(false)}
-          onApplyPlan={(lvl, sess, disc) => {
-            setIsCalculatorModalOpen(false);
-            handleApplyCalculatedPlan(lvl, sess, disc);
-          }}
+          onApplyPlan={handleApplyCalculatedPlan}
         />
       )}
 
-      {/* Midtrans Snap Simulation Modal */}
+      {/* Midtrans Snap Interactive Simulator Demo */}
       {activeMidtransSubmission && (
         <MidtransDemoModal
           submission={activeMidtransSubmission}

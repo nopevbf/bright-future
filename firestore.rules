@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection health check path
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.\\@]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidRegistration(data) {
+      return data.keys().hasAll([
+        'studentId',
+        'studentName',
+        'level',
+        'parentName',
+        'whatsapp',
+        'homeAddress',
+        'selectedSchedule',
+        'totalSessions',
+        'totalAmount',
+        'appliedDiscount',
+        'invoiceNumber',
+        'paymentStatus',
+        'createdAt'
+      ]) &&
+      data.studentId is string && data.studentId.size() <= 64 &&
+      data.studentName is string && data.studentName.size() >= 2 && data.studentName.size() <= 128 &&
+      data.level in ['calistung', 'tk', 'sd', 'smp', 'sma'] &&
+      data.parentName is string && data.parentName.size() >= 2 && data.parentName.size() <= 128 &&
+      data.whatsapp is string && data.whatsapp.size() >= 7 && data.whatsapp.size() <= 32 &&
+      data.homeAddress is string && data.homeAddress.size() >= 5 && data.homeAddress.size() <= 500 &&
+      data.selectedSchedule is list && data.selectedSchedule.size() >= 1 && data.selectedSchedule.size() <= 10 &&
+      data.totalSessions is number && data.totalSessions >= 1 && data.totalSessions <= 48 &&
+      data.totalAmount is number && data.totalAmount >= 0 &&
+      data.appliedDiscount is number && data.appliedDiscount >= 0 &&
+      data.invoiceNumber is string && data.invoiceNumber.size() <= 64 &&
+      data.paymentStatus in ['pending', 'paid', 'verified'] &&
+      data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    match /registrations/{registrationId} {
+      // Allows prospective parents to register new students
+      allow create: if isValidId(registrationId) && isValidRegistration(incoming());
+
+      // Allows retrieval and listing of registrations for admin dashboard & verification
+      allow read: if true;
+
+      // Allows admin to update status (verification, penugasan tutor, payment status)
+      allow update: if isValidId(registrationId);
+      allow delete: if false;
+    }
+
+    match /admin_credentials/{credId} {
+      // Admin credential authentication & management
+      allow read: if true;
+      allow create, update: if isValidId(credId);
+      allow delete: if false;
+    }
+
+    match /portal_credentials/{credId} {
+      // Multi-role portal credentials authentication
+      allow read: if true;
+      allow create, update: if isValidId(credId);
+      allow delete: if false;
+    }
+  }
+}

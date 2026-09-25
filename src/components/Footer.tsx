@@ -2,7 +2,11 @@ import React from 'react';
 import { COVERAGE_AREAS } from '../data';
 import { Phone, Mail, ShieldCheck, MapPin, ArrowUp } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdminLogin?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -130,9 +134,14 @@ export const Footer: React.FC = () => {
             <a href="#beranda" className="hover:underline hover:text-[#2A2823]">
               Syarat &amp; Ketentuan
             </a>
-            <a href="#beranda" className="hover:underline hover:text-[#2A2823]">
-              Standar Keselamatan Siswa
-            </a>
+            {onOpenAdminLogin && (
+              <button
+                onClick={onOpenAdminLogin}
+                className="hover:underline text-[#3F5A46] font-bold cursor-pointer inline-flex items-center gap-1"
+              >
+                <span>Portal Admin</span>
+              </button>
+            )}
             <button
               onClick={scrollToTop}
               className="p-2 rounded-lg bg-white hover:bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] text-[#3F5A46] cursor-pointer"
