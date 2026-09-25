@@ -2223,34 +2223,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                             <td className="py-3.5 px-4 align-top text-center">
                               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                                 <button
+                                  type="button"
                                   onClick={() => handleSendInvoiceWA(inv)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#25D366] text-white font-bold text-[10px] hover:bg-emerald-600 transition-all shadow-xs cursor-pointer"
+                                  className="w-8 h-8 rounded-xl bg-[#25D366] text-white hover:bg-emerald-600 transition-all shadow-xs cursor-pointer flex items-center justify-center"
                                   title="Kirim rincian invoice ke WhatsApp wali murid"
+                                  aria-label="Kirim WhatsApp"
                                 >
-                                  <span className="material-symbols-outlined text-[13px]">send</span>
-                                  <span>Kirim WA</span>
+                                  <span className="material-symbols-outlined text-[16px]">send</span>
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleDownloadInvoicePdf(inv)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600 text-white font-bold text-[10px] hover:bg-red-700 transition-all shadow-xs cursor-pointer"
+                                  className="w-8 h-8 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all shadow-xs cursor-pointer flex items-center justify-center"
                                   title="Unduh Invoice Resmi format PDF"
+                                  aria-label="Unduh PDF"
                                 >
-                                  <span className="material-symbols-outlined text-[14px]">picture_as_pdf</span>
-                                  <span>PDF</span>
+                                  <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => setSelectedInvoiceForDetail(inv)}
-                                  className="p-1.5 rounded-xl bg-[#f0eee8] text-[#2A2823] hover:bg-[#ebe8e2] transition-colors cursor-pointer"
+                                  className="w-8 h-8 rounded-xl bg-[#f0eee8] text-[#2A2823] hover:bg-[#ebe8e2] transition-colors cursor-pointer flex items-center justify-center"
                                   title="Lihat Rincian & Cetak Slip"
+                                  aria-label="Lihat Rincian & Cetak Slip"
                                 >
-                                  <span className="material-symbols-outlined text-[15px]">print</span>
+                                  <span className="material-symbols-outlined text-[16px]">print</span>
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleDeleteInvoice(inv.inv)}
-                                  className="p-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                                  className="w-8 h-8 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer flex items-center justify-center"
                                   title="Hapus Invoice"
+                                  aria-label="Hapus Invoice"
                                 >
-                                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                                  <span className="material-symbols-outlined text-[16px]">delete</span>
                                 </button>
                               </div>
                             </td>
