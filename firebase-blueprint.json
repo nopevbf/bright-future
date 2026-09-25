@@ -151,6 +151,90 @@
         }
       },
       "required": ["identifier", "password", "role"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Data tagihan dan invoice pembayaran bimbingan belajar siswa (paket dan non-paket)",
+      "type": "object",
+      "properties": {
+        "inv": {
+          "type": "string",
+          "description": "Nomor invoice unik tagihan (contoh: BF-INV-2026-09-088)",
+          "maxLength": 64
+        },
+        "parent": {
+          "type": "string",
+          "description": "Nama orang tua / wali murid penerima tagihan",
+          "maxLength": 128
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Nama siswa peserta bimbingan belajar",
+          "maxLength": 128
+        },
+        "packageType": {
+          "type": "string",
+          "description": "Tipe paket tagihan: paket reguler atau non_paket fleksibel",
+          "enum": ["paket", "non_paket"]
+        },
+        "package": {
+          "type": "string",
+          "description": "Nama paket les atau label tagihan",
+          "maxLength": 128
+        },
+        "channel": {
+          "type": "string",
+          "description": "Kanal pembayaran yang dipilih (Midtrans QRIS, VA BCA/Mandiri, dll)",
+          "maxLength": 128
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total nominal tagihan dalam Rupiah"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status pembayaran tagihan invoice",
+          "enum": ["LUNAS", "PENDING", "TERLAMBAT (H+2)", "TERLAMBAT"]
+        },
+        "date": {
+          "type": "string",
+          "description": "Keterangan tanggal tagihan atau jatuh tempo",
+          "maxLength": 64
+        },
+        "periodMonth": {
+          "type": "string",
+          "description": "Periode bulan bimbingan (khusus non paket, contoh: September 2026)",
+          "maxLength": 64
+        },
+        "meetingDates": {
+          "type": "array",
+          "description": "Daftar tanggal pertemuan sesi les (khusus non paket)"
+        },
+        "meetingDatesRaw": {
+          "type": "string",
+          "description": "Input mentah angka tanggal dipisahkan koma",
+          "maxLength": 256
+        },
+        "costPerMeeting": {
+          "type": "number",
+          "description": "Tarif biaya per sesi pertemuan (khusus non paket)"
+        },
+        "totalMeetings": {
+          "type": "number",
+          "description": "Jumlah total sesi pertemuan les yang ditagihkan"
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Nomor WhatsApp aktif wali untuk pengiriman tagihan",
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu penerbitan invoice"
+        }
+      },
+      "required": ["inv", "parent", "packageType", "package", "channel", "amount", "status", "date"]
     }
   },
   "firestore": {
@@ -165,6 +249,10 @@
     "/portal_credentials/{credId}": {
       "schema": "PortalCredential",
       "description": "Koleksi akun dan kredensial multi-role portal"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Koleksi data tagihan dan invoice pembayaran bimbingan belajar siswa"
     }
   }
 }

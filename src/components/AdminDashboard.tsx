@@ -10,6 +10,13 @@ import {
   AdminCredentialDoc,
   PortalCredentialDoc,
   DEFAULT_ADMIN_CREDENTIAL,
+  saveInvoiceToFirestore,
+  fetchInvoicesFromFirestore,
+  subscribeToInvoices,
+  updateInvoiceStatusInFirestore,
+  deleteInvoiceFromFirestore,
+  seedInitialInvoicesIfEmpty,
+  FirestoreInvoiceDoc,
 } from '../firebase';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
 import { StudentManagementSubTab } from './admin/StudentManagementSubTab';
@@ -111,22 +118,139 @@ const INITIAL_SCHEDULES: ScheduleItem[] = [
   },
 ];
 
-export interface AdminInvoiceItem {
-  inv: string;
-  parent: string;
-  studentName?: string;
-  packageType: 'paket' | 'non_paket';
-  package: string;
-  channel: string;
-  amount: number;
-  status: 'LUNAS' | 'PENDING' | 'TERLAMBAT (H+2)' | 'TERLAMBAT';
-  date: string;
-  periodMonth?: string;
-  meetingDates?: number[];
-  meetingDatesRaw?: string;
-  costPerMeeting?: number;
-  totalMeetings?: number;
-  whatsapp?: string;
+export type AdminInvoiceItem = FirestoreInvoiceDoc;
+
+/**
+ * Mengurai tanggal terbit invoice berdasarkan createdAt, format date, atau nomor invoice.
+ */
+export function parseInvoiceIssueDate(inv: AdminInvoiceItem): Date {
+  if (inv.createdAt) {
+    const d = new Date(inv.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  const dateStr = (inv.date || '').trim();
+  if (/hari ini/i.test(dateStr)) {
+    return new Date();
+  }
+
+  const monthMap: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, mei: 4, may: 4,
+    jun: 5, jul: 6, ags: 7, agu: 7, aug: 7, sep: 8,
+    okt: 9, oct: 9, nov: 10, des: 11, dec: 11,
+  };
+
+  const matchDmy = dateStr.match(/^(\d{1,2})\s+([a-zA-Z]{3,})\s+(\d{4})/);
+  if (matchDmy) {
+    const day = parseInt(matchDmy[1], 10);
+    const monKey = matchDmy[2].toLowerCase().slice(0, 3);
+    const month = monthMap[monKey] ?? 8;
+    const year = parseInt(matchDmy[3], 10);
+    return new Date(year, month, day);
+  }
+
+  const matchIso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (matchIso) {
+    return new Date(parseInt(matchIso[1], 10), parseInt(matchIso[2], 10) - 1, parseInt(matchIso[3], 10));
+  }
+
+  // Coba ambil tahun & bulan dari nomor invoice: BF-INV-YYYY-MM-XXX
+  const matchInv = inv.inv.match(/(\d{4})-(\d{2})/);
+  if (matchInv) {
+    return new Date(parseInt(matchInv[1], 10), parseInt(matchInv[2], 10) - 1, 20);
+  }
+
+  return new Date();
+}
+
+/**
+ * Format tanggal Indonesia singkat (contoh: 23 Sep 2026)
+ */
+export function formatIndoDate(date: Date): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+export interface ComputedInvoiceStatus {
+  displayStatus: string;
+  isPaid: boolean;
+  isOverdue: boolean;
+  isDueToday: boolean;
+  daysLate: number;
+  daysRemaining: number;
+  dueDate: Date;
+  issueDate: Date;
+}
+
+/**
+ * Menghitung status invoice secara dinamis berdasarkan tanggal hari berjalan dan batas jatuh tempo (3 hari).
+ */
+export function calculateInvoiceDynamicStatus(inv: AdminInvoiceItem): ComputedInvoiceStatus {
+  const issueDate = parseInvoiceIssueDate(inv);
+  const dueDate = new Date(issueDate);
+  dueDate.setDate(dueDate.getDate() + 3);
+
+  const isPaid = inv.status === 'LUNAS';
+  if (isPaid) {
+    return {
+      displayStatus: 'LUNAS',
+      isPaid: true,
+      isOverdue: false,
+      isDueToday: false,
+      daysLate: 0,
+      daysRemaining: 0,
+      dueDate,
+      issueDate,
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dueMidnight = new Date(dueDate);
+  dueMidnight.setHours(0, 0, 0, 0);
+
+  const diffMs = today.getTime() - dueMidnight.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays > 0) {
+    // Lewat dari 3 hari jatuh tempo -> TERLAMBAT
+    return {
+      displayStatus: `TERLAMBAT (H+${diffDays})`,
+      isPaid: false,
+      isOverdue: true,
+      isDueToday: false,
+      daysLate: diffDays,
+      daysRemaining: 0,
+      dueDate,
+      issueDate,
+    };
+  } else if (diffDays === 0) {
+    // Hari ini tepat batas jatuh tempo (hari ke-3)
+    return {
+      displayStatus: 'PENDING (Jatuh Tempo Hari Ini)',
+      isPaid: false,
+      isOverdue: false,
+      isDueToday: true,
+      daysLate: 0,
+      daysRemaining: 0,
+      dueDate,
+      issueDate,
+    };
+  } else {
+    // Masih dalam masa toleransi 3 hari
+    const sisa = Math.abs(diffDays);
+    return {
+      displayStatus: `PENDING (Sisa ${sisa} Hari)`,
+      isPaid: false,
+      isOverdue: false,
+      isDueToday: false,
+      daysLate: 0,
+      daysRemaining: sisa,
+      dueDate,
+      issueDate,
+    };
+  }
 }
 
 const INITIAL_INVOICES: AdminInvoiceItem[] = [
@@ -140,6 +264,7 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
     amount: 280000,
     status: 'LUNAS',
     date: '20 Sep 2026',
+    createdAt: '2026-09-20T08:00:00.000Z',
     whatsapp: '085173230198',
   },
   {
@@ -152,6 +277,7 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
     amount: 280000,
     status: 'LUNAS',
     date: '20 Sep 2026',
+    createdAt: '2026-09-20T08:00:00.000Z',
     whatsapp: '081234567890',
   },
   {
@@ -163,7 +289,8 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
     channel: 'Menunggu Pembayaran',
     amount: 280000,
     status: 'PENDING',
-    date: 'Jatuh Tempo Hari Ini',
+    date: '22 Sep 2026',
+    createdAt: '2026-09-22T08:00:00.000Z',
     whatsapp: '085678901234',
   },
   {
@@ -174,8 +301,9 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
     package: 'Paket 8 Sesi Calistung',
     channel: 'BCA Virtual Account',
     amount: 280000,
-    status: 'TERLAMBAT (H+2)',
-    date: '18 Sep 2026',
+    status: 'PENDING',
+    date: '20 Sep 2026',
+    createdAt: '2026-09-20T08:00:00.000Z',
     whatsapp: '081398765432',
   },
   {
@@ -188,6 +316,7 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
     amount: 210000,
     status: 'LUNAS',
     date: '15 Sep 2026',
+    createdAt: '2026-09-15T08:00:00.000Z',
     periodMonth: 'September 2026',
     meetingDates: [3, 8, 12, 17, 22, 27],
     meetingDatesRaw: '3, 8, 12, 17, 22, 27',
@@ -354,8 +483,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   useEffect(() => {
     loadAdminCredentialsFromDb();
     setIsLoadingFirestore(true);
+
     // Real-time live listener for registrations
-    const unsubscribe = subscribeToRegistrations(
+    const unsubscribeRegistrations = subscribeToRegistrations(
       (data) => {
         setFirestoreRegistrations(data);
         setIsLoadingFirestore(false);
@@ -365,9 +495,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
         loadFirestoreData();
       }
     );
+
+    // Initial load and real-time live listener for Invoices from Firestore
+    seedInitialInvoicesIfEmpty(INITIAL_INVOICES)
+      .then((data) => {
+        if (data && data.length > 0) {
+          setInvoices(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Error seeding/fetching invoices from Firestore:', err);
+      });
+
+    const unsubscribeInvoices = subscribeToInvoices(
+      (data) => {
+        if (data && data.length > 0) {
+          setInvoices(data);
+        }
+      },
+      (err) => {
+        console.warn('Real-time invoice listener warning:', err);
+      }
+    );
+
     return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
+      if (typeof unsubscribeRegistrations === 'function') {
+        unsubscribeRegistrations();
+      }
+      if (typeof unsubscribeInvoices === 'function') {
+        unsubscribeInvoices();
       }
     };
   }, []);
@@ -548,7 +704,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     setNewInvoiceAmount(total);
   };
 
-  const handlePublishInvoice = () => {
+  const handlePublishInvoice = async () => {
     if (!newInvoiceStudent.trim()) {
       alert('Silakan masukkan nama siswa atau pilih siswa.');
       return;
@@ -567,6 +723,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
 
     const nextId = String(invoices.length + 95).padStart(3, '0');
     const invoiceNumber = `BF-INV-2026-09-${nextId}`;
+    const now = new Date();
+    const formattedToday = formatIndoDate(now);
 
     const newInv: AdminInvoiceItem = {
       inv: invoiceNumber,
@@ -579,18 +737,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       channel: newInvoicePaymentChannel,
       amount: finalAmount,
       status: 'PENDING',
-      date: 'Hari ini',
+      date: formattedToday,
       periodMonth: isNonPaket ? newInvoicePeriodMonth : undefined,
       meetingDates: isNonPaket ? dates : undefined,
       meetingDatesRaw: isNonPaket ? newInvoiceMeetingDates : undefined,
       costPerMeeting: isNonPaket ? newInvoiceCostPerMeeting : undefined,
       totalMeetings: isNonPaket ? dates.length : undefined,
       whatsapp: newInvoiceWhatsapp || '085173230198',
+      createdAt: now.toISOString(),
     };
 
     setInvoices((prev) => [newInv, ...prev]);
     setIsInvoiceModalOpen(false);
-    setActionFeedback(`Invoice ${invoiceNumber} untuk ${newInvoiceStudent} berhasil diterbitkan & ditambahkan ke tabel!`);
+
+    try {
+      await saveInvoiceToFirestore(newInv);
+      setActionFeedback(`Invoice ${invoiceNumber} untuk ${newInvoiceStudent} berhasil disimpan ke Cloud Firestore!`);
+    } catch (err) {
+      console.error('Save invoice error:', err);
+      setActionFeedback(`Invoice ${invoiceNumber} berhasil diterbitkan!`);
+    }
     setTimeout(() => setActionFeedback(null), 4000);
 
     // Reset student / parent input
@@ -598,24 +764,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     setNewInvoiceParent('');
   };
 
-  const handleToggleInvoiceStatus = (invNum: string) => {
+  const handleToggleInvoiceStatus = async (invNum: string) => {
+    const target = invoices.find((i) => i.inv === invNum);
+    const nextStatus = target?.status === 'LUNAS' ? 'PENDING' : 'LUNAS';
+
     setInvoices((prev) =>
       prev.map((item) => {
         if (item.inv === invNum) {
-          const next = item.status === 'LUNAS' ? 'PENDING' : 'LUNAS';
-          return { ...item, status: next };
+          return { ...item, status: nextStatus };
         }
         return item;
       })
     );
-    setActionFeedback(`Status invoice ${invNum} berhasil diperbarui!`);
+
+    try {
+      await updateInvoiceStatusInFirestore(invNum, nextStatus);
+      setActionFeedback(`Status invoice ${invNum} berhasil diperbarui di database (${nextStatus})!`);
+    } catch (err) {
+      console.error('Update invoice status error:', err);
+      setActionFeedback(`Status invoice ${invNum} berhasil diperbarui!`);
+    }
     setTimeout(() => setActionFeedback(null), 3000);
   };
 
-  const handleDeleteInvoice = (invNum: string) => {
-    if (window.confirm(`Hapus invoice ${invNum}?`)) {
+  const handleDeleteInvoice = async (invNum: string) => {
+    if (window.confirm(`Hapus invoice ${invNum} dari database Cloud Firestore?`)) {
       setInvoices((prev) => prev.filter((item) => item.inv !== invNum));
-      setActionFeedback(`Invoice ${invNum} telah dihapus.`);
+      try {
+        await deleteInvoiceFromFirestore(invNum);
+        setActionFeedback(`Invoice ${invNum} telah dihapus dari Cloud Firestore.`);
+      } catch (err) {
+        console.error('Delete invoice error:', err);
+        setActionFeedback(`Invoice ${invNum} telah dihapus.`);
+      }
       setTimeout(() => setActionFeedback(null), 3000);
     }
   };
@@ -995,9 +1176,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                 <span className="material-symbols-outlined text-[20px] text-[#C1683F] shrink-0">warning</span>
                 {!isSidebarCollapsed && <span>Tagihan Terlambat</span>}
               </div>
-              {!isSidebarCollapsed && (
-                <span className="px-2 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[11px] font-bold">
-                  3
+              {!isSidebarCollapsed && invoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[11px] font-bold animate-pulse">
+                  {invoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length}
                 </span>
               )}
             </button>
@@ -2021,11 +2202,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2823]/10">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold uppercase tracking-wider">
                       Modul Keuangan &amp; Midtrans
                     </span>
-                    <span className="text-xs text-[#6B675F]">• Rekonsiliasi Otomatis</span>
+                    <span className="text-xs text-[#284230] font-semibold flex items-center gap-1.5 bg-[#FAF7F1] px-2.5 py-0.5 rounded-full border border-[#2A2823]/10">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Cloud Firestore Live Database</span>
+                    </span>
                   </div>
                   <h1 className="text-2xl font-bold text-[#2A2823]">
                     {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat' : 'Tagihan & Transaksi Midtrans'}
@@ -2061,23 +2245,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Invoice Lunas</span>
                   <span className="text-xl font-extrabold text-emerald-700 mt-1 block">
-                    {invoices.filter((i) => i.status === 'LUNAS').length} Lunas
+                    {invoices.filter((i) => calculateInvoiceDynamicStatus(i).isPaid).length} Lunas
                   </span>
                   <span className="text-[10px] text-[#6B675F] mt-1 block">Midtrans Terverifikasi</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Menunggu Bayar</span>
                   <span className="text-xl font-extrabold text-amber-700 mt-1 block">
-                    {invoices.filter((i) => i.status === 'PENDING').length} Pending
+                    {invoices.filter((i) => {
+                      const st = calculateInvoiceDynamicStatus(i);
+                      return !st.isPaid && !st.isOverdue;
+                    }).length} Pending
                   </span>
-                  <span className="text-[10px] text-amber-700 font-bold mt-1 block">Siap Follow-up WA</span>
+                  <span className="text-[10px] text-amber-700 font-bold mt-1 block">Masa Toleransi 3 Hari</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
-                  <span className="text-[11px] text-[#6B675F] font-semibold block">Total Nilai Tagihan</span>
-                  <span className="text-xl font-extrabold text-[#3F5A46] mt-1 block">
-                    Rp {invoices.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('id-ID')}
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Tagihan Terlambat</span>
+                  <span className="text-xl font-extrabold text-rose-600 mt-1 block">
+                    {invoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length} Terlambat
                   </span>
-                  <span className="text-[10px] text-[#6B675F] mt-1 block">Termasuk Sesi Non-Paket</span>
+                  <span className="text-[10px] text-rose-600 font-bold mt-1 block">Lewat Batas 3 Hari</span>
                 </div>
               </div>
 
@@ -2087,10 +2274,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[20px] text-[#3F5A46]">receipt_long</span>
                     <span className="font-bold text-sm text-[#2A2823]">
-                      {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat' : 'Data Rekapitulasi Tagihan & Invoice'}
+                      {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat (Lewat Batas 3 Hari)' : 'Data Rekapitulasi Tagihan & Invoice'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-[#284230] text-white text-[10px] font-bold">
-                      {invoices.filter((row) => (activeTab === 'terlambat' ? row.status.includes('TERLAMBAT') : true)).length} Item
+                      {invoices.filter((row) => (activeTab === 'terlambat' ? calculateInvoiceDynamicStatus(row).isOverdue : true)).length} Item
                     </span>
                   </div>
                 </div>
@@ -2110,14 +2297,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                     </thead>
                     <tbody className="divide-y divide-[#2A2823]/8">
                       {invoices
-                        .filter((row) => (activeTab === 'terlambat' ? row.status.includes('TERLAMBAT') : true))
-                        .map((inv, idx) => (
+                        .filter((row) => (activeTab === 'terlambat' ? calculateInvoiceDynamicStatus(row).isOverdue : true))
+                        .map((inv, idx) => {
+                          const statusInfo = calculateInvoiceDynamicStatus(inv);
+                          return (
                           <tr key={idx} className="hover:bg-[#FAF7F1]/70 transition-colors">
                             <td className="py-3.5 px-4 align-top">
                               <span className="font-mono font-bold text-[#284230] block text-xs">{inv.inv}</span>
                               <span className="text-[10px] text-[#6B675F] flex items-center gap-1 mt-0.5">
                                 <span className="material-symbols-outlined text-[12px]">schedule</span>
-                                {inv.date}
+                                <span>Terbit: {inv.date}</span>
+                              </span>
+                              <span
+                                className={`text-[10px] flex items-center gap-1 font-semibold mt-1 px-1.5 py-0.5 rounded-md inline-flex ${
+                                  statusInfo.isPaid
+                                    ? 'bg-emerald-50 text-emerald-800'
+                                    : statusInfo.isOverdue
+                                    ? 'bg-rose-50 text-rose-800 font-bold border border-rose-200'
+                                    : statusInfo.isDueToday
+                                    ? 'bg-amber-100 text-amber-900 font-bold border border-amber-300'
+                                    : 'bg-amber-50 text-amber-800'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-[12px]">
+                                  {statusInfo.isPaid ? 'check_circle' : statusInfo.isOverdue ? 'warning' : 'event'}
+                                </span>
+                                <span>
+                                  {statusInfo.isPaid
+                                    ? 'Lunas'
+                                    : `Tempo: ${formatIndoDate(statusInfo.dueDate)}`}
+                                </span>
                               </span>
                             </td>
                             <td className="py-3.5 px-4 align-top">
@@ -2199,14 +2408,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                               <div className="space-y-1.5">
                                 <span
                                   className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                    inv.status === 'LUNAS'
+                                    statusInfo.isPaid
                                       ? 'bg-[#c8ebce] text-[#284230] border border-[#284230]/20'
-                                      : inv.status === 'PENDING'
+                                      : statusInfo.isOverdue
+                                      ? 'bg-[#EFC9AE] text-[#6b2702] border border-[#C1683F]/30'
+                                      : statusInfo.isDueToday
                                       ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                      : 'bg-[#EFC9AE] text-[#6b2702] border border-[#C1683F]/30'
+                                      : 'bg-yellow-50 text-yellow-900 border border-yellow-200'
                                   }`}
                                 >
-                                  {inv.status}
+                                  {statusInfo.displayStatus}
                                 </span>
                                 <div>
                                   <button
@@ -2215,7 +2426,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                                     title="Ubah status Lunas / Pending"
                                   >
                                     <span className="material-symbols-outlined text-[12px]">swap_horiz</span>
-                                    <span>Ubah Status</span>
+                                    <span>{statusInfo.isPaid ? 'Tandai Pending' : 'Tandai Lunas'}</span>
                                   </button>
                                 </div>
                               </div>
@@ -2261,7 +2472,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

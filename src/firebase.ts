@@ -9,6 +9,7 @@ import {
   getDocs,
   collection,
   updateDoc,
+  deleteDoc,
   onSnapshot,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -573,3 +574,153 @@ export async function updateRegistrationStatusInFirestore(
     handleFirestoreError(error, OperationType.UPDATE, docPath);
   }
 }
+
+export interface FirestoreInvoiceDoc {
+  inv: string;
+  parent: string;
+  studentName?: string;
+  packageType: 'paket' | 'non_paket';
+  package: string;
+  channel: string;
+  amount: number;
+  status: 'LUNAS' | 'PENDING' | 'TERLAMBAT (H+2)' | 'TERLAMBAT';
+  date: string;
+  periodMonth?: string;
+  meetingDates?: number[];
+  meetingDatesRaw?: string;
+  costPerMeeting?: number;
+  totalMeetings?: number;
+  whatsapp?: string;
+  createdAt?: string;
+}
+
+/**
+ * Saves or updates an invoice in Firestore with sanitized payload.
+ */
+export async function saveInvoiceToFirestore(invoice: FirestoreInvoiceDoc): Promise<void> {
+  const docPath = `invoices/${invoice.inv}`;
+  try {
+    const docRef = doc(db, 'invoices', invoice.inv);
+    const dataToSave: Record<string, any> = {
+      inv: invoice.inv,
+      parent: invoice.parent,
+      packageType: invoice.packageType,
+      package: invoice.package,
+      channel: invoice.channel,
+      amount: invoice.amount,
+      status: invoice.status,
+      date: invoice.date,
+      createdAt: invoice.createdAt || new Date().toISOString(),
+    };
+    if (invoice.studentName) dataToSave.studentName = invoice.studentName;
+    if (invoice.periodMonth) dataToSave.periodMonth = invoice.periodMonth;
+    if (invoice.meetingDates && invoice.meetingDates.length > 0) dataToSave.meetingDates = invoice.meetingDates;
+    if (invoice.meetingDatesRaw) dataToSave.meetingDatesRaw = invoice.meetingDatesRaw;
+    if (invoice.costPerMeeting !== undefined) dataToSave.costPerMeeting = invoice.costPerMeeting;
+    if (invoice.totalMeetings !== undefined) dataToSave.totalMeetings = invoice.totalMeetings;
+    if (invoice.whatsapp) dataToSave.whatsapp = invoice.whatsapp;
+
+    await setDoc(docRef, dataToSave, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, docPath);
+  }
+}
+
+/**
+ * Fetches all invoices from Firestore.
+ */
+export async function fetchInvoicesFromFirestore(): Promise<FirestoreInvoiceDoc[]> {
+  const path = 'invoices';
+  try {
+    const colRef = collection(db, path);
+    const snapshot = await getDocs(colRef);
+    const results: FirestoreInvoiceDoc[] = [];
+    snapshot.forEach((docSnap) => {
+      results.push(docSnap.data() as FirestoreInvoiceDoc);
+    });
+    results.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    return results;
+  } catch (error) {
+    console.error('Error fetching invoices from Firestore:', error);
+    return [];
+  }
+}
+
+/**
+ * Listens in real-time to invoices in Firestore.
+ */
+export function subscribeToInvoices(
+  onUpdate: (invoices: FirestoreInvoiceDoc[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const colRef = collection(db, 'invoices');
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const results: FirestoreInvoiceDoc[] = [];
+      snapshot.forEach((docSnap) => {
+        results.push(docSnap.data() as FirestoreInvoiceDoc);
+      });
+      results.sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      onUpdate(results);
+    },
+    (error) => {
+      console.error('Realtime Firestore invoices error:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+/**
+ * Updates status of an invoice in Firestore.
+ */
+export async function updateInvoiceStatusInFirestore(
+  invId: string,
+  newStatus: FirestoreInvoiceDoc['status']
+): Promise<void> {
+  const docPath = `invoices/${invId}`;
+  try {
+    const docRef = doc(db, 'invoices', invId);
+    await updateDoc(docRef, { status: newStatus });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, docPath);
+  }
+}
+
+/**
+ * Deletes an invoice from Firestore.
+ */
+export async function deleteInvoiceFromFirestore(invId: string): Promise<void> {
+  const docPath = `invoices/${invId}`;
+  try {
+    const docRef = doc(db, 'invoices', invId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, docPath);
+  }
+}
+
+/**
+ * Seeds initial sample invoices if Firestore collection is empty.
+ */
+export async function seedInitialInvoicesIfEmpty(
+  initialInvoices: FirestoreInvoiceDoc[]
+): Promise<FirestoreInvoiceDoc[]> {
+  try {
+    const existing = await fetchInvoicesFromFirestore();
+    if (existing.length > 0) {
+      return existing;
+    }
+    // Seed default invoices
+    for (const inv of initialInvoices) {
+      await saveInvoiceToFirestore(inv);
+    }
+    return await fetchInvoicesFromFirestore();
+  } catch (error) {
+    console.error('Error seeding initial invoices:', error);
+    return initialInvoices;
+  }
+}
+

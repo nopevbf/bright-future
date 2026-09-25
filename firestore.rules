@@ -75,5 +75,12 @@ service cloud.firestore {
       allow create, update: if isValidId(credId);
       allow delete: if false;
     }
+
+    match /invoices/{invoiceId} {
+      // Allows read and real-time subscription for admin invoice management
+      allow read: if true;
+      // Allows creating, updating, and deleting invoices
+      allow create, update, delete: if isValidId(invoiceId);
+    }
   }
 }
