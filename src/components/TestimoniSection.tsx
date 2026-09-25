@@ -39,7 +39,7 @@ export const TestimoniSection: React.FC = () => {
               </div>
 
               {/* Comment */}
-              <blockquote className="text-[#2A2823] text-xs sm:text-sm leading-relaxed italic">
+              <blockquote className="text-[#2A2823] text-xs sm:text-sm leading-relaxed italic whitespace-pre-line">
                 "{item.comment}"
               </blockquote>
             </div>

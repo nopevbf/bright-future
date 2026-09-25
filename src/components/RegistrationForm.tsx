@@ -205,11 +205,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 rows={2}
                 value={formData.homeAddress}
                 onChange={(e) => setFormData({ ...formData, homeAddress: e.target.value })}
-                placeholder="Jalan, Nomor Rumah, RT/RW, Kelurahan, Kecamatan, Kota, serta patokan terdekat (misal: seberang Masjid Al-Ikhlas)..."
+                placeholder="Jalan, Nomor Rumah, RT/RW, Desa/Kelurahan, Kecamatan (Kabupaten Magelang), serta patokan terdekat (misal: Mertoyudan, dekat Lapangan drh. Soepardi)..."
                 className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
               />
               <p className="text-[11px] text-[#6B675F] mt-1">
-                📍 Alamat ini digunakan oleh admin untuk menugaskan tutor terdekat dan menghitung batas radius presensi.
+                📍 Alamat ini digunakan oleh admin untuk menugaskan tutor terdekat di Kabupaten Magelang dan menghitung batas radius presensi.
               </p>
             </div>
 
@@ -420,6 +420,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 <span>{copied ? 'Tersalin ke Clipboard!' : 'Salin Data Bukti Pendaftaran'}</span>
               </button>
             </div>
+
+            <a
+              href={`https://wa.me/6285173230198?text=${encodeURIComponent(
+                `*BUKTI PENDAFTARAN BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nStatus: Menunggu Verifikasi Admin / Penugasan Tutor`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95"
+            >
+              <Phone className="w-4 h-4" />
+              <span>Konfirmasi via WhatsApp Hotline (+62 851-7323-0198)</span>
+            </a>
 
             <div className="text-center">
               <button

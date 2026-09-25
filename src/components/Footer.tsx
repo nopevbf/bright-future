@@ -50,12 +50,12 @@ export const Footer: React.FC = () => {
                     WhatsApp Hotline
                   </div>
                   <a
-                    href="https://wa.me/6281234567890"
+                    href="https://wa.me/6285173230198"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-bold text-[#3F5A46] hover:underline"
                   >
-                    +62 812-3456-7890
+                    +62 851-7323-0198
                   </a>
                 </div>
               </div>
@@ -79,14 +79,20 @@ export const Footer: React.FC = () => {
             <h4 className="font-bold text-sm text-[#2A2823] uppercase tracking-wider font-display">
               Wilayah Layanan Kunjungan
             </h4>
+            <div className="text-[11px] font-semibold text-[#3F5A46] flex items-center gap-1.5">
+              <span>Kabupaten Magelang &amp; Sekitarnya</span>
+            </div>
             <ul className="text-xs text-[#6B675F] space-y-1.5">
-              {COVERAGE_AREAS.slice(0, 5).map((area, idx) => (
+              {COVERAGE_AREAS.slice(0, 6).map((area, idx) => (
                 <li key={idx} className="flex items-start gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-[#6F8F76] shrink-0 mt-0.5" />
                   <span>{area}</span>
                 </li>
               ))}
             </ul>
+            <p className="text-[11px] text-[#6B675F] bg-[#FAF7F1] p-2 rounded-lg border border-[rgba(42,40,35,0.06)]">
+              🏡 Siap melayani seluruh 21 kecamatan se-Kabupaten Magelang tanpa biaya transport tambahan.
+            </p>
           </div>
 
           {/* Tautan Navigasi Singkat */}

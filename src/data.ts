@@ -92,36 +92,36 @@ export const PRIMARY_TUTOR: TutorProfile = {
 export const TESTIMONIALS: TestimonialItem[] = [
   {
     id: '1',
-    name: 'Ibu Ratna Dewi',
-    role: 'Wali Murid Kevin (Kelas 4 SD)',
-    location: 'Mertoyudan, Kab. Magelang',
+    name: 'Ibu Deasy',
+    role: 'Wali Murid Naufal (Kelas 2 SD)',
+    location: 'Secang, Kab. Magelang',
     rating: 5,
-    initials: 'RD',
-    studentLevel: 'SD Tematik',
+    initials: 'DS',
+    studentLevel: 'SD UMUM',
     comment:
-      'Sebagai ibu bekerja, kekhawatiran terbesar saya adalah anak tidak ada yang mendampingi belajar di rumah. Sejak pakai Bright Future, saya bisa tahu tutor sudah sampai lewat notifikasi rute GPS. Nilai ulangan harian matematika Kevin naik drastis dari 65 jadi 90. Bayar SPP juga tinggal klik QRIS tanpa konfirmasi manual!',
+      'Alhamdulillah Bu, nilai rapor Naufal di semester 2 ini meningkat lumayan banyak. Yang dapat nilai 70-an tinggal dua pelajaran saja, jauh membaik dibanding semester 1 lalu yang nilainya masih banyak dapat 7.\n\nMalah pas liburan nanti Naufal sendiri yang minta tetap lanjut les 2x seminggu karena sudah cocok dan nyaman belajarnya bersama tutor. Terima kasih banyak nggih Bu!',
   },
   {
     id: '2',
     name: 'Bpk. Hendra Gunawan',
-    role: 'Wali Murid Michelle (Kelas 8 SMP)',
+    role: 'Wali Murid Michelle (Kelas 4 SD)',
     location: 'Muntilan, Kab. Magelang',
     rating: 5,
     initials: 'HG',
-    studentLevel: 'SMP Sains & ASPD',
+    studentLevel: 'SD UMUM',
     comment:
-      'Pendekatan tutor sangat sabar saat mengajar materi Fisika SMP yang tadinya ditakuti Michelle. Penjelasan berbasis logika sehari-hari membuat konsepnya nempel. Biaya Rp 45.000 per sesi sangat rasional untuk kualitas private serapi ini dengan modul LKPD fisik yang selalu siap.',
+      'Pendekatan tutor sangat sabar saat mendampingi tugas tematik dan pemahaman konsep Matematika SD. Penjelasan berbasis logika sehari-hari membuat materi cepat dipahami anak. Biaya Rp 35.000 per sesi sangat rasional untuk bimbingan privat berkualitas dengan modul LKPD fisik yang selalu siap.',
   },
   {
     id: '3',
-    name: 'Ibu Farida Utami',
-    role: 'Wali Murid Alif (TK B Calistung)',
-    location: 'Mungkid, Kab. Magelang',
+    name: 'Ibu Farida',
+    role: 'Wali Murid (Kelas 5 SD)',
+    location: 'Krincing, Kab. Magelang',
     rating: 5,
-    initials: 'FU',
-    studentLevel: 'TK Calistung',
+    initials: 'FR',
+    studentLevel: 'SD UMUM',
     comment:
-      'Alif tipe anak kinestetik yang cepat bosan kalau dipaksa duduk diam. Tutor Bright Future membawa kartu gambar dan balok hitung sehingga Alif antusias sekali setiap jadwal tiba. Dalam 2 bulan sudah lancar membaca dua suku kata.',
+      'Alhamdulillah Bu, sekarang kalau pelajaran Matematika di sekolah katanya selesai mengerjakan duluan. Kelihatan jauh lebih paham dan menguasai materi.\n\nCara mengajar Ibu menurut saya sangat bagus. Pendekatan tutor yang tegas dan disiplin justru pas sekali buat anak saya biar lebih fokus belajar, karena kalau ditanggapi bercanda dia malah keterusan. Penjelasan dari Ibu pintar dan runtut jadi anak saya cepat mengerti karena dia tipe yang menyerap materi lewat mendengarkan.',
   },
 ];
 
@@ -171,11 +171,15 @@ export const FAQS: FaqItem[] = [
 ];
 
 export const COVERAGE_AREAS = [
-  'Jakarta Selatan (Cilandak, Kebayoran, Tebet, Jagakarsa)',
-  'Jakarta Barat, Pusat, Timur & Utara',
-  'Tangerang Selatan (Bintaro, BSD City, Serpong, Pamulang)',
-  'Depok (Cinere, Margonda, Sawangan)',
-  'Bekasi Kota & Bekasi Barat',
-  'Bandung Raya & Kota Cimahi',
-  'Sleman & Kota Yogyakarta',
+  'Mertoyudan (Kawasan Hunian & Komersial)',
+  'Mungkid (Kawasan Ibukota Kabupaten & Pemkab)',
+  'Muntilan (Kawasan Pendidikan & Sentra Perdagangan)',
+  'Borobudur (Kawasan Strategis Wisata & Budaya)',
+  'Secang & Tegalrejo (Kawasan Magelang Utara)',
+  'Salaman & Tempuran (Kawasan Magelang Barat)',
+  'Sawangan, Dukun & Srumbung (Kawasan Lereng Merapi)',
+  'Grabag, Candimulyo & Ngablak (Kawasan Magelang Timur & Agrowisata)',
+  'Bandongan, Windusari & Kaliangkrik (Kawasan Lereng Sumbing)',
+  'Kajoran, Pakis, Ngluwar & Salam (Seluruh 21 Kecamatan Kab. Magelang)',
 ];
+

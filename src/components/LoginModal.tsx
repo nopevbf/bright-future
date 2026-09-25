@@ -28,7 +28,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       demoUser: 'monica.tutor@brightfuture.id',
       badge: 'Pengajar Terakreditasi',
       icon: <GraduationCap className="w-5 h-5 text-[#C1683F]" />,
-      summary: 'Jadwal Hari Ini: 2 Kunjungan (Kevin - 16:00, Michelle - 18:30) • LKPD Terunggah',
+      summary: 'Jadwal Hari Ini: 2 Kunjungan (Naufal - 16:00, Michelle - 18:30) • LKPD Terunggah',
     },
     siswa: {
       title: 'Siswa (TK - SMA)',
