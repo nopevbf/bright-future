@@ -25,7 +25,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { SubmittedRegistration } from './types';
+import { SubmittedRegistration, TutorRegistrationData } from './types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -623,6 +623,27 @@ export async function saveRegistrationToFirestore(registration: SubmittedRegistr
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, docPath);
+  }
+}
+
+/**
+ * Saves a new tutor candidate registration to Firestore in 'tutor_registrations' collection.
+ */
+export async function saveTutorRegistrationToFirestore(data: TutorRegistrationData): Promise<string> {
+  const docId = `TUTOR-REG-${Date.now()}`;
+  const docPath = `tutor_registrations/${docId}`;
+  try {
+    const docRef = doc(db, 'tutor_registrations', docId);
+    await setDoc(docRef, {
+      ...data,
+      id: docId,
+      status: 'pending_review',
+      createdAt: new Date().toISOString(),
+    });
+    return docId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, docPath);
+    throw error;
   }
 }
 

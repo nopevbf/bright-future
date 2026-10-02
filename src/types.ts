@@ -64,3 +64,13 @@ export interface SubmittedRegistration extends RegistrationFormData {
   totalAmount: number;
   submittedAt: string;
 }
+
+export interface TutorRegistrationData {
+  fullName: string;
+  whatsapp: string;
+  education: string;
+  subjects: string;
+  district: string;
+  experienceNotes?: string;
+  submittedAt?: string;
+}

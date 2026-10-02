@@ -19,6 +19,7 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { LoginModal } from './components/LoginModal';
 import { MidtransDemoModal } from './components/MidtransDemoModal';
 import { Footer } from './components/Footer';
+import { TutorRegistrationModal } from './components/TutorRegistrationModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { TutorDashboard } from './components/TutorDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -51,6 +52,7 @@ export default function App() {
     );
   });
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
+  const [isTutorRegisterOpen, setIsTutorRegisterOpen] = useState<boolean>(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState<boolean>(false);
   const [selectedLevel, setSelectedLevel] = useState<EducationalLevel | ''>('sd');
   const [tutorNotes, setTutorNotes] = useState<string>('');
@@ -260,7 +262,10 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <Footer onOpenAdminLogin={() => setIsLoginOpen(true)} />
+      <Footer
+        onOpenAdminLogin={() => setIsLoginOpen(true)}
+        onOpenTutorRegister={() => setIsTutorRegisterOpen(true)}
+      />
 
       {/* Floating WhatsApp Hotline Button */}
       <a
@@ -336,6 +341,11 @@ export default function App() {
           submission={activeMidtransSubmission}
           onClose={() => setActiveMidtransSubmission(null)}
         />
+      )}
+
+      {/* Tutor Registration Modal */}
+      {isTutorRegisterOpen && (
+        <TutorRegistrationModal onClose={() => setIsTutorRegisterOpen(false)} />
       )}
     </div>
   );
