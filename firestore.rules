@@ -82,5 +82,18 @@ service cloud.firestore {
       // Allows creating, updating, and deleting invoices
       allow create, update, delete: if isValidId(invoiceId);
     }
+
+    match /tutor_visits/{visitId} {
+      // Allows tutor portal to read, update status, and log GPS sessions
+      allow read: if true;
+      allow create, update, delete: if isValidId(visitId);
+    }
+
+    match /student_quizzes/{quizId} {
+      // Allows student portal to submit interactive quiz results and XP
+      allow read: if true;
+      allow create, update: if isValidId(quizId);
+      allow delete: if false;
+    }
   }
 }

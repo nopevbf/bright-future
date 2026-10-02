@@ -2013,13 +2013,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                   </button>
                 </div>
 
-                {/* Sub Menu Info Tag */}
-                <div className="flex items-center gap-2 px-3 text-xs text-[#6B675F]">
-                  <span className="material-symbols-outlined text-[16px] text-[#3F5A46]">cloud_sync</span>
-                  <span className="font-semibold hidden sm:inline">
+                {/* Sub Menu Info Tag & Quick Portal Links */}
+                <div className="flex items-center gap-2 px-3 text-xs text-[#6B675F] flex-wrap">
+                  <a
+                    href="#siswa"
+                    onClick={() => {
+                      sessionStorage.setItem('bf_siswa_session', 'true');
+                      sessionStorage.removeItem('bf_admin_session');
+                      sessionStorage.removeItem('bf_tutor_session');
+                      sessionStorage.removeItem('bf_orang_tua_session');
+                      window.location.hash = '#siswa';
+                      window.location.reload();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#284230] text-white text-[11px] font-bold hover:bg-[#3F5A46] shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                    title="Buka Portal Siswa Magelang"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">school</span>
+                    <span>Portal Siswa</span>
+                  </a>
+                  <a
+                    href="#orangtua"
+                    onClick={() => {
+                      sessionStorage.setItem('bf_orang_tua_session', 'true');
+                      sessionStorage.removeItem('bf_admin_session');
+                      sessionStorage.removeItem('bf_tutor_session');
+                      sessionStorage.removeItem('bf_siswa_session');
+                      window.location.hash = '#orangtua';
+                      window.location.reload();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#C1683F] text-white text-[11px] font-bold hover:bg-[#A85530] shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                    title="Buka Portal Orang Tua / Wali"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">family_restroom</span>
+                    <span>Portal Orang Tua</span>
+                  </a>
+                  <span className="material-symbols-outlined text-[16px] text-[#3F5A46] hidden sm:inline">cloud_sync</span>
+                  <span className="font-semibold hidden lg:inline">
                     {studentSubTab === 'verifikasi'
-                      ? 'Sinkronisasi Formulir Publik Firestore'
-                      : 'Database Induk Siswa Kab. Magelang'}
+                      ? 'Sinkronisasi Firestore'
+                      : 'Database Induk'}
                   </span>
                 </div>
               </div>
@@ -2127,13 +2159,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
           {/* TAB: DATA TUTOR */}
           {activeTab === 'tutor' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex items-center justify-between pb-4 border-b border-[#2A2823]/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2823]/10">
                 <div>
                   <h1 className="text-2xl font-bold text-[#2A2823]">Data Tutor &amp; Guru Privat</h1>
                   <p className="text-xs sm:text-sm text-[#6B675F]">
                     18 Pengajar terakreditasi berdomisili dan siap jelajah Kabupaten Magelang.
                   </p>
                 </div>
+                <a
+                  href="#tutor"
+                  onClick={() => {
+                    sessionStorage.setItem('bf_tutor_session', 'true');
+                    sessionStorage.removeItem('bf_admin_session');
+                    window.location.hash = '#tutor';
+                    window.location.reload();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#284230] text-white text-xs font-bold shadow-xs hover:bg-[#3F5A46] cursor-pointer inline-flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <span className="material-symbols-outlined text-[17px]">badge</span>
+                  <span>Buka Portal Tutor Lapangan</span>
+                </a>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

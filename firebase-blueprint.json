@@ -235,6 +235,81 @@
         }
       },
       "required": ["inv", "parent", "packageType", "package", "channel", "amount", "status", "date"]
+    },
+    "TutorVisit": {
+      "title": "TutorVisit",
+      "description": "Data agenda rute kunjungan visit rumah 70 menit tutor privat di Magelang",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik sesi visit rumah",
+          "maxLength": 64
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Nama siswa binaan",
+          "maxLength": 128
+        },
+        "level": {
+          "type": "string",
+          "description": "Jenjang kelas siswa",
+          "maxLength": 32
+        },
+        "time": {
+          "type": "string",
+          "description": "Slot jam pelaksanaan visit",
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "description": "Status pelaksanaan sesi",
+          "enum": ["selesai", "berlangsung", "berikutnya", "antre"]
+        },
+        "address": {
+          "type": "string",
+          "description": "Alamat rumah siswa di Magelang",
+          "maxLength": 500
+        },
+        "subject": {
+          "type": "string",
+          "description": "Materi atau mata pelajaran yang dibimbing",
+          "maxLength": 128
+        },
+        "score": {
+          "type": "number",
+          "description": "Skor kuis mandiri siswa (0-100)"
+        },
+        "focusRating": {
+          "type": "number",
+          "description": "Rating fokus 70 menit (1-5)"
+        },
+        "independenceRating": {
+          "type": "number",
+          "description": "Rating kemandirian gawai (1-5)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Catatan kualitatif tutor mengenai progres siswa",
+          "maxLength": 1000
+        },
+        "parentWa": {
+          "type": "string",
+          "description": "Nomor WA orang tua siswa",
+          "maxLength": 32
+        },
+        "parentName": {
+          "type": "string",
+          "description": "Nama orang tua siswa",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan sesi"
+        }
+      },
+      "required": ["id", "studentName", "level", "time", "status", "address"]
     }
   },
   "firestore": {
@@ -253,6 +328,10 @@
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
       "description": "Koleksi data tagihan dan invoice pembayaran bimbingan belajar siswa"
+    },
+    "/tutor_visits/{visitId}": {
+      "schema": "TutorVisit",
+      "description": "Koleksi rute bimbingan, presensi GPS, dan evaluasi sesi tutor"
     }
   }
 }

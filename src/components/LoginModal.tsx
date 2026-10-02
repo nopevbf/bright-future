@@ -21,11 +21,20 @@ import {
 interface LoginModalProps {
   onClose: () => void;
   onAdminLoginSuccess?: () => void;
+  onTutorLoginSuccess?: () => void;
+  onSiswaLoginSuccess?: () => void;
+  onOrangTuaLoginSuccess?: () => void;
 }
 
 type UserRole = 'admin' | 'tutor' | 'siswa' | 'orang_tua';
 
-export const LoginModal: React.FC<LoginModalProps> = ({ onClose, onAdminLoginSuccess }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({
+  onClose,
+  onAdminLoginSuccess,
+  onTutorLoginSuccess,
+  onSiswaLoginSuccess,
+  onOrangTuaLoginSuccess,
+}) => {
   const [activeRole, setActiveRole] = useState<UserRole>('admin');
   const [identifier, setIdentifier] = useState<string>('admin@brightfuture.id');
   const [password, setPassword] = useState<string>('Bismillah@01');
@@ -52,29 +61,29 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, onAdminLoginSuc
     tutor: {
       title: 'Tutor / Guru',
       desc: 'Melihat rute & alamat kunjungan rumah siswa, isi presensi geofence, dan input catatan perkembangan.',
-      demoUser: 'monica.tutor@brightfuture.id',
+      demoUser: 'anindya.tutor@brightfuture.id',
       demoPass: 'Tutor@2026',
-      badge: 'Pengajar Terakreditasi',
+      badge: 'Tutor Tematik Terakreditasi',
       icon: <GraduationCap className="w-5 h-5 text-[#C1683F]" />,
-      summary: 'Jadwal Hari Ini: 2 Kunjungan (Naufal - 16:00, Michelle - 18:30) • LKPD Terunggah',
+      summary: 'Akun Tutor: Kak Anindya, S.Pd. • 4 Sesi Kunjungan Rumah Hari Ini (Magelang & Mertoyudan) • Terhubung Database',
     },
     siswa: {
       title: 'Siswa (TK - SMA)',
-      desc: 'Akses materi belajar, LKPD cetak digital, bank soal kuis, nilai, dan jadwal belajar.',
-      demoUser: 'BF-2026-09-8492',
+      desc: 'Akses materi belajar, LKPD praktikum, kuis kilat berhadiah XP, nilai, dan jadwal belajar.',
+      demoUser: 'BF-2026-09-8812',
       demoPass: 'Siswa@2026',
       badge: 'ID Siswa Resmi',
       icon: <User className="w-5 h-5 text-[#3F5A46]" />,
-      summary: 'Akun Siswa: Kevin Pratama • Kelas 4 SD • Poin Rajin Belajar: 120 XP',
+      summary: 'Akun Siswa: Rayhan Kusuma • SD Kelas 5 (SD Mertoyudan 1) • Tingkat: Penjelajah Sains • 1.420 XP • Terhubung Database',
     },
     orang_tua: {
       title: 'Orang Tua / Wali',
       desc: 'Pantau presensi GPS tutor ke rumah, nilai berkala, dan pelunasan tagihan via Midtrans Snap.',
-      demoUser: '085173230198',
+      demoUser: '081298765432',
       demoPass: 'Wali@2026',
       badge: 'Portal Transparan Wali',
       icon: <Users className="w-5 h-5 text-[#C1683F]" />,
-      summary: 'Wali Murid: Ibu Deasy • Status SPP: LUNAS • Jadwal Selanjutnya: Rabu 16:00',
+      summary: 'Akun Wali Murid: Bunda Ratna Dewi • Siswa: Rayhan Kusuma (Kelas 5 SD) & Kayla (Kelas 2 SD) • Terhubung Database',
     },
   };
 
@@ -351,6 +360,42 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, onAdminLoginSuc
                     className="w-full py-2.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#284230] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
                   >
                     <span>Buka Halaman Admin Sekarang</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : activeRole === 'tutor' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onTutorLoginSuccess) onTutorLoginSuccess();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                  >
+                    <span>Buka Portal Tutor Sekarang</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : activeRole === 'siswa' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onSiswaLoginSuccess) onSiswaLoginSuccess();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                  >
+                    <span>Buka Portal Siswa Sekarang</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : activeRole === 'orang_tua' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOrangTuaLoginSuccess) onOrangTuaLoginSuccess();
+                      onClose();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                  >
+                    <span>Buka Portal Orang Tua Sekarang</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (

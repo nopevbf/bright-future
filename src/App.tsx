@@ -20,12 +20,34 @@ import { LoginModal } from './components/LoginModal';
 import { MidtransDemoModal } from './components/MidtransDemoModal';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
+import { TutorDashboard } from './components/TutorDashboard';
+import { StudentDashboard } from './components/StudentDashboard';
+import { ParentDashboard } from './components/ParentDashboard';
 
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return (
       sessionStorage.getItem('bf_admin_session') === 'true' ||
       window.location.hash === '#admin'
+    );
+  });
+  const [isTutorLoggedIn, setIsTutorLoggedIn] = useState<boolean>(() => {
+    return (
+      sessionStorage.getItem('bf_tutor_session') === 'true' ||
+      window.location.hash === '#tutor'
+    );
+  });
+  const [isSiswaLoggedIn, setIsSiswaLoggedIn] = useState<boolean>(() => {
+    return (
+      sessionStorage.getItem('bf_siswa_session') === 'true' ||
+      window.location.hash === '#siswa'
+    );
+  });
+  const [isOrangTuaLoggedIn, setIsOrangTuaLoggedIn] = useState<boolean>(() => {
+    return (
+      sessionStorage.getItem('bf_orang_tua_session') === 'true' ||
+      window.location.hash === '#orangtua' ||
+      window.location.hash === '#wali'
     );
   });
   const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
@@ -39,6 +61,24 @@ export default function App() {
     const handleHashChange = () => {
       if (window.location.hash === '#admin') {
         setIsAdminLoggedIn(true);
+        setIsTutorLoggedIn(false);
+        setIsSiswaLoggedIn(false);
+        setIsOrangTuaLoggedIn(false);
+      } else if (window.location.hash === '#tutor') {
+        setIsTutorLoggedIn(true);
+        setIsAdminLoggedIn(false);
+        setIsSiswaLoggedIn(false);
+        setIsOrangTuaLoggedIn(false);
+      } else if (window.location.hash === '#siswa') {
+        setIsSiswaLoggedIn(true);
+        setIsAdminLoggedIn(false);
+        setIsTutorLoggedIn(false);
+        setIsOrangTuaLoggedIn(false);
+      } else if (window.location.hash === '#orangtua' || window.location.hash === '#wali') {
+        setIsOrangTuaLoggedIn(true);
+        setIsAdminLoggedIn(false);
+        setIsTutorLoggedIn(false);
+        setIsSiswaLoggedIn(false);
       }
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -94,6 +134,77 @@ export default function App() {
         onViewLanding={() => {
           setIsAdminLoggedIn(false);
           window.location.hash = '';
+        }}
+      />
+    );
+  }
+
+  // If Tutor is logged in, show the Tutor Field Portal
+  if (isTutorLoggedIn) {
+    return (
+      <TutorDashboard
+        onLogout={() => {
+          sessionStorage.removeItem('bf_tutor_session');
+          setIsTutorLoggedIn(false);
+          window.location.hash = '';
+        }}
+        onViewLanding={() => {
+          setIsTutorLoggedIn(false);
+          window.location.hash = '';
+        }}
+        tutorName="Kak Anindya, S.Pd."
+        tutorEmail="anindya.tutor@brightfuture.id"
+      />
+    );
+  }
+
+  // If Siswa is logged in, show the Student Learning Portal
+  if (isSiswaLoggedIn) {
+    return (
+      <StudentDashboard
+        onLogout={() => {
+          sessionStorage.removeItem('bf_siswa_session');
+          setIsSiswaLoggedIn(false);
+          window.location.hash = '';
+        }}
+        onViewLanding={() => {
+          setIsSiswaLoggedIn(false);
+          window.location.hash = '';
+        }}
+        studentName="Rayhan Kusuma"
+        studentId="BF-2026-09-8812"
+      />
+    );
+  }
+
+  // If Orang Tua is logged in, show the Parent Tracking Portal
+  if (isOrangTuaLoggedIn) {
+    return (
+      <ParentDashboard
+        onLogout={() => {
+          sessionStorage.removeItem('bf_orang_tua_session');
+          setIsOrangTuaLoggedIn(false);
+          window.location.hash = '';
+        }}
+        onViewLanding={() => {
+          setIsOrangTuaLoggedIn(false);
+          window.location.hash = '';
+        }}
+        parentName="Bunda Ratna Dewi"
+        parentPhone="0812-9876-5432"
+        onOpenMidtransPayment={(invoice) => {
+          setActiveMidtransSubmission({
+            studentId: 'BF-2026-09-8812',
+            invoiceNumber: invoice.inv,
+            studentName: invoice.studentName,
+            parentName: 'Bunda Ratna Dewi',
+            level: 'sd',
+            whatsapp: '081298765432',
+            homeAddress: 'Jl. Mayor Unus No. 15, Mertoyudan, Kab. Magelang',
+            selectedSchedule: ['Kamis 13:30', 'Sabtu 15:30'],
+            totalAmount: invoice.amount,
+            submittedAt: new Date().toISOString(),
+          });
         }}
       />
     );
@@ -165,14 +276,47 @@ export default function App() {
         <span className="hidden sm:inline font-bold text-xs">WhatsApp Hotline</span>
       </a>
 
-      {/* Multi-role Login Portal Modal with Admin Authentication */}
+      {/* Multi-role Login Portal Modal with Admin & Tutor Authentication */}
       {isLoginOpen && (
         <LoginModal
           onClose={() => setIsLoginOpen(false)}
           onAdminLoginSuccess={() => {
             sessionStorage.setItem('bf_admin_session', 'true');
+            sessionStorage.removeItem('bf_tutor_session');
             setIsAdminLoggedIn(true);
+            setIsTutorLoggedIn(false);
             window.location.hash = '#admin';
+          }}
+          onTutorLoginSuccess={() => {
+            sessionStorage.setItem('bf_tutor_session', 'true');
+            sessionStorage.removeItem('bf_admin_session');
+            sessionStorage.removeItem('bf_siswa_session');
+            setIsTutorLoggedIn(true);
+            setIsAdminLoggedIn(false);
+            setIsSiswaLoggedIn(false);
+            window.location.hash = '#tutor';
+          }}
+          onSiswaLoginSuccess={() => {
+            sessionStorage.setItem('bf_siswa_session', 'true');
+            sessionStorage.removeItem('bf_admin_session');
+            sessionStorage.removeItem('bf_tutor_session');
+            sessionStorage.removeItem('bf_orang_tua_session');
+            setIsSiswaLoggedIn(true);
+            setIsAdminLoggedIn(false);
+            setIsTutorLoggedIn(false);
+            setIsOrangTuaLoggedIn(false);
+            window.location.hash = '#siswa';
+          }}
+          onOrangTuaLoginSuccess={() => {
+            sessionStorage.setItem('bf_orang_tua_session', 'true');
+            sessionStorage.removeItem('bf_admin_session');
+            sessionStorage.removeItem('bf_tutor_session');
+            sessionStorage.removeItem('bf_siswa_session');
+            setIsOrangTuaLoggedIn(true);
+            setIsAdminLoggedIn(false);
+            setIsTutorLoggedIn(false);
+            setIsSiswaLoggedIn(false);
+            window.location.hash = '#orangtua';
           }}
         />
       )}
