@@ -33,13 +33,14 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
 
   // Filtered registrations
   const filteredList = registrations.filter((item) => {
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      item.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.parentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.whatsapp.includes(searchQuery) ||
-      item.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.homeAddress.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.studentName || '').toLowerCase().includes(q) ||
+      (item.parentName || '').toLowerCase().includes(q) ||
+      (item.whatsapp || '').includes(searchQuery || '') ||
+      (item.studentId || '').toLowerCase().includes(q) ||
+      (item.invoiceNumber || '').toLowerCase().includes(q) ||
+      (item.homeAddress || '').toLowerCase().includes(q);
 
     const matchesStatus =
       statusFilter === 'semua'
@@ -51,7 +52,7 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
     const matchesLevel =
       levelFilter === 'semua'
         ? true
-        : item.level.toLowerCase() === levelFilter.toLowerCase();
+        : (item.level || '').toLowerCase() === (levelFilter || '').toLowerCase();
 
     return matchesSearch && matchesStatus && matchesLevel;
   });

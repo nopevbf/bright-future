@@ -90,15 +90,15 @@ export const TutorManagementSubTab: React.FC<TutorManagementSubTabProps> = ({
 
   const filtered = combinedTutors.filter((tutor) => {
     if (filterDuty === 'on_duty' && tutor.status !== 'On-Duty') return false;
-    if (filterDuty === 'tersedia' && !tutor.status.toLowerCase().includes('tersedia')) return false;
+    if (filterDuty === 'tersedia' && !(tutor.status || '').toLowerCase().includes('tersedia')) return false;
 
     if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    const q = (searchQuery || '').toLowerCase();
     return (
-      tutor.name.toLowerCase().includes(q) ||
-      tutor.univ.toLowerCase().includes(q) ||
-      tutor.spec.toLowerCase().includes(q) ||
-      (tutor.district && tutor.district.toLowerCase().includes(q))
+      (tutor.name || '').toLowerCase().includes(q) ||
+      (tutor.univ || '').toLowerCase().includes(q) ||
+      (tutor.spec || '').toLowerCase().includes(q) ||
+      ((tutor.district || '').toLowerCase().includes(q))
     );
   });
 

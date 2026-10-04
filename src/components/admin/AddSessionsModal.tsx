@@ -23,10 +23,11 @@ export const AddSessionsModal: React.FC<AddSessionsModalProps> = ({
   const newTotalSessions = student.packageSessions + sessionsToAdd;
   const newRemaining = currentRemaining + sessionsToAdd;
 
+  const studentLevel = (student.level || '').toLowerCase();
   const sessionCostPerSession =
-    student.level.toLowerCase().includes('sma')
+    studentLevel.includes('sma')
       ? 50000
-      : student.level.toLowerCase().includes('smp')
+      : studentLevel.includes('smp')
       ? 45000
       : 35000;
   const estimatedAmount = sessionCostPerSession * sessionsToAdd;

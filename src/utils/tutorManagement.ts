@@ -39,10 +39,10 @@ export function filterTutorApplications(
     // 2. Filter search query
     if (!query) return true;
 
-    const matchName = app.fullName.toLowerCase().includes(query);
-    const matchSubjects = app.subjects.toLowerCase().includes(query);
-    const matchDistrict = app.district.toLowerCase().includes(query);
-    const matchEducation = app.education.toLowerCase().includes(query);
+    const matchName = (app.fullName || '').toLowerCase().includes(query);
+    const matchSubjects = (app.subjects || '').toLowerCase().includes(query);
+    const matchDistrict = (app.district || '').toLowerCase().includes(query);
+    const matchEducation = (app.education || '').toLowerCase().includes(query);
 
     return matchName || matchSubjects || matchDistrict || matchEducation;
   });

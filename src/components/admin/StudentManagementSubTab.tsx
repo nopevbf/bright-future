@@ -37,25 +37,26 @@ export const StudentManagementSubTab: React.FC<StudentManagementSubTabProps> = (
 
   // Filtered list
   const filteredStudents = students.filter((student) => {
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.parentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.schoolOrigin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.whatsapp.includes(searchQuery) ||
-      student.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.tutorName.toLowerCase().includes(searchQuery.toLowerCase());
+      (student.studentName || '').toLowerCase().includes(q) ||
+      (student.id || '').toLowerCase().includes(q) ||
+      (student.parentName || '').toLowerCase().includes(q) ||
+      (student.schoolOrigin || '').toLowerCase().includes(q) ||
+      (student.whatsapp || '').includes(searchQuery || '') ||
+      (student.address || '').toLowerCase().includes(q) ||
+      (student.district || '').toLowerCase().includes(q) ||
+      (student.tutorName || '').toLowerCase().includes(q);
 
     const matchesDistrict =
       districtFilter === 'Semua Wilayah Magelang'
         ? true
-        : student.district.toLowerCase() === districtFilter.toLowerCase();
+        : (student.district || '').toLowerCase() === (districtFilter || '').toLowerCase();
 
     const matchesLevel =
       levelFilter === 'semua'
         ? true
-        : student.level.toLowerCase().includes(levelFilter.toLowerCase());
+        : (student.level || '').toLowerCase().includes((levelFilter || '').toLowerCase());
 
     const matchesStatus =
       statusFilter === 'semua' ? true : student.status === statusFilter;

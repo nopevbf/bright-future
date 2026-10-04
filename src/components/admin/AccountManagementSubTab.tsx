@@ -181,20 +181,22 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
 
   // 2. Accounts from portal_credentials
   const knownIds = new Set<string>();
-  knownIds.add(adminCredential.email.toLowerCase());
+  if (adminCredential?.email) {
+    knownIds.add(adminCredential.email.toLowerCase());
+  }
 
   portalAccounts.forEach((acc) => {
     const rawId = (acc.identifier || '').toLowerCase();
-    if (!knownIds.has(rawId)) {
+    if (rawId && !knownIds.has(rawId)) {
       knownIds.add(rawId);
       allAccounts.push({
-        id: acc.id || acc.identifier,
-        role: acc.role,
-        name: acc.name,
-        identifier: acc.identifier,
+        id: acc.id || acc.identifier || 'acc',
+        role: acc.role || 'siswa',
+        name: acc.name || 'Pengguna',
+        identifier: acc.identifier || '',
         password: acc.password || '123456789',
-        summary: acc.summary || `Akun ${acc.role.toUpperCase()} Terhubung`,
-        whatsapp: acc.whatsapp,
+        summary: acc.summary || `Akun ${(acc.role || 'pengguna').toUpperCase()} Terhubung`,
+        whatsapp: acc.whatsapp || '',
         source: 'portal_credentials',
         isDefaultPwd: acc.password === '123456789',
       });
@@ -205,16 +207,16 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
   verifiedRegistrations.forEach((reg) => {
     if (reg.paymentStatus === 'verified') {
       const sId = (reg.studentId || '').toLowerCase();
-      if (!knownIds.has(sId)) {
+      if (sId && !knownIds.has(sId)) {
         knownIds.add(sId);
         allAccounts.push({
           id: `siswa_${reg.studentId}`,
           role: 'siswa',
-          name: reg.studentName,
-          identifier: reg.studentId,
+          name: reg.studentName || 'Siswa Terverifikasi',
+          identifier: reg.studentId || '',
           password: '123456789',
-          summary: `Siswa Terverifikasi • Jenjang: ${(reg.level || 'SD').toUpperCase()} • WA: ${reg.whatsapp}`,
-          whatsapp: reg.whatsapp,
+          summary: `Siswa Terverifikasi • Jenjang: ${(reg.level || 'SD').toUpperCase()} • WA: ${reg.whatsapp || ''}`,
+          whatsapp: reg.whatsapp || '',
           source: 'registrations (Live DB)',
           isDefaultPwd: true,
         });
@@ -226,11 +228,11 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
         allAccounts.push({
           id: `ortu_${reg.studentId}`,
           role: 'orang_tua',
-          name: `${reg.parentName} (Wali ${reg.studentName})`,
-          identifier: reg.whatsapp,
+          name: `${reg.parentName || 'Wali Murid'} (Wali ${reg.studentName || 'Siswa'})`,
+          identifier: reg.whatsapp || '',
           password: '123456789',
-          summary: `Wali Murid Terverifikasi • Siswa: ${reg.studentName} (${reg.studentId})`,
-          whatsapp: reg.whatsapp,
+          summary: `Wali Murid Terverifikasi • Siswa: ${reg.studentName || ''} (${reg.studentId || ''})`,
+          whatsapp: reg.whatsapp || '',
           source: 'registrations (Live DB)',
           isDefaultPwd: true,
         });
@@ -243,17 +245,17 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
     if (tutor.status === 'accepted') {
       const tWa = (tutor.whatsapp || '').replace(/[^0-9]/g, '');
       const tId = (tutor.id || '').toLowerCase();
-      if (!knownIds.has(tWa) && !knownIds.has(tId)) {
+      if ((tWa && !knownIds.has(tWa)) || (tId && !knownIds.has(tId))) {
         if (tWa) knownIds.add(tWa);
-        knownIds.add(tId);
+        if (tId) knownIds.add(tId);
         allAccounts.push({
           id: `tutor_${tutor.id}`,
           role: 'tutor',
-          name: tutor.fullName,
-          identifier: tutor.whatsapp,
+          name: tutor.fullName || 'Tutor Terakreditasi',
+          identifier: tutor.whatsapp || tutor.id || '',
           password: '123456789',
-          summary: `Tutor Terakreditasi • ${tutor.education} • Mapel: ${tutor.subjects} • Kec. ${tutor.district}`,
-          whatsapp: tutor.whatsapp,
+          summary: `Tutor Terakreditasi • ${tutor.education || ''} • Mapel: ${tutor.subjects || ''} • Kec. ${tutor.district || ''}`,
+          whatsapp: tutor.whatsapp || '',
           source: 'tutor_registrations (Live DB)',
           isDefaultPwd: true,
         });
@@ -264,13 +266,13 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
   // Filter accounts
   const filteredAccounts = allAccounts.filter((acc) => {
     const matchesRole = roleFilter === 'all' || acc.role === roleFilter;
-    const q = searchQuery.toLowerCase();
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
       !q ||
-      acc.name.toLowerCase().includes(q) ||
-      acc.identifier.toLowerCase().includes(q) ||
+      (acc.name || '').toLowerCase().includes(q) ||
+      (acc.identifier || '').toLowerCase().includes(q) ||
       (acc.whatsapp && acc.whatsapp.includes(q)) ||
-      acc.role.toLowerCase().includes(q);
+      (acc.role || '').toLowerCase().includes(q);
     return matchesRole && matchesSearch;
   });
 
@@ -312,7 +314,7 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
       default:
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-800">
-            {role.toUpperCase()}
+            {(role || 'USER').toUpperCase()}
           </span>
         );
     }

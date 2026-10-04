@@ -267,7 +267,7 @@ export async function verifyAdminCredentialsFromFirestore(
 
     if (adminSnap.exists()) {
       const data = adminSnap.data() as AdminCredentialDoc;
-      if (data.email.toLowerCase() === cleanEmail && data.password === cleanPassword) {
+      if (data.email && data.email.toLowerCase() === cleanEmail && data.password === cleanPassword) {
         const lastLoginTime = new Date().toISOString();
         // Update last login in database
         await updateDoc(adminRef, { lastLogin: lastLoginTime }).catch(() => {});

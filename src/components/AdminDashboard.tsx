@@ -677,19 +677,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                 ? 'Kelas 8 SMP'
                 : 'Kelas 12 SMA',
             schoolOrigin: 'Siswa Baru (Pendaftaran Online)',
-            parentName: reg.parentName,
+            parentName: reg.parentName || 'Wali Murid',
             parentRelation: 'Wali',
-            whatsapp: reg.whatsapp,
-            address: reg.homeAddress,
-            district: reg.homeAddress.toLowerCase().includes('secang')
+            whatsapp: reg.whatsapp || '',
+            address: reg.homeAddress || 'Kabupaten Magelang',
+            district: (reg.homeAddress || '').toLowerCase().includes('secang')
               ? 'Secang'
-              : reg.homeAddress.toLowerCase().includes('muntilan')
+              : (reg.homeAddress || '').toLowerCase().includes('muntilan')
               ? 'Muntilan'
-              : reg.homeAddress.toLowerCase().includes('mertoyudan')
+              : (reg.homeAddress || '').toLowerCase().includes('mertoyudan')
               ? 'Mertoyudan'
-              : reg.homeAddress.toLowerCase().includes('mungkid')
+              : (reg.homeAddress || '').toLowerCase().includes('mungkid')
               ? 'Mungkid'
-              : reg.homeAddress.toLowerCase().includes('borobudur')
+              : (reg.homeAddress || '').toLowerCase().includes('borobudur')
               ? 'Borobudur'
               : 'Secang',
             tutorName: 'Kak Anindya, S.Pd.',
@@ -699,9 +699,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
             status: 'aktif',
             joinDate: new Date().toISOString().split('T')[0],
             lastEvaluationScore: 90,
-            notes: `Terverifikasi dari pendaftaran online #${reg.invoiceNumber}. Hari: ${reg.selectedSchedule.join(
-              ', '
-            )}`,
+            notes: `Terverifikasi dari pendaftaran online #${reg.invoiceNumber || ''}. Hari: ${Array.isArray(reg.selectedSchedule) ? reg.selectedSchedule.join(', ') : ''}`,
             isFromFirestore: true,
           };
           return [newManaged, ...prev];
