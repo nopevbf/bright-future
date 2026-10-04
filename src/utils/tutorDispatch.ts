@@ -65,13 +65,14 @@ export function calculateDistrictDistanceKm(districtA?: string | null, districtB
  * Memeriksa kecocokan jenjang pendidikan dan mata pelajaran antara kebutuhan siswa dan spesialisasi tutor.
  */
 export function evaluateSubjectFit(
-  studentLevel: string,
+  studentLevel?: string | null,
   studentSubjects: string[] = [],
-  tutorSpec: string
+  tutorSpec?: string | null
 ): { isMatch: boolean; score: number; reason: string } {
-  const sLevelNorm = studentLevel.toLowerCase();
-  const tSpecNorm = tutorSpec.toLowerCase();
-  const sSubsNorm = studentSubjects.map((s) => s.toLowerCase());
+  const sLevelNorm = (studentLevel || '').toLowerCase();
+  const tSpecNorm = (tutorSpec || '').toLowerCase();
+  const validSubs = Array.isArray(studentSubjects) ? studentSubjects : [];
+  const sSubsNorm = validSubs.map((s) => (s ? String(s).toLowerCase() : ''));
 
   let isMatch = false;
   let score = 40; // Base score bila ada kecocokan umum
@@ -216,14 +217,15 @@ export function calculateTutorMatchScore(
   };
 }
 
-/**
- * Mengurutkan calon-calon tutor berdasarkan Match Score tertinggi untuk siswa yang ditentukan.
- */
 export function rankTutorsForStudent(
   student: DispatchableStudent,
-  tutors: DispatchableTutor[]
+  tutors: DispatchableTutor[] = []
 ): TutorMatchEvaluation[] {
-  const evaluations = tutors.map((tutor) => calculateTutorMatchScore(student, tutor));
+  if (!student || !Array.isArray(tutors) || tutors.length === 0) {
+    return [];
+  }
+  const validTutors = tutors.filter((tutor) => tutor && Boolean(tutor.name));
+  const evaluations = validTutors.map((tutor) => calculateTutorMatchScore(student, tutor));
   return evaluations.sort((a, b) => b.matchScore - a.matchScore);
 }
 

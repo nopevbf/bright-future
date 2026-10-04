@@ -20,20 +20,29 @@ export const TutorDispatchModal: React.FC<TutorDispatchModalProps> = ({
   isOpen,
   onClose,
   student,
-  tutors,
+  tutors = [],
   onAssignTutor,
 }) => {
   const [selectedEvaluation, setSelectedEvaluation] = useState<TutorMatchEvaluation | null>(null);
   const [isSuccessAssigned, setIsSuccessAssigned] = useState<boolean>(false);
   const [customSchedule, setCustomSchedule] = useState<string>('Sesuai jadwal reguler');
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedEvaluation(null);
+      setIsSuccessAssigned(false);
+    }
+  }, [isOpen, student?.id]);
+
   if (!isOpen || !student) return null;
 
   // Hitung peringkat kecocokan secara real-time
-  const rankedEvaluations = rankTutorsForStudent(student, tutors);
-  const activeEval = selectedEvaluation || rankedEvaluations[0];
+  const safeTutors = Array.isArray(tutors) && tutors.length > 0 ? tutors : [];
+  const rankedEvaluations = rankTutorsForStudent(student, safeTutors);
+  const activeEval = selectedEvaluation || (rankedEvaluations.length > 0 ? rankedEvaluations[0] : null);
 
   const handleConfirmAssignment = (evalItem: TutorMatchEvaluation) => {
+    if (!evalItem || !evalItem.tutor) return;
     onAssignTutor(student.id, evalItem.tutor.name);
     setSelectedEvaluation(evalItem);
     setIsSuccessAssigned(true);
@@ -181,19 +190,30 @@ export const TutorDispatchModal: React.FC<TutorDispatchModalProps> = ({
             </div>
 
             <div className="space-y-3">
-              {rankedEvaluations.map((evalItem, index) => {
-                const isSelected = activeEval.tutor.name === evalItem.tutor.name;
-                const isTop1 = index === 0;
+              {rankedEvaluations.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-2xl border border-[#2A2823]/10 space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-[#f0eee8] text-[#6B675F] flex items-center justify-center mx-auto">
+                    <span className="material-symbols-outlined text-[24px]">person_off</span>
+                  </div>
+                  <p className="text-sm font-bold text-[#2A2823]">Belum ada data pengajar aktif yang tersedia.</p>
+                  <p className="text-xs text-[#6B675F] max-w-sm mx-auto">
+                    Silakan pastikan data tutor aktif telah terisi atau verifikasi pendaftar tutor baru di menu Data Tutor.
+                  </p>
+                </div>
+              ) : (
+                rankedEvaluations.map((evalItem, index) => {
+                  const isSelected = Boolean(activeEval?.tutor?.name && activeEval.tutor.name === evalItem.tutor.name);
+                  const isTop1 = index === 0;
 
-                return (
-                  <div
-                    key={evalItem.tutor.id || evalItem.tutor.name}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isSelected
-                        ? 'bg-white border-[#284230] shadow-md ring-1 ring-[#284230]/20'
-                        : 'bg-white/80 border-[#2A2823]/10 hover:border-[#2A2823]/30 hover:bg-white'
-                    }`}
-                  >
+                  return (
+                    <div
+                      key={evalItem.tutor.id || evalItem.tutor.name}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isSelected
+                          ? 'bg-white border-[#284230] shadow-md ring-1 ring-[#284230]/20'
+                          : 'bg-white/80 border-[#2A2823]/10 hover:border-[#2A2823]/30 hover:bg-white'
+                      }`}
+                    >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       {/* Kolom Kiri: Profil & Badges */}
                       <div className="space-y-1.5">
@@ -279,7 +299,7 @@ export const TutorDispatchModal: React.FC<TutorDispatchModalProps> = ({
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>

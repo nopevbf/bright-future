@@ -968,7 +968,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
 
   const handleOpenDispatchForRegistration = (reg: FirestoreRegistrationDoc) => {
     let detectedDistrict = 'Magelang';
-    const addr = reg.homeAddress.toLowerCase();
+    const addr = (reg.homeAddress || '').toLowerCase();
     if (addr.includes('secang')) detectedDistrict = 'Secang';
     else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
     else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
@@ -978,16 +978,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     else if (addr.includes('salaman')) detectedDistrict = 'Salaman';
     else if (addr.includes('grabag')) detectedDistrict = 'Grabag';
 
+    const safeLevel = (reg.level || 'SD').toUpperCase();
     const dispatchStudent: DispatchableStudent = {
       id: reg.studentId,
-      studentName: reg.studentName,
-      level: reg.level.toUpperCase(),
-      grade: reg.level === 'sd' ? 'Kelas 4 SD' : reg.level === 'calistung' ? 'Transisi SD' : 'Reguler',
+      studentName: reg.studentName || 'Calon Siswa',
+      level: safeLevel,
+      grade: safeLevel.toLowerCase() === 'sd' ? 'Kelas 4 SD' : safeLevel.toLowerCase() === 'calistung' ? 'Transisi SD' : 'Reguler',
       district: detectedDistrict,
-      address: reg.homeAddress,
-      whatsapp: reg.whatsapp,
-      parentName: reg.parentName,
-      selectedSchedule: reg.selectedSchedule,
+      address: reg.homeAddress || 'Kabupaten Magelang',
+      whatsapp: reg.whatsapp || '',
+      parentName: reg.parentName || 'Wali Murid',
+      selectedSchedule: Array.isArray(reg.selectedSchedule) ? reg.selectedSchedule : [],
     };
     setSelectedStudentForDispatch(dispatchStudent);
     setIsDispatchModalOpen(true);
@@ -1004,22 +1005,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
         const exists = prev.some((s) => s.id === reg.studentId);
         if (!exists) {
           let detectedDistrict = 'Magelang';
-          const addr = reg.homeAddress.toLowerCase();
+          const addr = (reg.homeAddress || '').toLowerCase();
           if (addr.includes('secang')) detectedDistrict = 'Secang';
           else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
           else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
           else if (addr.includes('borobudur')) detectedDistrict = 'Borobudur';
 
+          const safeLevel = (reg.level || 'SD').toUpperCase();
           const newManaged: ManagedStudent = {
             id: reg.studentId,
-            studentName: reg.studentName,
-            level: reg.level.toUpperCase(),
-            grade: reg.level === 'sd' ? 'Kelas 4 SD' : 'Reguler',
+            studentName: reg.studentName || 'Calon Siswa',
+            level: safeLevel,
+            grade: safeLevel.toLowerCase() === 'sd' ? 'Kelas 4 SD' : 'Reguler',
             schoolOrigin: 'Siswa Terdaftar Web',
-            parentName: reg.parentName,
+            parentName: reg.parentName || 'Wali Murid',
             parentRelation: 'Ibu',
-            whatsapp: reg.whatsapp,
-            address: reg.homeAddress,
+            whatsapp: reg.whatsapp || '',
+            address: reg.homeAddress || 'Kabupaten Magelang',
             district: detectedDistrict,
             tutorName,
             subjects: ['Bimbingan Privat Terpadu'],
