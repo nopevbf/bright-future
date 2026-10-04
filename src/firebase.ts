@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { SubmittedRegistration, TutorRegistrationData } from './types';
+import { ManagedStudent } from './components/admin/studentData';
 
 export enum OperationType {
   CREATE = 'create',
@@ -106,6 +107,8 @@ export interface FirestoreRegistrationDoc {
   invoiceNumber: string;
   paymentStatus: 'pending' | 'paid' | 'verified';
   createdAt: string;
+  assignedTutor?: string;
+  assignedAt?: string;
 }
 
 export interface AdminCredentialDoc {
@@ -1268,6 +1271,228 @@ export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreT
     return getLocalTutorRegistrations();
   }
 }
+
+// ==========================================
+// TUTOR ASSIGNMENTS & DISPATCH PERSISTENCE
+// ==========================================
+
+export interface FirestoreTutorAssignmentDoc {
+  id: string; // studentId or assignment id
+  studentId: string;
+  studentName: string;
+  tutorName: string;
+  tutorPhone?: string;
+  district: string;
+  level: string;
+  grade?: string;
+  address?: string;
+  parentName?: string;
+  whatsapp?: string;
+  subjects?: string[];
+  schedule?: string[];
+  matchScore?: number;
+  status: 'aktif' | 'selesai' | 'dibatalkan';
+  assignedAt: string;
+  notes?: string;
+}
+
+const LOCAL_TUTOR_ASSIGNMENTS_KEY = 'bright_future_tutor_assignments_cache';
+const LOCAL_MANAGED_STUDENTS_KEY = 'bright_future_managed_students_cache';
+
+export function getLocalTutorAssignments(): FirestoreTutorAssignmentDoc[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_TUTOR_ASSIGNMENTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getLocalManagedStudents(): ManagedStudent[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_MANAGED_STUDENTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveTutorAssignmentToFirestore(
+  assignment: FirestoreTutorAssignmentDoc,
+  managedStudentData?: ManagedStudent
+): Promise<void> {
+  const docPath = `tutor_assignments/${assignment.studentId}`;
+  try {
+    const docRef = doc(db, 'tutor_assignments', assignment.studentId);
+    await setDoc(docRef, assignment, { merge: true });
+
+    // Update registration document in Firestore if it exists
+    try {
+      const regDocRef = doc(db, 'registrations', assignment.studentId);
+      await setDoc(
+        regDocRef,
+        {
+          assignedTutor: assignment.tutorName,
+          assignedAt: assignment.assignedAt,
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('Could not update registration assignedTutor in Firestore:', e);
+    }
+
+    // Save/update managed student in Firestore
+    if (managedStudentData) {
+      await saveManagedStudentToFirestore(managedStudentData);
+    }
+
+    // Save to local cache as fallback
+    if (typeof window !== 'undefined') {
+      const existing = getLocalTutorAssignments();
+      const updated = [
+        assignment,
+        ...existing.filter((a) => a.studentId !== assignment.studentId),
+      ];
+      localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    }
+  } catch (error) {
+    console.warn(`Firestore save error for ${docPath}, saving to local cache:`, error);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalTutorAssignments();
+      const updated = [
+        assignment,
+        ...existing.filter((a) => a.studentId !== assignment.studentId),
+      ];
+      localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    }
+  }
+}
+
+export async function fetchTutorAssignmentsFromFirestore(): Promise<FirestoreTutorAssignmentDoc[]> {
+  try {
+    const colRef = collection(db, 'tutor_assignments');
+    const snapshot = await getDocs(colRef);
+    const results: FirestoreTutorAssignmentDoc[] = [];
+    snapshot.forEach((docSnap) => {
+      results.push(docSnap.data() as FirestoreTutorAssignmentDoc);
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(results));
+    }
+    return results;
+  } catch (error) {
+    console.warn('Could not fetch tutor assignments from Firestore, using local cache:', error);
+    return getLocalTutorAssignments();
+  }
+}
+
+export function subscribeToTutorAssignments(
+  onUpdate: (assignments: FirestoreTutorAssignmentDoc[]) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const colRef = collection(db, 'tutor_assignments');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const results: FirestoreTutorAssignmentDoc[] = [];
+        snapshot.forEach((docSnap) => {
+          results.push(docSnap.data() as FirestoreTutorAssignmentDoc);
+        });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(results));
+        }
+        onUpdate(results);
+      },
+      (error) => {
+        console.warn('subscribeToTutorAssignments error:', error);
+        if (onError) onError(error);
+        onUpdate(getLocalTutorAssignments());
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToTutorAssignments listener:', err);
+    onUpdate(getLocalTutorAssignments());
+    return () => {};
+  }
+}
+
+export async function saveManagedStudentToFirestore(student: ManagedStudent): Promise<void> {
+  const docPath = `managed_students/${student.id}`;
+  try {
+    const docRef = doc(db, 'managed_students', student.id);
+    const payload = {
+      ...student,
+      isFromFirestore: true,
+      updatedAt: new Date().toISOString(),
+    };
+    await setDoc(docRef, payload, { merge: true });
+    if (typeof window !== 'undefined') {
+      const existing = getLocalManagedStudents();
+      const updated = [payload, ...existing.filter((s) => s.id !== student.id)];
+      localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(updated));
+    }
+  } catch (error) {
+    console.warn(`Firestore save error for ${docPath}:`, error);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalManagedStudents();
+      const updated = [{ ...student, isFromFirestore: true }, ...existing.filter((s) => s.id !== student.id)];
+      localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(updated));
+    }
+  }
+}
+
+export async function fetchManagedStudentsFromFirestore(): Promise<ManagedStudent[]> {
+  try {
+    const colRef = collection(db, 'managed_students');
+    const snapshot = await getDocs(colRef);
+    const results: ManagedStudent[] = [];
+    snapshot.forEach((docSnap) => {
+      results.push(docSnap.data() as ManagedStudent);
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(results));
+    }
+    return results;
+  } catch (error) {
+    console.warn('Could not fetch managed students from Firestore, using local cache:', error);
+    return getLocalManagedStudents();
+  }
+}
+
+export function subscribeToManagedStudents(
+  onUpdate: (students: ManagedStudent[]) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const colRef = collection(db, 'managed_students');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const results: ManagedStudent[] = [];
+        snapshot.forEach((docSnap) => {
+          results.push(docSnap.data() as ManagedStudent);
+        });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(results));
+        }
+        onUpdate(results);
+      },
+      (error) => {
+        console.warn('subscribeToManagedStudents error:', error);
+        if (onError) onError(error);
+        onUpdate(getLocalManagedStudents());
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToManagedStudents listener:', err);
+    onUpdate(getLocalManagedStudents());
+    return () => {};
+  }
+}
+
 
 
 

@@ -65,6 +65,16 @@
           "type": "string",
           "format": "date-time",
           "description": "Waktu pendaftaran dikirimkan"
+        },
+        "assignedTutor": {
+          "type": "string",
+          "description": "Nama tutor yang dipasangkan pada siswa",
+          "maxLength": 128
+        },
+        "assignedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu penugasan tutor dipasangkan"
         }
       },
       "required": [
@@ -370,6 +380,138 @@
         }
       },
       "required": ["id", "fullName", "whatsapp", "education", "subjects", "district", "status", "createdAt"]
+    },
+    "TutorAssignment": {
+      "title": "TutorAssignment",
+      "description": "Data rekaman penugasan tutor yang dipasangkan ke siswa privat di Magelang",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik penugasan atau ID siswa"
+        },
+        "studentId": {
+          "type": "string",
+          "description": "ID siswa yang dipasangkan"
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Nama siswa"
+        },
+        "tutorName": {
+          "type": "string",
+          "description": "Nama tutor yang ditugaskan"
+        },
+        "tutorPhone": {
+          "type": "string"
+        },
+        "district": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        },
+        "grade": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "parentName": {
+          "type": "string"
+        },
+        "whatsapp": {
+          "type": "string"
+        },
+        "subjects": {
+          "type": "array"
+        },
+        "schedule": {
+          "type": "array"
+        },
+        "matchScore": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["aktif", "selesai", "dibatalkan"]
+        },
+        "assignedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "studentId", "studentName", "tutorName", "status", "assignedAt"]
+    },
+    "ManagedStudent": {
+      "title": "ManagedStudent",
+      "description": "Data induk murid aktif bimbingan belajar Bright Future di Magelang",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "studentName": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        },
+        "grade": {
+          "type": "string"
+        },
+        "schoolOrigin": {
+          "type": "string"
+        },
+        "parentName": {
+          "type": "string"
+        },
+        "parentRelation": {
+          "type": "string"
+        },
+        "whatsapp": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "district": {
+          "type": "string"
+        },
+        "tutorName": {
+          "type": "string"
+        },
+        "subjects": {
+          "type": "array"
+        },
+        "packageSessions": {
+          "type": "number"
+        },
+        "completedSessions": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["aktif", "perlu_perpanjang", "cuti"]
+        },
+        "joinDate": {
+          "type": "string"
+        },
+        "lastEvaluationScore": {
+          "type": "number"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "studentName", "level", "parentName", "whatsapp", "address", "district", "tutorName", "status"]
     }
   },
   "firestore": {
@@ -396,6 +538,14 @@
     "/tutor_registrations/{regId}": {
       "schema": "TutorRegistration",
       "description": "Koleksi pendaftaran dan verifikasi calon mitra tutor baru"
+    },
+    "/tutor_assignments/{assignmentId}": {
+      "schema": "TutorAssignment",
+      "description": "Koleksi rekaman penugasan tutor yang dipasangkan ke siswa"
+    },
+    "/managed_students/{studentId}": {
+      "schema": "ManagedStudent",
+      "description": "Koleksi data siswa aktif terkelola di database"
     }
   }
 }

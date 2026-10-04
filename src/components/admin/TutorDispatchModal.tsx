@@ -140,10 +140,16 @@ export const TutorDispatchModal: React.FC<TutorDispatchModalProps> = ({
           {/* Feedback Banner jika Baru saja Ditugaskan */}
           {isSuccessAssigned && activeEval && (
             <div className="p-4 rounded-2xl bg-[#EAF2ED] border border-[#3F5A46]/20 text-[#284230] space-y-3 animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-[#3F5A46]">check_circle</span>
-                <span className="font-bold text-sm">
-                  Berhasil Memasangkan {student.studentName} dengan {activeEval.tutor.name}!
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px] text-[#3F5A46]">check_circle</span>
+                  <span className="font-bold text-sm">
+                    Berhasil Memasangkan {student.studentName} dengan {activeEval.tutor.name}!
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[11px] font-extrabold inline-flex items-center gap-1 shadow-2xs border border-[#3F5A46]/20">
+                  <span className="material-symbols-outlined text-[14px]">cloud_done</span>
+                  <span>Tersimpan di Cloud Database</span>
                 </span>
               </div>
               <p className="text-xs text-[#424843]">

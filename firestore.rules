@@ -104,6 +104,18 @@ service cloud.firestore {
       // Allows admin to update status, interview schedule, notes or delete
       allow update, delete: if isValidId(regId);
     }
+
+    match /tutor_assignments/{assignmentId} {
+      // Allows reading and updating tutor dispatch assignments
+      allow read: if true;
+      allow create, update, delete: if isValidId(assignmentId);
+    }
+
+    match /managed_students/{studentId} {
+      // Allows reading, creating, and updating managed students in Firestore
+      allow read: if true;
+      allow create, update, delete: if isValidId(studentId);
+    }
   }
 }
 

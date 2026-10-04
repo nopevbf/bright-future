@@ -22,6 +22,9 @@ import {
   updateTutorRegistrationStatusInFirestore,
   seedInitialTutorRegistrationsIfEmpty,
   FirestoreTutorRegistrationDoc,
+  saveTutorAssignmentToFirestore,
+  subscribeToTutorAssignments,
+  FirestoreTutorAssignmentDoc,
 } from '../firebase';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
 import { StudentManagementSubTab } from './admin/StudentManagementSubTab';
@@ -563,6 +566,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       }
     );
 
+    // Real-time live listener for Tutor Assignments & Dispatch from Firestore
+    const unsubscribeAssignments = subscribeToTutorAssignments(
+      (assignments) => {
+        if (assignments && assignments.length > 0) {
+          setManagedStudents((prev) =>
+            prev.map((student) => {
+              const matched = assignments.find((a) => a.studentId === student.id);
+              if (matched && matched.tutorName) {
+                return { ...student, tutorName: matched.tutorName };
+              }
+              return student;
+            })
+          );
+        }
+      },
+      (err) => {
+        console.warn('Real-time tutor assignments listener warning:', err);
+      }
+    );
+
     return () => {
       if (typeof unsubscribeRegistrations === 'function') {
         unsubscribeRegistrations();
@@ -572,6 +595,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       }
       if (typeof unsubscribeTutors === 'function') {
         unsubscribeTutors();
+      }
+      if (typeof unsubscribeAssignments === 'function') {
+        unsubscribeAssignments();
       }
     };
   }, []);
@@ -994,50 +1020,95 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     setIsDispatchModalOpen(true);
   };
 
-  const handleAssignTutorToStudent = (studentId: string, tutorName: string) => {
-    setManagedStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s))
-    );
+  const handleAssignTutorToStudent = async (studentId: string, tutorName: string) => {
+    let studentForAssignment: ManagedStudent | undefined;
+
+    setManagedStudents((prev) => {
+      const found = prev.find((s) => s.id === studentId);
+      if (found) {
+        studentForAssignment = { ...found, tutorName };
+      }
+      return prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s));
+    });
 
     const reg = firestoreRegistrations.find((r) => r.studentId === studentId);
     if (reg) {
+      let detectedDistrict = 'Magelang';
+      const addr = (reg.homeAddress || '').toLowerCase();
+      if (addr.includes('secang')) detectedDistrict = 'Secang';
+      else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
+      else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
+      else if (addr.includes('borobudur')) detectedDistrict = 'Borobudur';
+      else if (addr.includes('mungkid')) detectedDistrict = 'Mungkid';
+      else if (addr.includes('tegalrejo')) detectedDistrict = 'Tegalrejo';
+      else if (addr.includes('salaman')) detectedDistrict = 'Salaman';
+      else if (addr.includes('grabag')) detectedDistrict = 'Grabag';
+
+      const safeLevel = (reg.level || 'SD').toUpperCase();
+      const newManaged: ManagedStudent = {
+        id: reg.studentId,
+        studentName: reg.studentName || 'Calon Siswa',
+        level: safeLevel,
+        grade: safeLevel.toLowerCase() === 'sd' ? 'Kelas 4 SD' : 'Reguler',
+        schoolOrigin: 'Siswa Terdaftar Web',
+        parentName: reg.parentName || 'Wali Murid',
+        parentRelation: 'Ibu',
+        whatsapp: reg.whatsapp || '',
+        address: reg.homeAddress || 'Kabupaten Magelang',
+        district: detectedDistrict,
+        tutorName,
+        subjects: ['Bimbingan Privat Terpadu'],
+        packageSessions: reg.totalSessions || 8,
+        completedSessions: 0,
+        status: 'aktif',
+        joinDate: new Date().toISOString().split('T')[0],
+        notes: 'Dipasangkan via Smart Dispatch Magelang & tersimpan di database.',
+        isFromFirestore: true,
+      };
+      studentForAssignment = newManaged;
+
       setManagedStudents((prev) => {
         const exists = prev.some((s) => s.id === reg.studentId);
         if (!exists) {
-          let detectedDistrict = 'Magelang';
-          const addr = (reg.homeAddress || '').toLowerCase();
-          if (addr.includes('secang')) detectedDistrict = 'Secang';
-          else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
-          else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
-          else if (addr.includes('borobudur')) detectedDistrict = 'Borobudur';
-
-          const safeLevel = (reg.level || 'SD').toUpperCase();
-          const newManaged: ManagedStudent = {
-            id: reg.studentId,
-            studentName: reg.studentName || 'Calon Siswa',
-            level: safeLevel,
-            grade: safeLevel.toLowerCase() === 'sd' ? 'Kelas 4 SD' : 'Reguler',
-            schoolOrigin: 'Siswa Terdaftar Web',
-            parentName: reg.parentName || 'Wali Murid',
-            parentRelation: 'Ibu',
-            whatsapp: reg.whatsapp || '',
-            address: reg.homeAddress || 'Kabupaten Magelang',
-            district: detectedDistrict,
-            tutorName,
-            subjects: ['Bimbingan Privat Terpadu'],
-            packageSessions: reg.totalSessions || 8,
-            completedSessions: 0,
-            status: 'aktif',
-            joinDate: new Date().toISOString().split('T')[0],
-            notes: 'Dipasangkan via Smart Dispatch Magelang.',
-          };
           return [newManaged, ...prev];
         }
         return prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s));
       });
+
+      // Update local registration view
+      setFirestoreRegistrations((prev) =>
+        prev.map((r) => (r.studentId === studentId ? { ...r, assignedTutor: tutorName, assignedAt: new Date().toISOString() } : r))
+      );
     }
 
-    setActionFeedback(`Tutor ${tutorName} berhasil dipasangkan dan ditugaskan ke siswa #${studentId}!`);
+    // Persist to Cloud Firestore: tutor_assignments, registrations, and managed_students
+    const tutorObj = candidateDispatchTutors.find((t) => t.name === tutorName);
+    const assignmentDoc: FirestoreTutorAssignmentDoc = {
+      id: studentId,
+      studentId,
+      studentName: studentForAssignment?.studentName || reg?.studentName || 'Siswa',
+      tutorName,
+      tutorPhone: tutorObj?.phone || '',
+      district: studentForAssignment?.district || 'Magelang',
+      level: studentForAssignment?.level || reg?.level || 'SD',
+      grade: studentForAssignment?.grade || 'Reguler',
+      address: studentForAssignment?.address || reg?.homeAddress || '',
+      parentName: studentForAssignment?.parentName || reg?.parentName || '',
+      whatsapp: studentForAssignment?.whatsapp || reg?.whatsapp || '',
+      subjects: studentForAssignment?.subjects || ['Bimbingan Privat Terpadu'],
+      schedule: reg?.selectedSchedule || [],
+      status: 'aktif',
+      assignedAt: new Date().toISOString(),
+      notes: `Dipasangkan via Smart Dispatch Magelang.`,
+    };
+
+    try {
+      await saveTutorAssignmentToFirestore(assignmentDoc, studentForAssignment);
+      setActionFeedback(`Tutor ${tutorName} berhasil dipasangkan & tersimpan ke Cloud Firestore (siswa #${studentId})!`);
+    } catch (err) {
+      console.warn('Gagal menyimpan penugasan tutor ke Firestore, fallback cache lokal:', err);
+      setActionFeedback(`Tutor ${tutorName} berhasil dipasangkan ke siswa #${studentId}!`);
+    }
     setTimeout(() => setActionFeedback(null), 4000);
   };
 
