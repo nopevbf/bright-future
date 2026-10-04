@@ -30,8 +30,10 @@ import { StudentFormModal } from './admin/StudentFormModal';
 import { RegistrationSlipModal } from './admin/RegistrationSlipModal';
 import { AddSessionsModal } from './admin/AddSessionsModal';
 import { TutorVerificationSubTab } from './admin/TutorVerificationSubTab';
-import { TutorManagementSubTab } from './admin/TutorManagementSubTab';
+import { TutorManagementSubTab, BASE_ACTIVE_TUTORS } from './admin/TutorManagementSubTab';
 import { TutorApplicantDetailModal } from './admin/TutorApplicantDetailModal';
+import { TutorDispatchModal } from './admin/TutorDispatchModal';
+import { DispatchableStudent, DispatchableTutor } from '../utils/tutorDispatch';
 import {
   ManagedStudent,
   INITIAL_MANAGED_STUDENTS,
@@ -364,6 +366,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   const [selectedStudentForSessions, setSelectedStudentForSessions] = useState<ManagedStudent | null>(null);
   const [isAddSessionsOpen, setIsAddSessionsOpen] = useState<boolean>(false);
   const [selectedSlipRegistration, setSelectedSlipRegistration] = useState<FirestoreRegistrationDoc | null>(null);
+  const [selectedStudentForDispatch, setSelectedStudentForDispatch] = useState<DispatchableStudent | null>(null);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState<boolean>(false);
 
   // Quick modals
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
@@ -924,6 +928,116 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   const pendingCount = firestoreRegistrations.filter((r) => r.paymentStatus === 'pending').length;
   const pendingTutorCount = tutorRegistrations.filter((r) => r.status === 'pending_review').length;
   const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
+
+  const candidateDispatchTutors: DispatchableTutor[] = [
+    ...BASE_ACTIVE_TUTORS.map((t) => ({
+      name: t.name,
+      district: t.district?.split('&')[0]?.trim() || 'Magelang',
+      spec: t.spec,
+      univ: t.univ,
+      status: t.status,
+      rating: t.rating,
+    })),
+    ...acceptedTutorApplicants.map((app) => ({
+      id: app.id,
+      name: app.fullName,
+      district: app.district,
+      spec: app.subjects,
+      univ: app.education,
+      status: 'Tersedia',
+      rating: 5.0,
+      phone: app.whatsapp,
+    })),
+  ];
+
+  const handleOpenDispatchForManagedStudent = (student: ManagedStudent) => {
+    const dispatchStudent: DispatchableStudent = {
+      id: student.id,
+      studentName: student.studentName,
+      level: student.level,
+      grade: student.grade,
+      district: student.district,
+      address: student.address,
+      whatsapp: student.whatsapp,
+      parentName: student.parentName,
+      subjects: student.subjects,
+    };
+    setSelectedStudentForDispatch(dispatchStudent);
+    setIsDispatchModalOpen(true);
+  };
+
+  const handleOpenDispatchForRegistration = (reg: FirestoreRegistrationDoc) => {
+    let detectedDistrict = 'Magelang';
+    const addr = reg.homeAddress.toLowerCase();
+    if (addr.includes('secang')) detectedDistrict = 'Secang';
+    else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
+    else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
+    else if (addr.includes('borobudur')) detectedDistrict = 'Borobudur';
+    else if (addr.includes('mungkid')) detectedDistrict = 'Mungkid';
+    else if (addr.includes('tegalrejo')) detectedDistrict = 'Tegalrejo';
+    else if (addr.includes('salaman')) detectedDistrict = 'Salaman';
+    else if (addr.includes('grabag')) detectedDistrict = 'Grabag';
+
+    const dispatchStudent: DispatchableStudent = {
+      id: reg.studentId,
+      studentName: reg.studentName,
+      level: reg.level.toUpperCase(),
+      grade: reg.level === 'sd' ? 'Kelas 4 SD' : reg.level === 'calistung' ? 'Transisi SD' : 'Reguler',
+      district: detectedDistrict,
+      address: reg.homeAddress,
+      whatsapp: reg.whatsapp,
+      parentName: reg.parentName,
+      selectedSchedule: reg.selectedSchedule,
+    };
+    setSelectedStudentForDispatch(dispatchStudent);
+    setIsDispatchModalOpen(true);
+  };
+
+  const handleAssignTutorToStudent = (studentId: string, tutorName: string) => {
+    setManagedStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s))
+    );
+
+    const reg = firestoreRegistrations.find((r) => r.studentId === studentId);
+    if (reg) {
+      setManagedStudents((prev) => {
+        const exists = prev.some((s) => s.id === reg.studentId);
+        if (!exists) {
+          let detectedDistrict = 'Magelang';
+          const addr = reg.homeAddress.toLowerCase();
+          if (addr.includes('secang')) detectedDistrict = 'Secang';
+          else if (addr.includes('mertoyudan')) detectedDistrict = 'Mertoyudan';
+          else if (addr.includes('muntilan')) detectedDistrict = 'Muntilan';
+          else if (addr.includes('borobudur')) detectedDistrict = 'Borobudur';
+
+          const newManaged: ManagedStudent = {
+            id: reg.studentId,
+            studentName: reg.studentName,
+            level: reg.level.toUpperCase(),
+            grade: reg.level === 'sd' ? 'Kelas 4 SD' : 'Reguler',
+            schoolOrigin: 'Siswa Terdaftar Web',
+            parentName: reg.parentName,
+            parentRelation: 'Ibu',
+            whatsapp: reg.whatsapp,
+            address: reg.homeAddress,
+            district: detectedDistrict,
+            tutorName,
+            subjects: ['Bimbingan Privat Terpadu'],
+            packageSessions: reg.totalSessions || 8,
+            completedSessions: 0,
+            status: 'aktif',
+            joinDate: new Date().toISOString().split('T')[0],
+            notes: 'Dipasangkan via Smart Dispatch Magelang.',
+          };
+          return [newManaged, ...prev];
+        }
+        return prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s));
+      });
+    }
+
+    setActionFeedback(`Tutor ${tutorName} berhasil dipasangkan dan ditugaskan ke siswa #${studentId}!`);
+    setTimeout(() => setActionFeedback(null), 4000);
+  };
 
   return (
     <div className="bg-[#FAF7F1] font-sans text-[#2A2823] min-h-screen selection:bg-[#EFC9AE] selection:text-[#6b2702] relative">
@@ -2149,6 +2263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                   onVerify={handleVerifyStudent}
                   onViewDetail={(item) => setSelectedRegistration(item)}
                   onPrintSlip={(item) => setSelectedSlipRegistration(item)}
+                  onOpenDispatch={handleOpenDispatchForRegistration}
                 />
               )}
 
@@ -2171,6 +2286,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                   }}
                   onDeleteStudent={handleDeleteStudent}
                   onExportData={handleExportStudents}
+                  onOpenDispatch={handleOpenDispatchForManagedStudent}
                 />
               )}
             </div>
@@ -3647,6 +3763,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
           onVerify={(id) => handleVerifyStudent(id)}
         />
       )}
+
+      {/* MODAL: SMART TUTOR DISPATCH & AUTO-PAIRING */}
+      <TutorDispatchModal
+        isOpen={isDispatchModalOpen}
+        onClose={() => {
+          setIsDispatchModalOpen(false);
+          setSelectedStudentForDispatch(null);
+        }}
+        student={selectedStudentForDispatch}
+        tutors={candidateDispatchTutors}
+        onAssignTutor={handleAssignTutorToStudent}
+      />
     </div>
   );
 };

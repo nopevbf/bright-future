@@ -9,6 +9,7 @@ interface StudentManagementSubTabProps {
   onAddSessions: (student: ManagedStudent) => void;
   onDeleteStudent: (id: string) => void;
   onExportData: (format: 'excel' | 'csv' | 'pdf') => void;
+  onOpenDispatch?: (student: ManagedStudent) => void;
 }
 
 export const StudentManagementSubTab: React.FC<StudentManagementSubTabProps> = ({
@@ -19,6 +20,7 @@ export const StudentManagementSubTab: React.FC<StudentManagementSubTabProps> = (
   onAddSessions,
   onDeleteStudent,
   onExportData,
+  onOpenDispatch,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [districtFilter, setDistrictFilter] = useState<string>('Semua Wilayah Magelang');
@@ -418,7 +420,20 @@ export const StudentManagementSubTab: React.FC<StudentManagementSubTabProps> = (
 
                       {/* Tutor & Subjects */}
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-[#284230]">{student.tutorName}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-[#284230]">{student.tutorName}</span>
+                          {onOpenDispatch && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDispatch(student)}
+                              className="px-1.5 py-0.5 rounded-md bg-[#EAF2ED] text-[#284230] hover:bg-[#c8ebce] text-[10px] font-bold cursor-pointer inline-flex items-center gap-0.5 border border-[#3F5A46]/20 transition-all shadow-xs"
+                              title="Pasangkan Tutor Terdekat (Smart Dispatch)"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">near_me</span>
+                              <span>Pasangkan</span>
+                            </button>
+                          )}
+                        </div>
                         <div className="text-[10px] text-[#6B675F] truncate max-w-[140px]" title={student.subjects.join(', ')}>
                           {student.subjects.join(', ')}
                         </div>
@@ -487,6 +502,18 @@ export const StudentManagementSubTab: React.FC<StudentManagementSubTabProps> = (
                           >
                             <span className="material-symbols-outlined text-[16px]">person</span>
                           </button>
+
+                          {/* Smart Dispatch Tutor */}
+                          {onOpenDispatch && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDispatch(student)}
+                              className="p-1.5 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer transition-all shadow-xs"
+                              title="Smart Dispatch: Pasangkan Tutor Terdekat"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">near_me</span>
+                            </button>
+                          )}
 
                           {/* Edit Student */}
                           <button

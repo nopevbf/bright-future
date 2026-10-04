@@ -8,6 +8,7 @@ interface StudentVerificationSubTabProps {
   onVerify: (studentId: string) => Promise<void>;
   onViewDetail: (item: FirestoreRegistrationDoc) => void;
   onPrintSlip: (item: FirestoreRegistrationDoc) => void;
+  onOpenDispatch?: (item: FirestoreRegistrationDoc) => void;
 }
 
 export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps> = ({
@@ -17,6 +18,7 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
   onVerify,
   onViewDetail,
   onPrintSlip,
+  onOpenDispatch,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'semua' | 'pending' | 'verified'>('semua');
@@ -481,6 +483,18 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
                           >
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                           </button>
+
+                          {/* Smart Dispatch Tutor */}
+                          {onOpenDispatch && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDispatch(item)}
+                              className="p-1.5 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer transition-all shadow-xs"
+                              title="Smart Dispatch: Pasangkan Tutor Terdekat"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">near_me</span>
+                            </button>
+                          )}
 
                           {/* Print Slip Button */}
                           <button
