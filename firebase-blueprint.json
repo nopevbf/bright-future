@@ -310,6 +310,66 @@
         }
       },
       "required": ["id", "studentName", "level", "time", "status", "address"]
+    },
+    "TutorRegistration": {
+      "title": "TutorRegistration",
+      "description": "Data pendaftaran calon mitra pengajar/tutor privat baru di Kabupaten Magelang",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik pendaftaran tutor (contoh: TUTOR-REG-101)"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Nama lengkap dan gelar calon tutor",
+          "maxLength": 128
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Nomor WhatsApp aktif calon tutor",
+          "maxLength": 32
+        },
+        "education": {
+          "type": "string",
+          "description": "Kualifikasi pendidikan terakhir dan jurusan",
+          "maxLength": 200
+        },
+        "subjects": {
+          "type": "string",
+          "description": "Jenjang dan mata pelajaran yang dikuasai",
+          "maxLength": 200
+        },
+        "district": {
+          "type": "string",
+          "description": "Domisili kecamatan di Kabupaten Magelang",
+          "maxLength": 100
+        },
+        "experienceNotes": {
+          "type": "string",
+          "description": "Catatan pengalaman mengajar atau asesmen",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending_review", "interview", "accepted", "rejected"],
+          "description": "Status proses seleksi dan akreditasi tutor"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu berkas formulir dikirimkan"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "adminNotes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      },
+      "required": ["id", "fullName", "whatsapp", "education", "subjects", "district", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -332,6 +392,10 @@
     "/tutor_visits/{visitId}": {
       "schema": "TutorVisit",
       "description": "Koleksi rute bimbingan, presensi GPS, dan evaluasi sesi tutor"
+    },
+    "/tutor_registrations/{regId}": {
+      "schema": "TutorRegistration",
+      "description": "Koleksi pendaftaran dan verifikasi calon mitra tutor baru"
     }
   }
 }

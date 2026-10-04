@@ -1241,14 +1241,26 @@ export async function updateTutorRegistrationStatusInFirestore(
  */
 export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreTutorRegistrationDoc[]> {
   try {
-    const existing = await fetchTutorRegistrationsFromFirestore();
-    if (existing.length > 0) {
-      return existing;
+    const colRef = collection(db, 'tutor_registrations');
+    const snapshot = await getDocs(colRef);
+    if (!snapshot.empty) {
+      const results: FirestoreTutorRegistrationDoc[] = [];
+      snapshot.forEach((docSnap) => {
+        results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
+      }
+      return results;
     }
 
+    // Collection in Firestore is empty, seed demo tutor registrations
     for (const item of INITIAL_TUTOR_REGISTRATIONS) {
       const docRef = doc(db, 'tutor_registrations', item.id);
       await setDoc(docRef, item);
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(INITIAL_TUTOR_REGISTRATIONS));
     }
     return INITIAL_TUTOR_REGISTRATIONS;
   } catch (error) {
