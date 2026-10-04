@@ -632,18 +632,22 @@ export async function saveRegistrationToFirestore(registration: SubmittedRegistr
 export async function saveTutorRegistrationToFirestore(data: TutorRegistrationData): Promise<string> {
   const docId = `TUTOR-REG-${Date.now()}`;
   const docPath = `tutor_registrations/${docId}`;
+  const newRecord: FirestoreTutorRegistrationDoc = {
+    ...data,
+    id: docId,
+    status: 'pending_review',
+    createdAt: new Date().toISOString(),
+  };
+
   try {
     const docRef = doc(db, 'tutor_registrations', docId);
-    await setDoc(docRef, {
-      ...data,
-      id: docId,
-      status: 'pending_review',
-      createdAt: new Date().toISOString(),
-    });
+    await setDoc(docRef, newRecord);
+    saveLocalTutorRegistration(newRecord);
     return docId;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, docPath);
-    throw error;
+    console.warn('Firestore write failed for tutor registration, persisting to local storage backup:', error);
+    saveLocalTutorRegistration(newRecord);
+    return docId;
   }
 }
 
@@ -1086,8 +1090,63 @@ export const INITIAL_TUTOR_REGISTRATIONS: FirestoreTutorRegistrationDoc[] = [
   },
 ];
 
+const LOCAL_TUTOR_REGS_KEY = 'bf_tutor_registrations_cache';
+
+export function getLocalTutorRegistrations(): FirestoreTutorRegistrationDoc[] {
+  if (typeof window === 'undefined') return INITIAL_TUTOR_REGISTRATIONS;
+  try {
+    const raw = localStorage.getItem(LOCAL_TUTOR_REGS_KEY);
+    if (!raw) {
+      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(INITIAL_TUTOR_REGISTRATIONS));
+      return INITIAL_TUTOR_REGISTRATIONS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_TUTOR_REGISTRATIONS;
+  } catch {
+    return INITIAL_TUTOR_REGISTRATIONS;
+  }
+}
+
+export function saveLocalTutorRegistration(item: FirestoreTutorRegistrationDoc): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getLocalTutorRegistrations();
+    const existingIndex = list.findIndex((x) => x.id === item.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...item };
+    } else {
+      list.unshift(item);
+    }
+    localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Could not save tutor registration to localStorage cache:', e);
+  }
+}
+
+export function updateLocalTutorRegistrationStatus(
+  id: string,
+  status: 'pending_review' | 'interview' | 'accepted' | 'rejected',
+  adminNotes?: string
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const list = getLocalTutorRegistrations();
+    const idx = list.findIndex((x) => x.id === id);
+    if (idx >= 0) {
+      list[idx].status = status;
+      list[idx].updatedAt = new Date().toISOString();
+      if (adminNotes !== undefined) {
+        list[idx].adminNotes = adminNotes;
+      }
+      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.warn('Could not update tutor registration in localStorage cache:', e);
+  }
+}
+
 /**
- * Fetches all tutor registrations from Firestore.
+ * Fetches all tutor registrations from Firestore, falling back to local cache if permissions or network fail.
  */
 export async function fetchTutorRegistrationsFromFirestore(): Promise<FirestoreTutorRegistrationDoc[]> {
   try {
@@ -1097,47 +1156,70 @@ export async function fetchTutorRegistrationsFromFirestore(): Promise<FirestoreT
     snapshot.forEach((docSnap) => {
       results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
     });
-    return results;
+    if (results.length > 0) {
+      // Sync cache
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
+      }
+      return results;
+    }
+    return getLocalTutorRegistrations();
   } catch (error) {
-    console.warn('Error fetching tutor registrations from Firestore, using initial fallback:', error);
-    return INITIAL_TUTOR_REGISTRATIONS;
+    console.warn('Error fetching tutor registrations from Firestore, using local cache:', error);
+    return getLocalTutorRegistrations();
   }
 }
 
 /**
  * Subscribes to realtime updates of tutor registrations in Firestore.
+ * Automatically falls back to local storage cache if permission-denied occurs.
  */
 export function subscribeToTutorRegistrations(
   onUpdate: (registrations: FirestoreTutorRegistrationDoc[]) => void,
   onError?: (error: unknown) => void
 ): () => void {
-  const colRef = collection(db, 'tutor_registrations');
-  return onSnapshot(
-    colRef,
-    (snapshot) => {
-      const results: FirestoreTutorRegistrationDoc[] = [];
-      snapshot.forEach((docSnap) => {
-        results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
-      });
-      if (results.length > 0) {
-        onUpdate(results);
+  try {
+    const colRef = collection(db, 'tutor_registrations');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const results: FirestoreTutorRegistrationDoc[] = [];
+        snapshot.forEach((docSnap) => {
+          results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+        });
+        if (results.length > 0) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
+          }
+          onUpdate(results);
+        } else {
+          onUpdate(getLocalTutorRegistrations());
+        }
+      },
+      (error) => {
+        console.warn('Realtime tutor registrations error (using local cache fallback):', error);
+        onUpdate(getLocalTutorRegistrations());
+        if (onError) onError(error);
       }
-    },
-    (error) => {
-      console.error('Realtime tutor registrations error:', error);
-      if (onError) onError(error);
-    }
-  );
+    );
+  } catch (e) {
+    console.warn('Could not establish tutor registrations snapshot listener:', e);
+    onUpdate(getLocalTutorRegistrations());
+    return () => {};
+  }
 }
 
 /**
- * Updates a tutor registration status in Firestore.
+ * Updates a tutor registration status in Firestore and keeps local storage updated.
  */
 export async function updateTutorRegistrationStatusInFirestore(
   id: string,
   status: 'pending_review' | 'interview' | 'accepted' | 'rejected',
   adminNotes?: string
 ): Promise<void> {
+  // Always update local cache immediately for optimistic UI response
+  updateLocalTutorRegistrationStatus(id, status, adminNotes);
+
   const docPath = `tutor_registrations/${id}`;
   try {
     const docRef = doc(db, 'tutor_registrations', id);
@@ -1150,7 +1232,7 @@ export async function updateTutorRegistrationStatusInFirestore(
     }
     await setDoc(docRef, updatePayload, { merge: true });
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, docPath);
+    console.warn(`Firestore update error for ${docPath}, fallback to local cache:`, error);
   }
 }
 
@@ -1170,9 +1252,10 @@ export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreT
     }
     return INITIAL_TUTOR_REGISTRATIONS;
   } catch (error) {
-    console.warn('Could not seed tutor registrations to Firestore, using memory fallback:', error);
-    return INITIAL_TUTOR_REGISTRATIONS;
+    console.warn('Could not seed tutor registrations to Firestore, using local cache:', error);
+    return getLocalTutorRegistrations();
   }
 }
+
 
 

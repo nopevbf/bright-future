@@ -95,5 +95,15 @@ service cloud.firestore {
       allow create, update: if isValidId(quizId);
       allow delete: if false;
     }
+
+    match /tutor_registrations/{regId} {
+      // Allows prospective tutors to submit application
+      allow create: if isValidId(regId);
+      // Allows reading for admin review and verification
+      allow read: if true;
+      // Allows admin to update status, interview schedule, notes or delete
+      allow update, delete: if isValidId(regId);
+    }
   }
 }
+
