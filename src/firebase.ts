@@ -1019,4 +1019,160 @@ export async function updateTutorVisitInFirestore(
   }
 }
 
+// ==========================================
+// TUTOR REGISTRATIONS (CALON PENDAFTAR TUTOR)
+// ==========================================
+
+export interface FirestoreTutorRegistrationDoc {
+  id: string;
+  fullName: string;
+  whatsapp: string;
+  education: string;
+  subjects: string;
+  district: string;
+  experienceNotes?: string;
+  status: 'pending_review' | 'interview' | 'accepted' | 'rejected';
+  createdAt: string;
+  updatedAt?: string;
+  adminNotes?: string;
+}
+
+export const INITIAL_TUTOR_REGISTRATIONS: FirestoreTutorRegistrationDoc[] = [
+  {
+    id: 'TUTOR-REG-101',
+    fullName: 'Ahmad Faiz, S.Pd.',
+    whatsapp: '085173230198',
+    education: 'S1 Pendidikan Matematika UNY (IPK 3.84)',
+    subjects: 'Matematika SD & SMP',
+    district: 'Mertoyudan',
+    experienceNotes: '2 tahun membimbing les privat olimpiade matematika SD dan persiapan ASPD.',
+    status: 'pending_review',
+    createdAt: '2026-10-01T08:30:00Z',
+  },
+  {
+    id: 'TUTOR-REG-102',
+    fullName: 'Nadia Safitri, S.Si.',
+    whatsapp: '081234567890',
+    education: 'S1 Biologi Fakultas MIPA UGM (IPK 3.75)',
+    subjects: 'IPAS SD & IPA SMP Terpadu',
+    district: 'Secang',
+    experienceNotes: 'Asisten praktikum laboratorium biologi dan pengajar bimbingan belajar saintek.',
+    status: 'interview',
+    createdAt: '2026-10-02T10:15:00Z',
+    adminNotes: 'Wawancara microteaching dijadwalkan Rabu 14:00 di kantor Mertoyudan.',
+  },
+  {
+    id: 'TUTOR-REG-103',
+    fullName: 'Bagas Wicaksono, M.Pd.',
+    whatsapp: '087765432100',
+    education: 'S2 Magister Pendidikan Bahasa Inggris UNS (IPK 3.90)',
+    subjects: 'Bahasa Inggris SD - SMA & Fonik Dasar',
+    district: 'Magelang Selatan',
+    experienceNotes: 'Trainer English for Young Learners dan kurikulum Cambridge Primary.',
+    status: 'accepted',
+    createdAt: '2026-09-28T14:00:00Z',
+    adminNotes: 'Lolos akreditasi A. Siap dialokasikan untuk siswa zonasi Magelang Selatan.',
+  },
+  {
+    id: 'TUTOR-REG-104',
+    fullName: 'Dewi Anggraini, S.Pd.',
+    whatsapp: '085712349988',
+    education: 'S1 PGSD Universitas Negeri Semarang (IPK 3.65)',
+    subjects: 'Calistung Fonik & Tematik SD Kelas 1-3',
+    district: 'Magelang Utara',
+    experienceNotes: 'Guru honorer SD di Kramat Magelang Utara dengan metode multisensori.',
+    status: 'pending_review',
+    createdAt: '2026-10-03T16:45:00Z',
+  },
+];
+
+/**
+ * Fetches all tutor registrations from Firestore.
+ */
+export async function fetchTutorRegistrationsFromFirestore(): Promise<FirestoreTutorRegistrationDoc[]> {
+  try {
+    const colRef = collection(db, 'tutor_registrations');
+    const snapshot = await getDocs(colRef);
+    const results: FirestoreTutorRegistrationDoc[] = [];
+    snapshot.forEach((docSnap) => {
+      results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+    });
+    return results;
+  } catch (error) {
+    console.warn('Error fetching tutor registrations from Firestore, using initial fallback:', error);
+    return INITIAL_TUTOR_REGISTRATIONS;
+  }
+}
+
+/**
+ * Subscribes to realtime updates of tutor registrations in Firestore.
+ */
+export function subscribeToTutorRegistrations(
+  onUpdate: (registrations: FirestoreTutorRegistrationDoc[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const colRef = collection(db, 'tutor_registrations');
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const results: FirestoreTutorRegistrationDoc[] = [];
+      snapshot.forEach((docSnap) => {
+        results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+      });
+      if (results.length > 0) {
+        onUpdate(results);
+      }
+    },
+    (error) => {
+      console.error('Realtime tutor registrations error:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+
+/**
+ * Updates a tutor registration status in Firestore.
+ */
+export async function updateTutorRegistrationStatusInFirestore(
+  id: string,
+  status: 'pending_review' | 'interview' | 'accepted' | 'rejected',
+  adminNotes?: string
+): Promise<void> {
+  const docPath = `tutor_registrations/${id}`;
+  try {
+    const docRef = doc(db, 'tutor_registrations', id);
+    const updatePayload: Record<string, any> = {
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+    if (adminNotes !== undefined) {
+      updatePayload.adminNotes = adminNotes;
+    }
+    await setDoc(docRef, updatePayload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, docPath);
+  }
+}
+
+/**
+ * Seeds initial demo tutor registrations to Firestore if collection is empty.
+ */
+export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreTutorRegistrationDoc[]> {
+  try {
+    const existing = await fetchTutorRegistrationsFromFirestore();
+    if (existing.length > 0) {
+      return existing;
+    }
+
+    for (const item of INITIAL_TUTOR_REGISTRATIONS) {
+      const docRef = doc(db, 'tutor_registrations', item.id);
+      await setDoc(docRef, item);
+    }
+    return INITIAL_TUTOR_REGISTRATIONS;
+  } catch (error) {
+    console.warn('Could not seed tutor registrations to Firestore, using memory fallback:', error);
+    return INITIAL_TUTOR_REGISTRATIONS;
+  }
+}
+
 

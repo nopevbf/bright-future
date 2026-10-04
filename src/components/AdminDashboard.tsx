@@ -17,6 +17,11 @@ import {
   deleteInvoiceFromFirestore,
   seedInitialInvoicesIfEmpty,
   FirestoreInvoiceDoc,
+  fetchTutorRegistrationsFromFirestore,
+  subscribeToTutorRegistrations,
+  updateTutorRegistrationStatusInFirestore,
+  seedInitialTutorRegistrationsIfEmpty,
+  FirestoreTutorRegistrationDoc,
 } from '../firebase';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
 import { StudentManagementSubTab } from './admin/StudentManagementSubTab';
@@ -24,6 +29,9 @@ import { StudentDetailModal } from './admin/StudentDetailModal';
 import { StudentFormModal } from './admin/StudentFormModal';
 import { RegistrationSlipModal } from './admin/RegistrationSlipModal';
 import { AddSessionsModal } from './admin/AddSessionsModal';
+import { TutorVerificationSubTab } from './admin/TutorVerificationSubTab';
+import { TutorManagementSubTab } from './admin/TutorManagementSubTab';
+import { TutorApplicantDetailModal } from './admin/TutorApplicantDetailModal';
 import {
   ManagedStudent,
   INITIAL_MANAGED_STUDENTS,
@@ -342,6 +350,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   const [studentSubTab, setStudentSubTab] = useState<'verifikasi' | 'manajemen'>('verifikasi');
   const [isStudentMenuExpanded, setIsStudentMenuExpanded] = useState<boolean>(false);
 
+  // Sub-menu state for Data Tutor & Pelamar Pendaftar
+  const [tutorSubTab, setTutorSubTab] = useState<'aktif' | 'verifikasi'>('aktif');
+  const [tutorRegistrations, setTutorRegistrations] = useState<FirestoreTutorRegistrationDoc[]>([]);
+  const [isLoadingTutorRegistrations, setIsLoadingTutorRegistrations] = useState<boolean>(false);
+  const [selectedTutorApplicant, setSelectedTutorApplicant] = useState<FirestoreTutorRegistrationDoc | null>(null);
+
   // Master managed students state
   const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(INITIAL_MANAGED_STUDENTS);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
@@ -518,12 +532,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       }
     );
 
+    // Initial load and real-time live listener for Tutor Registrations from Firestore
+    setIsLoadingTutorRegistrations(true);
+    seedInitialTutorRegistrationsIfEmpty()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setTutorRegistrations(data);
+        }
+        setIsLoadingTutorRegistrations(false);
+      })
+      .catch((err) => {
+        console.error('Error seeding/fetching tutor registrations from Firestore:', err);
+        setIsLoadingTutorRegistrations(false);
+      });
+
+    const unsubscribeTutors = subscribeToTutorRegistrations(
+      (data) => {
+        if (data && data.length > 0) {
+          setTutorRegistrations(data);
+        }
+        setIsLoadingTutorRegistrations(false);
+      },
+      (err) => {
+        console.warn('Real-time tutor registrations listener warning:', err);
+        setIsLoadingTutorRegistrations(false);
+      }
+    );
+
     return () => {
       if (typeof unsubscribeRegistrations === 'function') {
         unsubscribeRegistrations();
       }
       if (typeof unsubscribeInvoices === 'function') {
         unsubscribeInvoices();
+      }
+      if (typeof unsubscribeTutors === 'function') {
+        unsubscribeTutors();
       }
     };
   }, []);
@@ -590,6 +634,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     } catch (err) {
       console.error(err);
       setActionFeedback('Gagal memperbarui status ke Firestore.');
+      setTimeout(() => setActionFeedback(null), 4000);
+    }
+  };
+
+  const handleUpdateTutorRegistrationStatus = async (
+    id: string,
+    status: 'pending_review' | 'interview' | 'accepted' | 'rejected',
+    notes?: string
+  ) => {
+    try {
+      await updateTutorRegistrationStatusInFirestore(id, status, notes);
+      const statusLabels: Record<string, string> = {
+        pending_review: 'Menunggu Review',
+        interview: 'Tahap Wawancara',
+        accepted: 'Diterima & Terakreditasi',
+        rejected: 'Ditolak',
+      };
+      setActionFeedback(`Status pelamar #${id} berhasil diperbarui: ${statusLabels[status] || status}!`);
+      setTutorRegistrations((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status, adminNotes: notes || item.adminNotes } : item))
+      );
+      if (selectedTutorApplicant && selectedTutorApplicant.id === id) {
+        setSelectedTutorApplicant((prev) =>
+          prev ? { ...prev, status, adminNotes: notes || prev.adminNotes } : null
+        );
+      }
+      setTimeout(() => setActionFeedback(null), 4000);
+    } catch (err) {
+      console.error(err);
+      setActionFeedback('Gagal memperbarui status pelamar tutor ke Firestore.');
       setTimeout(() => setActionFeedback(null), 4000);
     }
   };
@@ -848,6 +922,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   };
 
   const pendingCount = firestoreRegistrations.filter((r) => r.paymentStatus === 'pending').length;
+  const pendingTutorCount = tutorRegistrations.filter((r) => r.status === 'pending_review').length;
+  const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
 
   return (
     <div className="bg-[#FAF7F1] font-sans text-[#2A2823] min-h-screen selection:bg-[#EFC9AE] selection:text-[#6b2702] relative">
@@ -1044,7 +1120,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                 <span className="material-symbols-outlined text-[20px] shrink-0">school</span>
                 {!isSidebarCollapsed && <span>Data Tutor</span>}
               </div>
-              {!isSidebarCollapsed && <span className="text-[11px] text-[#6B675F] font-semibold">18</span>}
+              {!isSidebarCollapsed && (
+                pendingTutorCount > 0 ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                    {pendingTutorCount} Baru
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-[#6B675F] font-semibold">18</span>
+                )
+              )}
             </button>
 
             <button
@@ -2156,14 +2240,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
             </div>
           )}
 
-          {/* TAB: DATA TUTOR */}
+          {/* TAB: DATA TUTOR & MANAJEMEN PENDAFTAR */}
           {activeTab === 'tutor' && (
             <div className="space-y-6 max-w-7xl mx-auto">
+              {/* Header Tab Tutor */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2823]/10">
                 <div>
                   <h1 className="text-2xl font-bold text-[#2A2823]">Data Tutor &amp; Guru Privat</h1>
                   <p className="text-xs sm:text-sm text-[#6B675F]">
-                    18 Pengajar terakreditasi berdomisili dan siap jelajah Kabupaten Magelang.
+                    Kelola pengajar aktif terakreditasi dan verifikasi pendaftaran calon tutor baru di Magelang.
                   </p>
                 </div>
                 <a
@@ -2181,64 +2266,97 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                 </a>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {[
-                  {
-                    name: 'Kak Anindya, S.Pd.',
-                    univ: 'Pendidikan Matematika UNY (IPK 3.88)',
-                    spec: 'SD UMUM & Olimpiade Sains SD',
-                    load: '6 Siswa Aktif',
-                    status: 'Tersedia Sore',
-                  },
-                  {
-                    name: 'Kak Dimas Arya, S.Si.',
-                    univ: 'Fisika MIPA UGM (IPK 3.82)',
-                    spec: 'SD UMUM Matematika & SMP Fisika',
-                    load: '8 Siswa Aktif',
-                    status: 'On-Duty',
-                  },
-                  {
-                    name: 'Kak Sarah Larasati, M.Pd.',
-                    univ: 'Magister Bahasa & Sastra Indonesia UNS',
-                    spec: 'SD UMUM Tematik & Literasi Membaca',
-                    load: '5 Siswa Aktif',
-                    status: 'Tersedia',
-                  },
-                  {
-                    name: 'Kak Siti Rahma, S.Pd.',
-                    univ: 'PGSD Universitas Muhammadiyah Magelang',
-                    spec: 'Calistung Fonik & SD Kelas Rendah',
-                    load: '7 Siswa Aktif',
-                    status: 'Tersedia',
-                  },
-                ].map((tutor, idx) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs flex flex-col justify-between space-y-4"
+              {/* Sub-tab Navigation: Tutor Aktif vs Verifikasi Pendaftar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-1.5 bg-[#f0eee8] rounded-2xl w-full">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setTutorSubTab('aktif')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      tutorSubTab === 'aktif'
+                        ? 'bg-[#284230] text-white shadow-xs'
+                        : 'text-[#424843] hover:text-[#1c1c18] hover:bg-white/50'
+                    }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
-                          {tutor.status}
-                        </span>
-                        <span className="text-xs text-[#6B675F] font-semibold">{tutor.load}</span>
-                      </div>
-                      <h3 className="text-base font-bold text-[#2A2823] mt-2">{tutor.name}</h3>
-                      <p className="text-xs text-[#3F5A46] font-semibold">{tutor.univ}</p>
-                      <p className="text-xs text-[#6B675F] mt-1">Spesialisasi: {tutor.spec}</p>
-                    </div>
-                    <div className="pt-3 border-t border-[#2A2823]/8 flex items-center justify-between">
-                      <span className="text-xs text-[#6B675F]">Akreditasi A</span>
-                      <button
-                        onClick={() => alert(`Jadwal detail ${tutor.name} dibuka`)}
-                        className="text-xs text-[#284230] font-bold hover:underline cursor-pointer"
+                    <span className="material-symbols-outlined text-[18px]">school</span>
+                    <span>Tutor Aktif &amp; Terakreditasi</span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        tutorSubTab === 'aktif'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-[#ebe8e2] text-[#284230]'
+                      }`}
+                    >
+                      {4 + acceptedTutorApplicants.length}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setTutorSubTab('verifikasi')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      tutorSubTab === 'verifikasi'
+                        ? 'bg-[#284230] text-white shadow-xs'
+                        : 'text-[#424843] hover:text-[#1c1c18] hover:bg-white/50'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
+                    <span>Verifikasi Pendaftar Tutor Baru</span>
+                    {pendingTutorCount > 0 ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-amber-950 font-bold animate-pulse">
+                        {pendingTutorCount} Menunggu
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          tutorSubTab === 'verifikasi'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-[#ebe8e2] text-[#284230]'
+                        }`}
                       >
-                        Lihat Jadwal
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                        {tutorRegistrations.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#6B675F] px-3">
+                  <span className="material-symbols-outlined text-[16px] text-[#3F5A46]">cloud_sync</span>
+                  <span className="font-semibold">
+                    {tutorSubTab === 'verifikasi' ? 'Koleksi tutor_registrations' : 'Pengajar Terdaftar'}
+                  </span>
+                </div>
               </div>
+
+              {/* Konten Sub-tab 1: Manajemen Tutor Aktif */}
+              {tutorSubTab === 'aktif' && (
+                <TutorManagementSubTab acceptedApplicants={acceptedTutorApplicants} />
+              )}
+
+              {/* Konten Sub-tab 2: Verifikasi Pendaftar Tutor Baru */}
+              {tutorSubTab === 'verifikasi' && (
+                <TutorVerificationSubTab
+                  applications={tutorRegistrations}
+                  isLoading={isLoadingTutorRegistrations}
+                  onRefresh={async () => {
+                    setIsLoadingTutorRegistrations(true);
+                    const data = await fetchTutorRegistrationsFromFirestore();
+                    setTutorRegistrations(data);
+                    setIsLoadingTutorRegistrations(false);
+                    setActionFeedback('Data pendaftar tutor berhasil disinkronkan!');
+                    setTimeout(() => setActionFeedback(null), 3000);
+                  }}
+                  onViewDetail={(app) => setSelectedTutorApplicant(app)}
+                  onUpdateStatus={handleUpdateTutorRegistrationStatus}
+                />
+              )}
+
+              {/* Modal Detail Berkas Pendaftar Tutor */}
+              {selectedTutorApplicant && (
+                <TutorApplicantDetailModal
+                  applicant={selectedTutorApplicant}
+                  onClose={() => setSelectedTutorApplicant(null)}
+                  onUpdateStatus={handleUpdateTutorRegistrationStatus}
+                />
+              )}
             </div>
           )}
 
