@@ -6,12 +6,10 @@ import {
   GraduationCap,
   Users,
   CheckCircle2,
-  Lock,
   ArrowRight,
   AlertCircle,
   Database,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import {
   verifyPortalCredentialsFromFirestore,
@@ -36,8 +34,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onOrangTuaLoginSuccess,
 }) => {
   const [activeRole, setActiveRole] = useState<UserRole>('admin');
-  const [identifier, setIdentifier] = useState<string>('admin@brightfuture.id');
-  const [password, setPassword] = useState<string>('Bismillah@01');
+  const [identifier, setIdentifier] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
   const [loginSuccessData, setLoginSuccessData] = useState<{
@@ -89,8 +87,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   const handleRoleSwitch = (role: UserRole) => {
     setActiveRole(role);
-    setIdentifier(roleConfigs[role].demoUser);
-    setPassword(roleConfigs[role].demoPass);
+    setIdentifier('');
+    setPassword('');
     setErrorMessage(null);
     setLoginSuccessData(null);
   };
@@ -225,41 +223,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <p className="text-xs text-[#6B675F] leading-relaxed">{currentConfig.desc}</p>
               </div>
 
-              {activeRole === 'admin' && (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
-                  <Lock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold block">Kredensial Super Admin (Tersimpan di Firestore):</span>
-                    <div>Email: <span className="font-mono font-bold">admin@brightfuture.id</span></div>
-                    <div>Password: <span className="font-mono font-bold">Bismillah@01</span></div>
-                  </div>
-                </div>
-              )}
-
-              {activeRole === 'siswa' && (
-                <div className="p-3 rounded-xl bg-[#EAF2ED] border border-[#284230]/20 text-xs text-[#284230] flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-[#3F5A46]" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold block">Koneksi Pendaftaran Siswa Baru:</span>
-                    <p className="text-[11px] leading-relaxed">
-                      Siswa yang baru mendaftar di landing page dapat langsung login menggunakan nomor <span className="font-mono font-bold">ID Siswa</span> (contoh: BF-xxxx) yang tersimpan di Firestore!
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {activeRole === 'orang_tua' && (
-                <div className="p-3 rounded-xl bg-[#EAF2ED] border border-[#284230]/20 text-xs text-[#284230] flex items-start gap-2">
-                  <Database className="w-4 h-4 shrink-0 mt-0.5 text-[#3F5A46]" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold block">Koneksi Database Wali Murid:</span>
-                    <p className="text-[11px] leading-relaxed">
-                      Wali murid dapat login dengan nomor WhatsApp yang didaftarkan saat pendaftaran bimbingan belajar.
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {errorMessage && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -280,7 +243,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.12)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
+                  placeholder={
+                    activeRole === 'admin'
+                      ? 'admin@brightfuture.id'
+                      : activeRole === 'tutor'
+                      ? 'Nomor WhatsApp atau email resmi tutor'
+                      : activeRole === 'siswa'
+                      ? 'ID Siswa (contoh: BF-2026-09-8492)'
+                      : 'Nomor WhatsApp wali murid terdaftar'
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.12)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46] placeholder:text-[#6B675F]/60"
                 />
               </div>
 
@@ -293,7 +265,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.12)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
+                  placeholder="Masukkan kata sandi akun"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.12)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46] placeholder:text-[#6B675F]/60"
                 />
               </div>
 

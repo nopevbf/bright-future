@@ -211,9 +211,13 @@ export const TutorVerificationSubTab: React.FC<TutorVerificationSubTabProps> = (
                   </td>
                 </tr>
               ) : (
-                filteredApps.map((app) => (
-                  <tr key={app.id} className="hover:bg-[#FAF7F1]/50 transition-colors">
-                    {/* Calon Pengajar */}
+                filteredApps.map((app, index) => {
+                  const rowKey = app.id
+                    ? `${app.id}-${index}`
+                    : `tutor-app-${index}-${app.fullName || ''}-${app.whatsapp || ''}`;
+                  return (
+                    <tr key={rowKey} className="hover:bg-[#FAF7F1]/50 transition-colors">
+                      {/* Calon Pengajar */}
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-sm text-[#2A2823]">{app.fullName}</div>
                       <div className="text-[11px] text-[#6B675F] flex items-center gap-1 mt-0.5">
@@ -278,7 +282,8 @@ export const TutorVerificationSubTab: React.FC<TutorVerificationSubTabProps> = (
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

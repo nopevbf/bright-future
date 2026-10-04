@@ -25,7 +25,14 @@ import {
   saveTutorAssignmentToFirestore,
   subscribeToTutorAssignments,
   FirestoreTutorAssignmentDoc,
+  createOrUpdateStudentAccountInFirestore,
+  createOrUpdateTutorAccountInFirestore,
+  syncAllVerifiedAccountsToFirestore,
+  fetchAllPortalAccountsFromFirestore,
+  updatePortalAccountPasswordInFirestore,
+  subscribeToPortalAccounts,
 } from '../firebase';
+import { AccountManagementSubTab } from './admin/AccountManagementSubTab';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
 import { StudentManagementSubTab } from './admin/StudentManagementSubTab';
 import { StudentDetailModal } from './admin/StudentDetailModal';
@@ -361,6 +368,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   const [isLoadingTutorRegistrations, setIsLoadingTutorRegistrations] = useState<boolean>(false);
   const [selectedTutorApplicant, setSelectedTutorApplicant] = useState<FirestoreTutorRegistrationDoc | null>(null);
 
+  // Portal credentials accounts state
+  const [portalAccounts, setPortalAccounts] = useState<PortalCredentialDoc[]>([]);
+
   // Master managed students state
   const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(INITIAL_MANAGED_STUDENTS);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
@@ -435,6 +445,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       setAdminCredential(cred);
       const accounts = await fetchConnectedDatabaseAccounts();
       setConnectedDatabaseAccounts(accounts);
+      const portalAccs = await fetchAllPortalAccountsFromFirestore();
+      setPortalAccounts(portalAccs);
     } catch (e) {
       console.error('Error fetching admin creds from Firestore:', e);
     }
@@ -445,8 +457,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     try {
       await loadAdminCredentialsFromDb();
       await loadFirestoreData();
-      setActionFeedback('Sinkronisasi database Cloud Firestore berhasil!');
-      setTimeout(() => setActionFeedback(null), 3000);
+      const updatedAccounts = await syncAllVerifiedAccountsToFirestore(
+        firestoreRegistrations,
+        tutorRegistrations
+      );
+      if (updatedAccounts && updatedAccounts.length > 0) {
+        setPortalAccounts(updatedAccounts);
+      }
+      setActionFeedback('Sinkronisasi akun & database Cloud Firestore berhasil! Akun terverifikasi aktif.');
+      setTimeout(() => setActionFeedback(null), 3500);
     } catch (e) {
       console.error('Sync error:', e);
     } finally {
@@ -586,6 +605,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       }
     );
 
+    // Real-time live listener for multi-role Portal Credentials from Firestore
+    const unsubscribePortalAccounts = subscribeToPortalAccounts(
+      (accounts) => {
+        if (accounts && accounts.length > 0) {
+          setPortalAccounts(accounts);
+        }
+      },
+      (err) => {
+        console.warn('Real-time portal accounts listener warning:', err);
+      }
+    );
+
     return () => {
       if (typeof unsubscribeRegistrations === 'function') {
         unsubscribeRegistrations();
@@ -599,20 +630,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
       if (typeof unsubscribeAssignments === 'function') {
         unsubscribeAssignments();
       }
+      if (typeof unsubscribePortalAccounts === 'function') {
+        unsubscribePortalAccounts();
+      }
     };
   }, []);
 
   const handleVerifyStudent = async (studentId: string) => {
     try {
       await updateRegistrationStatusInFirestore(studentId, 'verified');
-      setActionFeedback(`Siswa ${studentId} berhasil diverifikasi & status diperbarui ke Cloud Firestore!`);
+
       // Update local state
       setFirestoreRegistrations((prev) =>
         prev.map((item) => (item.studentId === studentId ? { ...item, paymentStatus: 'verified' } : item))
       );
 
-      // Automatically register or sync into managedStudents if not already present
+      // Automatically create student & parent portal account in Firestore with default password 123456789
       const reg = firestoreRegistrations.find((r) => r.studentId === studentId);
+      if (reg) {
+        try {
+          await createOrUpdateStudentAccountInFirestore(
+            { ...reg, paymentStatus: 'verified' },
+            '123456789'
+          );
+        } catch (errAcc) {
+          console.warn('Could not auto-create student account:', errAcc);
+        }
+      }
+
+      setActionFeedback(`Siswa ${studentId} diverifikasi & akun login dibuat otomatis di DB (Password: 123456789)!`);
+
+      // Automatically register or sync into managedStudents if not already present
       if (reg) {
         setManagedStudents((prev) => {
           if (prev.some((s) => s.id === reg.studentId)) return prev;
@@ -675,13 +723,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   ) => {
     try {
       await updateTutorRegistrationStatusInFirestore(id, status, notes);
+
+      // Auto-create tutor portal account in Firestore with default password 123456789
+      if (status === 'accepted') {
+        const tutor = tutorRegistrations.find((item) => item.id === id);
+        if (tutor) {
+          try {
+            await createOrUpdateTutorAccountInFirestore(
+              { ...tutor, status: 'accepted' },
+              '123456789'
+            );
+          } catch (e) {
+            console.warn('Could not auto-create tutor account in portal_credentials:', e);
+          }
+        }
+      }
+
       const statusLabels: Record<string, string> = {
         pending_review: 'Menunggu Review',
         interview: 'Tahap Wawancara',
-        accepted: 'Diterima & Terakreditasi',
+        accepted: 'Diterima & Terakreditasi (Akun Aktif: 123456789)',
         rejected: 'Ditolak',
       };
-      setActionFeedback(`Status pelamar #${id} berhasil diperbarui: ${statusLabels[status] || status}!`);
+      setActionFeedback(
+        status === 'accepted'
+          ? `Tutor #${id} resmi diterima & akun login otomatis dibuat di DB (Password: 123456789)!`
+          : `Status pelamar #${id} berhasil diperbarui: ${statusLabels[status] || status}!`
+      );
       setTutorRegistrations((prev) =>
         prev.map((item) => (item.id === id ? { ...item, status, adminNotes: notes || item.adminNotes } : item))
       );
@@ -2835,315 +2903,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
 
           {/* TAB: AKUN & HAK AKSES */}
           {activeTab === 'akun' && (
-            <div className="space-y-6 max-w-4xl mx-auto">
-              <div className="pb-4 border-b border-[#2A2823]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h1 className="text-2xl font-bold text-[#2A2823]">Pengaturan Akun &amp; Kredensial Database</h1>
-                  <p className="text-xs sm:text-sm text-[#6B675F]">
-                    Kelola otentikasi admin dan status kredensial terpusat di Google Cloud Firestore.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSyncDatabase}
-                  disabled={isSyncingDb}
-                  className="px-4 py-2 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/15 text-xs font-bold text-[#284230] hover:bg-[#F1ECE1] cursor-pointer flex items-center gap-1.5 self-start disabled:opacity-60"
-                >
-                  <span className={`material-symbols-outlined text-[17px] ${isSyncingDb ? 'animate-spin' : ''}`}>
-                    sync
-                  </span>
-                  <span>{isSyncingDb ? 'Menyinkronkan...' : 'Sinkronkan Database'}</span>
-                </button>
-              </div>
-
-              {/* Card Profil Admin Firestore */}
-              <div className="p-6 rounded-3xl bg-white border border-[#2A2823]/10 shadow-sm space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-[#3F5A46] text-white flex items-center justify-center font-bold text-xl shadow-xs">
-                      MY
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-[#2A2823]">{adminCredential.name}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-[#3F5A46] font-semibold bg-[#EAF2ED] px-2.5 py-0.5 rounded-full border border-[#3F5A46]/20">
-                          {adminCredential.role.toUpperCase()}
-                        </span>
-                        <span className="text-xs text-[#6B675F]">ID: SUPER_ADMIN_01</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Tersambung ke Cloud Firestore</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#2A2823]/10 text-xs">
-                  <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-                    <span className="text-[10px] text-[#6B675F] uppercase font-bold block mb-1">
-                      Email Login Resmi
-                    </span>
-                    <span className="text-sm font-bold text-[#284230] font-mono break-all">
-                      {adminCredential.email}
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-[#6B675F] uppercase font-bold">Kata Sandi Database</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowPasswordInPlain(!showPasswordInPlain)}
-                        className="text-[10px] text-[#3F5A46] font-bold hover:underline cursor-pointer"
-                      >
-                        {showPasswordInPlain ? 'Sembunyikan' : 'Lihat'}
-                      </button>
-                    </div>
-                    <span className="text-sm font-bold text-[#2A2823] font-mono">
-                      {showPasswordInPlain ? adminCredential.password : '••••••••••••'}
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-                    <span className="text-[10px] text-[#6B675F] uppercase font-bold block mb-1">
-                      Login Terakhir (Firestore)
-                    </span>
-                    <span className="text-xs font-medium text-[#2A2823]">
-                      {adminCredential.lastLogin
-                        ? new Date(adminCredential.lastLogin).toLocaleString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          }) + ' WIB'
-                        : 'Sesi Aktif Sekarang'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Firestore Metadata Banner */}
-                <div className="p-4 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/10 text-xs text-[#2A2823] space-y-1">
-                  <div className="font-bold text-[#3F5A46] flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[16px]">database</span>
-                    <span>Metadata Basis Data Cloud Firestore:</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#6B675F] pt-1">
-                    <div>Path Dokumen: <code className="font-mono text-[#2A2823]">admin_credentials/admin</code></div>
-                    <div>Database ID: <code className="font-mono text-[#2A2823]">ai-studio-prdlaunchpad-4d4c77d8-f0ad-42c7-b5cb-a53ce7429255</code></div>
-                  </div>
-                </div>
-
-                {/* Form Ubah Password Admin di Firestore */}
-                <div className="pt-2 border-t border-[#2A2823]/10">
-                  <h4 className="font-bold text-sm text-[#2A2823] mb-3 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px] text-[#3F5A46]">lock_reset</span>
-                    <span>Perbarui Kata Sandi Admin di Database Firestore</span>
-                  </h4>
-
-                  {passwordChangeStatus && (
-                    <div
-                      className={`p-3 rounded-xl mb-3 text-xs flex items-center gap-2 ${
-                        passwordChangeStatus.type === 'success'
-                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                          : 'bg-red-50 border border-red-200 text-red-700'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        {passwordChangeStatus.type === 'success' ? 'check_circle' : 'error'}
-                      </span>
-                      <span>{passwordChangeStatus.message}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleUpdatePasswordInFirestore} className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#6B675F] uppercase mb-1">
-                          Kata Sandi Lama
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          placeholder="Masukkan sandi lama"
-                          value={oldPasswordInput}
-                          onChange={(e) => setOldPasswordInput(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#6B675F] uppercase mb-1">
-                          Kata Sandi Baru
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          placeholder="Minimal 6 karakter"
-                          value={newPasswordInput}
-                          onChange={(e) => setNewPasswordInput(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#6B675F] uppercase mb-1">
-                          Ulangi Sandi Baru
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          placeholder="Konfirmasi sandi baru"
-                          value={confirmPasswordInput}
-                          onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-[#2A2823]/15 text-xs focus:ring-2 focus:ring-[#3F5A46] outline-none bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end pt-1">
-                      <button
-                        type="submit"
-                        disabled={isSavingPassword}
-                        className="px-4 py-2 rounded-xl bg-[#284230] hover:bg-[#3F5A46] text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60 shadow-xs"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">save</span>
-                        <span>{isSavingPassword ? 'Menyimpan ke Firestore...' : 'Simpan Sandi Baru ke Database'}</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              {/* Tabel Semua Akun Kredensial Database Terhubung */}
-              <div className="p-6 rounded-3xl bg-white border border-[#2A2823]/10 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-[#2A2823]">
-                      Daftar Akun Kredensial Terhubung di Database
-                    </h3>
-                    <p className="text-xs text-[#6B675F]">
-                      Pengguna landing page dan staf yang tersinkronisasi di Cloud Firestore
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#EAF2ED] text-[#284230] border border-[#284230]/20">
-                    {firestoreRegistrations.length + 3} Akun Aktif
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#2A2823]/10 text-[#6B675F] uppercase text-[10px] font-bold">
-                        <th className="py-2.5 px-3">Peran / Role</th>
-                        <th className="py-2.5 px-3">Nama Pengguna</th>
-                        <th className="py-2.5 px-3">Identifier / Login</th>
-                        <th className="py-2.5 px-3">Koleksi Firestore</th>
-                        <th className="py-2.5 px-3 text-right">Status Database</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#2A2823]/6">
-                      <tr className="hover:bg-[#FAF7F1]/60">
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-[#3F5A46] text-white">
-                            Super Admin
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-bold text-[#2A2823]">{adminCredential.name}</td>
-                        <td className="py-3 px-3 font-mono text-[#284230] font-bold">{adminCredential.email}</td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-[#6B675F]">admin_credentials</td>
-                        <td className="py-3 px-3 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Tersinkronisasi
-                          </span>
-                        </td>
-                      </tr>
-
-                      <tr className="hover:bg-[#FAF7F1]/60">
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-[#C1683F] text-white">
-                            Tutor / Guru
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-bold text-[#2A2823]">Kak Monica Yuliana, S.Pd.</td>
-                        <td className="py-3 px-3 font-mono text-[#2A2823]">monica.tutor@brightfuture.id</td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-[#6B675F]">portal_credentials</td>
-                        <td className="py-3 px-3 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Tersinkronisasi
-                          </span>
-                        </td>
-                      </tr>
-
-                      <tr className="hover:bg-[#FAF7F1]/60">
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-[#6F8F76] text-white">
-                            Siswa Baru
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-bold text-[#2A2823]">
-                          {firestoreRegistrations.length > 0
-                            ? `${firestoreRegistrations[0].studentName} (+${firestoreRegistrations.length - 1} lainnya)`
-                            : 'Kevin Pratama (Demo)'}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[#2A2823]">
-                          {firestoreRegistrations.length > 0
-                            ? firestoreRegistrations[0].studentId
-                            : 'BF-2026-09-8492'}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-[#6B675F]">registrations</td>
-                        <td className="py-3 px-3 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Live Firestore
-                          </span>
-                        </td>
-                      </tr>
-
-                      <tr className="hover:bg-[#FAF7F1]/60">
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-[#EFC9AE] text-[#6b2702]">
-                            Wali Murid
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 font-bold text-[#2A2823]">
-                          {firestoreRegistrations.length > 0
-                            ? firestoreRegistrations[0].parentName
-                            : 'Ibu Deasy'}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[#2A2823]">
-                          {firestoreRegistrations.length > 0
-                            ? firestoreRegistrations[0].whatsapp
-                            : '085173230198'}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-[#6B675F]">registrations / portal</td>
-                        <td className="py-3 px-3 text-right">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Live Firestore
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <p className="text-[11px] text-[#6B675F]">
-                    Siswa dan wali murid yang mendaftar melalui formulir web langsung otomatis mendapatkan akses masuk portal.
-                  </p>
-                  <button
-                    onClick={onLogout}
-                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shrink-0"
-                  >
-                    <span className="material-symbols-outlined text-[17px]">logout</span>
-                    <span>Keluar dari Akun Admin</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AccountManagementSubTab
+              adminCredential={adminCredential}
+              portalAccounts={portalAccounts}
+              verifiedRegistrations={firestoreRegistrations.filter((r) => r.paymentStatus === 'verified')}
+              acceptedTutors={tutorRegistrations.filter((t) => t.status === 'accepted')}
+              isSyncingDb={isSyncingDb}
+              onSyncDatabase={handleSyncDatabase}
+              onUpdateAdminPassword={updateAdminPasswordInFirestore}
+              onUpdatePortalPassword={updatePortalAccountPasswordInFirestore}
+              onLogout={onLogout}
+            />
           )}
 
           {/* Quick Fallback for Other Tabs */}

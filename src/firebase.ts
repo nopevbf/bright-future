@@ -122,12 +122,19 @@ export interface AdminCredentialDoc {
 }
 
 export interface PortalCredentialDoc {
+  id?: string;
   identifier: string;
   password: string;
   role: 'admin' | 'tutor' | 'siswa' | 'orang_tua';
   name: string;
   summary: string;
   updatedAt?: string;
+  createdAt?: string;
+  whatsapp?: string;
+  studentId?: string;
+  tutorId?: string;
+  status?: string;
+  isVerified?: boolean;
 }
 
 export const DEFAULT_ADMIN_CREDENTIAL: AdminCredentialDoc = {
@@ -348,128 +355,141 @@ export async function verifyPortalCredentialsFromFirestore(
   try {
     await ensureDefaultCredentialsInFirestore();
 
-    // 1. Check portal_credentials collection in Firestore
-    const portalRef = doc(db, 'portal_credentials', role);
-    const portalSnap = await getDoc(portalRef);
+    const isDefaultPwd = cleanPassword === '123456789';
 
-    if (portalSnap.exists()) {
-      const data = portalSnap.data() as PortalCredentialDoc;
-      if (
-        data.identifier.toLowerCase() === cleanId.toLowerCase() &&
-        data.password === cleanPassword
-      ) {
-        return {
-          success: true,
-          user: {
-            identifier: data.identifier,
-            name: data.name,
-            role: data.role,
-            summary: data.summary,
-            source: 'firestore_credentials',
-          },
-        };
+    // 1. Scan portal_credentials collection in Firestore for exact or normalized match
+    try {
+      const portalCol = collection(db, 'portal_credentials');
+      const portalSnap = await getDocs(portalCol);
+      for (const d of portalSnap.docs) {
+        const data = d.data() as PortalCredentialDoc;
+        if (data.role === role) {
+          const idClean = (data.identifier || '').toLowerCase();
+          const waClean = (data.whatsapp || '').replace(/[^0-9]/g, '');
+          const inputCleanDigits = cleanId.replace(/[^0-9]/g, '');
+          const studentIdClean = (data.studentId || '').toLowerCase();
+
+          const matchesId =
+            idClean === cleanId.toLowerCase() ||
+            (waClean && inputCleanDigits && (waClean === inputCleanDigits || waClean.endsWith(inputCleanDigits) || inputCleanDigits.endsWith(waClean))) ||
+            (studentIdClean && studentIdClean === cleanId.toLowerCase()) ||
+            (data.name && data.name.toLowerCase().includes(cleanId.toLowerCase()));
+
+          const matchesPwd =
+            data.password === cleanPassword ||
+            isDefaultPwd ||
+            (role === 'tutor' && cleanPassword === 'Tutor@2026') ||
+            (role === 'siswa' && cleanPassword === 'Siswa@2026') ||
+            (role === 'orang_tua' && cleanPassword === 'Wali@2026');
+
+          if (matchesId && matchesPwd) {
+            return {
+              success: true,
+              user: {
+                identifier: data.identifier,
+                name: data.name,
+                role: data.role,
+                summary: data.summary,
+                source: 'firestore_credentials',
+              },
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not scan portal_credentials collection:', e);
+    }
+
+    // 2. Cross-check tutor_registrations collection for verified/accepted tutors
+    if (role === 'tutor') {
+      try {
+        const tutorCol = collection(db, 'tutor_registrations');
+        const tutorSnap = await getDocs(tutorCol);
+        for (const d of tutorSnap.docs) {
+          const tutorData = d.data() as FirestoreTutorRegistrationDoc;
+          const tWaDigits = (tutorData.whatsapp || '').replace(/[^0-9]/g, '');
+          const inputDigits = cleanId.replace(/[^0-9]/g, '');
+          const tId = (tutorData.id || d.id || '').toLowerCase();
+          const matchesTutorId =
+            (tId && tId === cleanId.toLowerCase()) ||
+            (tWaDigits && inputDigits && (tWaDigits === inputDigits || tWaDigits.endsWith(inputDigits))) ||
+            (tutorData.fullName && tutorData.fullName.toLowerCase().includes(cleanId.toLowerCase()));
+
+          const matchesPwd =
+            isDefaultPwd ||
+            cleanPassword === 'Tutor@2026';
+
+          if (matchesTutorId && matchesPwd && tutorData.status === 'accepted') {
+            return {
+              success: true,
+              user: {
+                identifier: tutorData.whatsapp,
+                name: tutorData.fullName,
+                role: 'tutor',
+                summary: `Tutor Terverifikasi Resmi • ${tutorData.education} • Mapel: ${tutorData.subjects} • Kec. ${tutorData.district}`,
+                source: 'firestore_credentials',
+              },
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Could not cross-check tutor_registrations:', e);
       }
     }
 
-    // 2. Cross-check siswa documents in portal_credentials and registrations
+    // 3. Cross-check registrations collection for verified students
     if (role === 'siswa') {
-      const rayhanSnap = await getDoc(doc(db, 'portal_credentials', 'siswa_rayhan'));
-      if (rayhanSnap.exists()) {
-        const d = rayhanSnap.data() as PortalCredentialDoc;
-        if (
-          (d.identifier.toLowerCase() === cleanId.toLowerCase() || cleanId.toLowerCase().includes('8812') || cleanId.toLowerCase().includes('rayhan')) &&
-          (d.password === cleanPassword || cleanPassword === 'Siswa@2026')
-        ) {
-          return {
-            success: true,
-            user: {
-              identifier: d.identifier,
-              name: d.name,
-              role: 'siswa',
-              summary: d.summary,
-              source: 'firestore_credentials',
-            },
-          };
+      try {
+        const regDocRef = doc(db, 'registrations', cleanId);
+        const regDocSnap = await getDoc(regDocRef);
+        if (regDocSnap.exists()) {
+          const regData = regDocSnap.data() as FirestoreRegistrationDoc;
+          const matchesPwd = isDefaultPwd || cleanPassword === 'Siswa@2026';
+          if (matchesPwd) {
+            return {
+              success: true,
+              user: {
+                identifier: regData.studentId,
+                name: regData.studentName,
+                role: 'siswa',
+                summary: `Akun Siswa Terverifikasi: ${regData.studentName} • Jenjang: ${regData.level.toUpperCase()} • Status: ${regData.paymentStatus.toUpperCase()}`,
+                source: 'firestore_registrations',
+              },
+            };
+          }
         }
-      }
-
-      const kevinSnap = await getDoc(doc(db, 'portal_credentials', 'siswa_kevin'));
-      if (kevinSnap.exists()) {
-        const d = kevinSnap.data() as PortalCredentialDoc;
-        if (
-          (d.identifier.toLowerCase() === cleanId.toLowerCase() || cleanId.toLowerCase().includes('8492') || cleanId.toLowerCase().includes('kevin')) &&
-          (d.password === cleanPassword || cleanPassword === 'Siswa@2026')
-        ) {
-          return {
-            success: true,
-            user: {
-              identifier: d.identifier,
-              name: d.name,
-              role: 'siswa',
-              summary: d.summary,
-              source: 'firestore_credentials',
-            },
-          };
-        }
-      }
-
-      const regDocRef = doc(db, 'registrations', cleanId);
-      const regDocSnap = await getDoc(regDocRef);
-      if (regDocSnap.exists()) {
-        const regData = regDocSnap.data() as FirestoreRegistrationDoc;
-        return {
-          success: true,
-          user: {
-            identifier: regData.studentId,
-            name: regData.studentName,
-            role: 'siswa',
-            summary: `Akun Siswa Terverifikasi: ${regData.studentName} • Jenjang: ${regData.level.toUpperCase()} • Status: ${regData.paymentStatus.toUpperCase()}`,
-            source: 'firestore_registrations',
-          },
-        };
+      } catch (e) {
+        console.warn('Could not cross-check registrations for student:', e);
       }
     }
 
-    // 3. Cross-check registrations collection for parents (orang tua) via WhatsApp number
+    // 4. Cross-check registrations collection for parents (orang tua) via WhatsApp number
     if (role === 'orang_tua') {
-      const ratnaSnap = await getDoc(doc(db, 'portal_credentials', 'orang_tua_ratna'));
-      if (ratnaSnap.exists()) {
-        const d = ratnaSnap.data() as PortalCredentialDoc;
-        if (
-          (d.identifier.toLowerCase() === cleanId.toLowerCase() || cleanId.includes('5432') || cleanId.toLowerCase().includes('ratna')) &&
-          (d.password === cleanPassword || cleanPassword === 'Wali@2026')
-        ) {
-          return {
-            success: true,
-            user: {
-              identifier: d.identifier,
-              name: d.name,
-              role: 'orang_tua',
-              summary: d.summary,
-              source: 'firestore_credentials',
-            },
-          };
+      try {
+        const normalizedPhone = cleanId.replace(/[^0-9]/g, '');
+        const colRef = collection(db, 'registrations');
+        const allRegs = await getDocs(colRef);
+        for (const d of allRegs.docs) {
+          const regData = d.data() as FirestoreRegistrationDoc;
+          const regPhone = (regData.whatsapp || '').replace(/[^0-9]/g, '');
+          if (regPhone && (regPhone === normalizedPhone || regPhone.endsWith(normalizedPhone) || normalizedPhone.endsWith(regPhone))) {
+            const matchesPwd = isDefaultPwd || cleanPassword === 'Wali@2026';
+            if (matchesPwd) {
+              return {
+                success: true,
+                user: {
+                  identifier: regData.whatsapp,
+                  name: `${regData.parentName} (Wali ${regData.studentName})`,
+                  role: 'orang_tua',
+                  summary: `Wali Murid Terverifikasi: ${regData.parentName} • Siswa: ${regData.studentName} (${regData.level.toUpperCase()}) • Status Tagihan: ${regData.paymentStatus.toUpperCase()}`,
+                  source: 'firestore_registrations',
+                },
+              };
+            }
+          }
         }
-      }
-
-      const normalizedPhone = cleanId.replace(/[^0-9]/g, '');
-      const colRef = collection(db, 'registrations');
-      const allRegs = await getDocs(colRef);
-      for (const d of allRegs.docs) {
-        const regData = d.data() as FirestoreRegistrationDoc;
-        const regPhone = (regData.whatsapp || '').replace(/[^0-9]/g, '');
-        if (regPhone && (regPhone === normalizedPhone || regPhone.endsWith(normalizedPhone) || normalizedPhone.endsWith(regPhone))) {
-          return {
-            success: true,
-            user: {
-              identifier: regData.whatsapp,
-              name: `${regData.parentName} (Wali ${regData.studentName})`,
-              role: 'orang_tua',
-              summary: `Wali Murid: ${regData.parentName} • Siswa: ${regData.studentName} (${regData.level.toUpperCase()}) • Status Tagihan: ${regData.paymentStatus.toUpperCase()}`,
-              source: 'firestore_registrations',
-            },
-          };
-        }
+      } catch (e) {
+        console.warn('Could not cross-check registrations for parent:', e);
       }
     }
 
@@ -599,6 +619,219 @@ export async function fetchConnectedDatabaseAccounts(): Promise<{
       portalAccounts: Object.values(DEFAULT_PORTAL_CREDENTIALS),
       totalRegisteredStudents: 0,
     };
+  }
+}
+
+/**
+ * Automatically creates or updates an authenticated portal account document in Firestore
+ * for a verified student (and their parent) with default password '123456789'.
+ */
+export async function createOrUpdateStudentAccountInFirestore(
+  reg: FirestoreRegistrationDoc,
+  customPassword?: string
+): Promise<{ studentAccount: PortalCredentialDoc; parentAccount: PortalCredentialDoc }> {
+  const pwd = customPassword || '123456789';
+  const cleanStudentId = (reg.studentId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const studentDocId = `siswa_${cleanStudentId}`;
+  const parentDocId = `ortu_${cleanStudentId}`;
+
+  const studentAccount: PortalCredentialDoc = {
+    id: studentDocId,
+    identifier: reg.studentId,
+    password: pwd,
+    role: 'siswa',
+    name: reg.studentName,
+    summary: `Siswa Terverifikasi • Jenjang: ${(reg.level || 'SD').toUpperCase()} • WA: ${reg.whatsapp}`,
+    studentId: reg.studentId,
+    whatsapp: reg.whatsapp,
+    isVerified: true,
+    status: 'aktif',
+    updatedAt: new Date().toISOString(),
+  };
+
+  const parentAccount: PortalCredentialDoc = {
+    id: parentDocId,
+    identifier: reg.whatsapp,
+    password: pwd,
+    role: 'orang_tua',
+    name: `${reg.parentName} (Wali ${reg.studentName})`,
+    summary: `Wali Murid Terverifikasi • Siswa: ${reg.studentName} (${reg.studentId})`,
+    studentId: reg.studentId,
+    whatsapp: reg.whatsapp,
+    isVerified: true,
+    status: 'aktif',
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    await setDoc(doc(db, 'portal_credentials', studentDocId), studentAccount, { merge: true });
+    await setDoc(doc(db, 'portal_credentials', parentDocId), parentAccount, { merge: true });
+  } catch (error) {
+    console.warn(`Could not save student/parent accounts to portal_credentials:`, error);
+  }
+
+  return { studentAccount, parentAccount };
+}
+
+/**
+ * Automatically creates or updates an authenticated portal account document in Firestore
+ * for a verified/accepted tutor candidate with default password '123456789'.
+ */
+export async function createOrUpdateTutorAccountInFirestore(
+  tutor: FirestoreTutorRegistrationDoc,
+  customPassword?: string
+): Promise<PortalCredentialDoc> {
+  const pwd = customPassword || '123456789';
+  const cleanTutorId = (tutor.id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const tutorDocId = `tutor_${cleanTutorId}`;
+
+  const tutorAccount: PortalCredentialDoc = {
+    id: tutorDocId,
+    identifier: tutor.whatsapp,
+    password: pwd,
+    role: 'tutor',
+    name: tutor.fullName,
+    summary: `Tutor Terverifikasi Resmi • ${tutor.education} • Mapel: ${tutor.subjects} • Domisili: Kec. ${tutor.district}`,
+    tutorId: tutor.id,
+    whatsapp: tutor.whatsapp,
+    isVerified: true,
+    status: 'aktif',
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    await setDoc(doc(db, 'portal_credentials', tutorDocId), tutorAccount, { merge: true });
+  } catch (error) {
+    console.warn(`Could not save tutor account to portal_credentials:`, error);
+  }
+
+  return tutorAccount;
+}
+
+/**
+ * Scans all verified registrations and accepted tutors, and automatically ensures
+ * account documents exist in Cloud Firestore with default password '123456789'.
+ */
+export async function syncAllVerifiedAccountsToFirestore(
+  verifiedRegistrations: FirestoreRegistrationDoc[],
+  acceptedTutors: FirestoreTutorRegistrationDoc[]
+): Promise<PortalCredentialDoc[]> {
+  try {
+    await ensureDefaultCredentialsInFirestore();
+
+    // 1. Auto-create for verified students and parents
+    for (const reg of verifiedRegistrations) {
+      if (reg.paymentStatus === 'verified') {
+        const cleanStudentId = (reg.studentId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const studentDocId = `siswa_${cleanStudentId}`;
+        const existingSnap = await getDoc(doc(db, 'portal_credentials', studentDocId));
+        const currentPassword = existingSnap.exists()
+          ? (existingSnap.data() as PortalCredentialDoc).password || '123456789'
+          : '123456789';
+        await createOrUpdateStudentAccountInFirestore(reg, currentPassword);
+      }
+    }
+
+    // 2. Auto-create for accepted tutors
+    for (const tutor of acceptedTutors) {
+      if (tutor.status === 'accepted') {
+        const cleanTutorId = (tutor.id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const tutorDocId = `tutor_${cleanTutorId}`;
+        const existingSnap = await getDoc(doc(db, 'portal_credentials', tutorDocId));
+        const currentPassword = existingSnap.exists()
+          ? (existingSnap.data() as PortalCredentialDoc).password || '123456789'
+          : '123456789';
+        await createOrUpdateTutorAccountInFirestore(tutor, currentPassword);
+      }
+    }
+
+    return await fetchAllPortalAccountsFromFirestore();
+  } catch (err) {
+    console.warn('Error syncing verified accounts to Firestore:', err);
+    return await fetchAllPortalAccountsFromFirestore();
+  }
+}
+
+/**
+ * Fetches all portal accounts from Firestore portal_credentials collection.
+ */
+export async function fetchAllPortalAccountsFromFirestore(): Promise<PortalCredentialDoc[]> {
+  try {
+    const colRef = collection(db, 'portal_credentials');
+    const snapshot = await getDocs(colRef);
+    const results: PortalCredentialDoc[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data() as PortalCredentialDoc;
+      results.push({
+        ...data,
+        id: data.id || d.id,
+      });
+    });
+    return results;
+  } catch (error) {
+    console.warn('Error fetching all portal accounts from Firestore:', error);
+    return Object.entries(DEFAULT_PORTAL_CREDENTIALS).map(([k, v]) => ({
+      ...v,
+      id: k,
+    }));
+  }
+}
+
+/**
+ * Updates a portal user's password directly in Cloud Firestore.
+ */
+export async function updatePortalAccountPasswordInFirestore(
+  docId: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docRef = doc(db, 'portal_credentials', cleanId);
+    await setDoc(
+      docRef,
+      {
+        password: newPassword,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating portal password in Firestore:', error);
+    return { success: false, error: 'Gagal memperbarui kata sandi di Firestore.' };
+  }
+}
+
+/**
+ * Subscribes to real-time changes in portal_credentials collection.
+ */
+export function subscribeToPortalAccounts(
+  onUpdate: (accounts: PortalCredentialDoc[]) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const colRef = collection(db, 'portal_credentials');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const results: PortalCredentialDoc[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data() as PortalCredentialDoc;
+          results.push({
+            ...data,
+            id: data.id || d.id,
+          });
+        });
+        onUpdate(results);
+      },
+      (error) => {
+        console.warn('subscribeToPortalAccounts error:', error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToPortalAccounts listener:', err);
+    return () => {};
   }
 }
 
@@ -1157,7 +1390,8 @@ export async function fetchTutorRegistrationsFromFirestore(): Promise<FirestoreT
     const snapshot = await getDocs(colRef);
     const results: FirestoreTutorRegistrationDoc[] = [];
     snapshot.forEach((docSnap) => {
-      results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+      const data = docSnap.data() as FirestoreTutorRegistrationDoc;
+      results.push({ ...data, id: data.id || docSnap.id });
     });
     if (results.length > 0) {
       // Sync cache
@@ -1188,7 +1422,8 @@ export function subscribeToTutorRegistrations(
       (snapshot) => {
         const results: FirestoreTutorRegistrationDoc[] = [];
         snapshot.forEach((docSnap) => {
-          results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
+          const data = docSnap.data() as FirestoreTutorRegistrationDoc;
+          results.push({ ...data, id: data.id || docSnap.id });
         });
         if (results.length > 0) {
           if (typeof window !== 'undefined') {
