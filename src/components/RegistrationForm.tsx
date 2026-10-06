@@ -4,7 +4,6 @@ import { saveRegistrationToFirestore } from '../firebase';
 import {
   Send,
   CheckCircle2,
-  AlertCircle,
   Copy,
   CreditCard,
   Calendar,
@@ -13,7 +12,6 @@ import {
   User,
   Phone,
   Sparkles,
-  Database,
   Loader2,
 } from 'lucide-react';
 
@@ -380,27 +378,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 <CheckCircle2 className="w-8 h-8 text-[#3F5A46]" />
               </div>
               <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#EAF2ED] text-[#3F5A46] text-[10px] font-bold uppercase tracking-wider">
-                    Pendaftaran Diterima Sistem
-                  </span>
-                  {firestoreSaved ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                      <Database className="w-3 h-3 text-emerald-600" />
-                      Tersimpan di Cloud Firestore
-                    </span>
-                  ) : firestoreError ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                      <AlertCircle className="w-3 h-3 text-amber-600" />
-                      Mode Offline
-                    </span>
-                  ) : null}
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-[#2A2823] font-display mt-0.5">
+                <h3 className="text-xl sm:text-2xl font-bold text-[#2A2823] font-display">
                   Selamat Datang di Bright Future!
                 </h3>
-                <p className="text-xs sm:text-sm text-[#6B675F]">
-                  Data telah tersimpan di database dengan status{' '}
+                <p className="text-xs sm:text-sm text-[#6B675F] mt-1">
+                  Pendaftaran Anda berhasil dikirim dengan status{' '}
                   <span className="font-semibold text-[#C1683F]">Menunggu Verifikasi Admin</span>.
                 </p>
               </div>
@@ -450,34 +432,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Realtime Admin & Database Sync Indicator */}
-            {firestoreSaved && (
-              <div className="p-3.5 bg-[#EAF2ED]/80 rounded-2xl border border-[#3F5A46]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-start sm:items-center gap-2.5 text-[#2A2823]">
-                  <div className="w-7 h-7 rounded-lg bg-[#3F5A46] text-white flex items-center justify-center shrink-0">
-                    <Database className="w-4 h-4 text-emerald-300" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-[#3F5A46]">Data Terdaftar di Cloud Database &amp; Admin:</span>
-                    <p className="text-[11px] text-[#6B675F]">
-                      Pendaftaran ini sudah otomatis terekam di Cloud Firestore dan langsung masuk ke menu <strong>Data Siswa &amp; Wali &gt; Verifikasi Pendaftaran</strong> di Admin Dashboard.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = '#admin';
-                    window.location.reload();
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-[#3F5A46] hover:bg-[#284230] text-white font-bold text-xs shadow-xs transition-all shrink-0 cursor-pointer inline-flex items-center justify-center gap-1.5 active:scale-95"
-                >
-                  <span>Cek di Dashboard Admin</span>
-                  <span>&rarr;</span>
-                </button>
-              </div>
-            )}
 
             {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
