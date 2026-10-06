@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { EducationalLevel, RegistrationFormData, SubmittedRegistration } from '../types';
 import { saveRegistrationToFirestore } from '../firebase';
 import {
+  cleanNumericOnly,
+  validateIndonesianWhatsappFormat,
+  checkStudentWhatsappDuplicate,
+} from '../utils/whatsappValidation';
+import {
   Send,
   CheckCircle2,
   Copy,
@@ -38,6 +43,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     hasSiblingDiscount: false,
   });
 
+  const [whatsappStatus, setWhatsappStatus] = useState<{
+    isChecking: boolean;
+    isDuplicate: boolean;
+    errorMessage: string | null;
+    isAvailable: boolean;
+    registeredStudentName: string | null;
+  }>({
+    isChecking: false,
+    isDuplicate: false,
+    errorMessage: null,
+    isAvailable: false,
+    registeredStudentName: null,
+  });
+
   const [submittedData, setSubmittedData] = useState<SubmittedRegistration | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,6 +76,108 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     }
   }, [initialNotes]);
 
+  // Handler input nomor WhatsApp: HANYA MENERIMA ANGKA (tidak menerima huruf atau simbol)
+  const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numericOnly = cleanNumericOnly(e.target.value);
+    setFormData((prev) => ({ ...prev, whatsapp: numericOnly }));
+  };
+
+  const handleWhatsappKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedKeys = [
+      'Backspace',
+      'Tab',
+      'Enter',
+      'Escape',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowUp',
+      'ArrowDown',
+      'Delete',
+      'Home',
+      'End',
+    ];
+    if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
+      return;
+    }
+    // Cegah pengetikan huruf atau karakter selain angka 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  // Real-time debounced check untuk memvalidasi nomor dan memeriksa duplikasi di database
+  React.useEffect(() => {
+    const rawNumber = formData.whatsapp.trim();
+    if (!rawNumber) {
+      setWhatsappStatus({
+        isChecking: false,
+        isDuplicate: false,
+        errorMessage: null,
+        isAvailable: false,
+        registeredStudentName: null,
+      });
+      return;
+    }
+
+    if (rawNumber.length < 10) {
+      setWhatsappStatus({
+        isChecking: false,
+        isDuplicate: false,
+        errorMessage: `Nomor WhatsApp minimal 10 digit angka (${rawNumber.length}/10 digit)`,
+        isAvailable: false,
+        registeredStudentName: null,
+      });
+      return;
+    }
+
+    const formatResult = validateIndonesianWhatsappFormat(rawNumber);
+    if (!formatResult.isValid) {
+      setWhatsappStatus({
+        isChecking: false,
+        isDuplicate: false,
+        errorMessage: formatResult.error || 'Format nomor WhatsApp tidak valid.',
+        isAvailable: false,
+        registeredStudentName: null,
+      });
+      return;
+    }
+
+    // Nomor valid secara format, lakukan pengecekan duplikasi ke database
+    setWhatsappStatus((prev) => ({
+      ...prev,
+      isChecking: true,
+      errorMessage: null,
+      isAvailable: false,
+    }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const dupResult = await checkStudentWhatsappDuplicate(rawNumber);
+        if (dupResult.isDuplicate) {
+          setWhatsappStatus({
+            isChecking: false,
+            isDuplicate: true,
+            errorMessage: '⚠️ Nomor Sudah Terdaftar',
+            isAvailable: false,
+            registeredStudentName: null,
+          });
+        } else {
+          setWhatsappStatus({
+            isChecking: false,
+            isDuplicate: false,
+            errorMessage: null,
+            isAvailable: true,
+            registeredStudentName: null,
+          });
+        }
+      } catch (err) {
+        setWhatsappStatus((prev) => ({ ...prev, isChecking: false }));
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [formData.whatsapp]);
+
   const handleScheduleToggle = (val: string) => {
     setFormData((prev) => {
       const exists = prev.selectedSchedule.includes(val);
@@ -75,6 +196,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       return;
     }
 
+    // Validasi nomor WhatsApp wajib angka & format Indonesia
+    const cleanPhone = cleanNumericOnly(formData.whatsapp);
+    const formatCheck = validateIndonesianWhatsappFormat(cleanPhone);
+    if (!formatCheck.isValid) {
+      alert(formatCheck.error || 'Nomor WhatsApp tidak valid. Format harus diawali 08 (minimal 10 digit).');
+      return;
+    }
+
     if (formData.selectedSchedule.length === 0) {
       alert('Mohon pilih minimal satu slot waktu jadwal kunjungan.');
       return;
@@ -82,6 +211,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
     setIsSaving(true);
     setFirestoreError(null);
+
+    // Pengecekan akhir ketersediaan nomor WhatsApp ke database sebelum menyimpan
+    const dupCheck = await checkStudentWhatsappDuplicate(cleanPhone);
+    if (dupCheck.isDuplicate) {
+      setIsSaving(false);
+      setWhatsappStatus({
+        isChecking: false,
+        isDuplicate: true,
+        errorMessage: '⚠️ Nomor Sudah Terdaftar',
+        isAvailable: false,
+        registeredStudentName: null,
+      });
+      alert('Pendaftaran ditolak: ⚠️ Nomor Sudah Terdaftar');
+      return;
+    }
 
     // Generate ID Siswa in strict compliance with PRD: BF-XXXX-YY-ZZZZ
     const currentYear = '2026';
@@ -205,18 +349,71 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-[#6F8F76]" />
-                  <span>Nomor WhatsApp Aktif</span>
+                <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-[#6F8F76]" />
+                    <span>Nomor WhatsApp Aktif (Wali Murid)</span>
+                    <span className="text-[#C1683F] font-black">*</span>
+                  </span>
+                  <span className="text-[10px] text-[#6B675F] font-normal lowercase tracking-normal">
+                    (hanya angka)
+                  </span>
                 </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.whatsapp}
-                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                  placeholder="Contoh: 081234567890"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
-                />
+                <div className="relative">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    required
+                    value={formData.whatsapp}
+                    onChange={handleWhatsappChange}
+                    onKeyDown={handleWhatsappKeyDown}
+                    placeholder="Contoh: 081234567890 (Hanya Angka, Tanpa Huruf)"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none transition-all ${
+                      whatsappStatus.isDuplicate
+                        ? 'border-red-500 bg-red-50/30 focus:ring-2 focus:ring-red-400'
+                        : whatsappStatus.isAvailable
+                        ? 'border-emerald-500 bg-emerald-50/20 focus:ring-2 focus:ring-emerald-400'
+                        : 'border-[rgba(42,40,35,0.14)] bg-white focus:ring-2 focus:ring-[#3F5A46]'
+                    }`}
+                  />
+                  {whatsappStatus.isChecking && (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#3F5A46]" />
+                    </div>
+                  )}
+                  {whatsappStatus.isAvailable && !whatsappStatus.isChecking && (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Feedback di Bawah Kolom Input */}
+                {whatsappStatus.isChecking ? (
+                  <p className="text-[11px] text-[#6B675F] mt-1.5 flex items-center gap-1.5 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin text-[#3F5A46]" />
+                    <span>Memeriksa ketersediaan nomor di database...</span>
+                  </p>
+                ) : whatsappStatus.isDuplicate ? (
+                  <div className="mt-1.5 p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-1.5 shadow-xs font-bold">
+                    <span>⚠️ Nomor Sudah Terdaftar</span>
+                  </div>
+                ) : whatsappStatus.errorMessage ? (
+                  <p className="text-[11px] text-amber-700 mt-1.5 flex items-center gap-1 font-medium">
+                    <span>⚠️</span>
+                    <span>{whatsappStatus.errorMessage}</span>
+                  </p>
+                ) : whatsappStatus.isAvailable ? (
+                  <p className="text-[11px] text-emerald-700 mt-1.5 flex items-center gap-1 font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Nomor WhatsApp aktif &amp; belum terdaftar (tersedia untuk pendaftaran).</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-[#6B675F] mt-1">
+                    Kolom ini hanya menerima angka (0-9). Sistem otomatis memverifikasi agar nomor tidak duplikat dengan siswa lain.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -273,40 +470,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
             </div>
 
-            {/* Row 5: Notes & Sibling Discount */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
-                  <FileText className="w-3.5 h-3.5 text-[#6F8F76]" />
-                  <span>Catatan Khusus / Permintaan Tutor (Opsional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.specialNotes}
-                  onChange={(e) => setFormData({ ...formData, specialNotes: e.target.value })}
-                  placeholder="Misal: Request Kak Monica Yuliana / Fokus persiapan ujian matematika"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
-                />
-              </div>
-
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 p-3 rounded-xl bg-white border border-[rgba(42,40,35,0.1)] cursor-pointer hover:bg-white/90 w-full">
-                  <input
-                    type="checkbox"
-                    checked={formData.hasSiblingDiscount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, hasSiblingDiscount: e.target.checked })
-                    }
-                    className="w-4 h-4 rounded text-[#3F5A46] focus:ring-[#3F5A46]"
-                  />
-                  <div className="text-xs">
-                    <span className="font-bold text-[#2A2823]">Klaim Diskon Saudara 10%</span>
-                    <p className="text-[10px] text-[#6B675F]">
-                      Berlaku jika mendaftarkan kakak-beradik sekaligus.
-                    </p>
-                  </div>
-                </label>
-              </div>
+            {/* Row 5: Notes */}
+            <div>
+              <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-[#6F8F76]" />
+                <span>Catatan Khusus / Permintaan Tutor (Opsional)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.specialNotes}
+                onChange={(e) => setFormData({ ...formData, specialNotes: e.target.value })}
+                placeholder="Misal: Request Kak Monica Yuliana / Fokus persiapan ujian matematika"
+                className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
+              />
             </div>
 
             {/* Live Fee Preview */}
@@ -329,18 +505,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <span className="text-[#C1683F] font-extrabold text-sm">
                     Rp{' '}
                     {(
-                      (formData.level === 'tk' || formData.level === 'sd'
+                      formData.level === 'tk' || formData.level === 'sd'
                         ? 35000 * 8
                         : formData.level === 'smp'
                         ? 45000 * 8
-                        : 55000 * 8) * (formData.hasSiblingDiscount ? 0.9 : 1)
+                        : 55000 * 8
                     ).toLocaleString('id-ID')}
                   </span>
-                  {formData.hasSiblingDiscount && (
-                    <span className="ml-1 text-[10px] text-[#3F5A46] font-semibold">
-                      (Diskon 10% aktif)
-                    </span>
-                  )}
                 </div>
               </div>
             )}
@@ -349,13 +520,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSaving}
-                className="w-full py-4 rounded-xl bg-[#C1683F] hover:bg-[#A85530] text-white font-bold text-base shadow-glow transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-wait"
+                disabled={isSaving || whatsappStatus.isDuplicate || whatsappStatus.isChecking}
+                className="w-full py-4 rounded-xl bg-[#C1683F] hover:bg-[#A85530] text-white font-bold text-base shadow-glow transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span>Menyimpan ke Cloud Firestore...</span>
+                  </>
+                ) : whatsappStatus.isChecking ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Memverifikasi Nomor WhatsApp...</span>
+                  </>
+                ) : whatsappStatus.isDuplicate ? (
+                  <>
+                    <span>⚠️ Nomor Sudah Terdaftar</span>
                   </>
                 ) : (
                   <>
@@ -364,10 +544,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   </>
                 )}
               </button>
-              <p className="text-center text-[11px] text-[#6B675F] mt-2.5">
-                🔒 Data Anda tersimpan aman di cloud database Google Firestore dan hanya digunakan oleh tim dispatch Bright Future
-                Kabupaten Magelang untuk konfirmasi jadwal &amp; administrasi.
-              </p>
             </div>
           </form>
         ) : (

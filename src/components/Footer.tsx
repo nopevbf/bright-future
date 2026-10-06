@@ -76,6 +76,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin, onOpenTutorReg
                   <div className="font-bold text-[#2A2823]">halo@brightfuture.id</div>
                 </div>
               </div>
+
+              {onOpenTutorRegister && (
+                <button
+                  type="button"
+                  onClick={onOpenTutorRegister}
+                  data-testid="btn-daftar-tutor-footer"
+                  className="mt-1 w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-[16px] bg-[#3F5A46] hover:bg-[#2F4435] text-white font-bold transition-all shadow-xs cursor-pointer text-xs"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Daftar Jadi Mitra Tutor</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -121,17 +133,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin, onOpenTutorReg
               <a href="#form-daftar" className="hover:text-[#C1683F] font-bold transition-colors">
                 Pendaftaran Siswa Baru
               </a>
-              {onOpenTutorRegister && (
-                <button
-                  type="button"
-                  onClick={onOpenTutorRegister}
-                  data-testid="btn-daftar-tutor-footer"
-                  className="mt-2 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#3F5A46] hover:bg-[#2F4435] text-white font-bold transition-all shadow-xs cursor-pointer text-xs"
-                >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>Daftar Jadi Mitra Tutor</span>
-                </button>
-              )}
             </div>
           </div>
         </div>

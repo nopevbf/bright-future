@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Footer } from './Footer';
 
 describe('Footer Component', () => {
-  it('TC-FT-001: renders the "Daftar Tutor" button in quick navigation when onOpenTutorRegister is provided', () => {
+  it('TC-FT-001: renders the "Daftar Tutor" button in Kontak & Dispatch Hotline column when onOpenTutorRegister is provided', () => {
     const handleOpenTutorRegister = vi.fn();
     render(<Footer onOpenTutorRegister={handleOpenTutorRegister} />);
 
