@@ -53,18 +53,7 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
   const [localUpdatedAccounts, setLocalUpdatedAccounts] = useState<Record<string, Partial<PortalCredentialDoc>>>({});
   const [localDeletedIds, setLocalDeletedIds] = useState<Set<string>>(new Set());
 
-  // Admin password change form state
-  const [showAdminPasswordInPlain, setShowAdminPasswordInPlain] = useState(false);
-  const [oldPasswordInput, setOldPasswordInput] = useState('');
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
-  const [isSavingAdminPassword, setIsSavingAdminPassword] = useState(false);
-  const [adminPasswordStatus, setAdminPasswordStatus] = useState<{
-    type: 'success' | 'error';
-    message: string;
-  } | null>(null);
-
-type PortalRole = NonNullable<PortalCredentialDoc['role']>;
+  type PortalRole = NonNullable<PortalCredentialDoc['role']>;
 
   // Modal Create Account
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -129,60 +118,6 @@ type PortalRole = NonNullable<PortalCredentialDoc['role']>;
     setCopiedKey(key);
     showToast(`Kredensial untuk ${account.name} disalin!`);
     setTimeout(() => setCopiedKey(null), 2500);
-  };
-
-  // Handle Admin Password Change
-  const handleSubmitAdminPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isSuperAdmin) {
-      setAdminPasswordStatus({
-        type: 'error',
-        message: 'Akses Ditolak: Hanya Super Admin yang berwenang mengubah kata sandi admin utama.',
-      });
-      return;
-    }
-    setAdminPasswordStatus(null);
-    if (!newPasswordInput || newPasswordInput.length < 6) {
-      setAdminPasswordStatus({
-        type: 'error',
-        message: 'Kata sandi baru minimal harus 6 karakter.',
-      });
-      return;
-    }
-    if (newPasswordInput !== confirmPasswordInput) {
-      setAdminPasswordStatus({
-        type: 'error',
-        message: 'Konfirmasi kata sandi baru tidak cocok.',
-      });
-      return;
-    }
-
-    setIsSavingAdminPassword(true);
-    try {
-      const res = await onUpdateAdminPassword(oldPasswordInput, newPasswordInput);
-      if (res.success) {
-        setAdminPasswordStatus({
-          type: 'success',
-          message: 'Kata sandi Super Admin berhasil diperbarui langsung di database Cloud Firestore!',
-        });
-        setOldPasswordInput('');
-        setNewPasswordInput('');
-        setConfirmPasswordInput('');
-        showToast('Kata sandi Super Admin berhasil diperbarui!');
-      } else {
-        setAdminPasswordStatus({
-          type: 'error',
-          message: res.error || 'Gagal memperbarui kata sandi admin.',
-        });
-      }
-    } catch {
-      setAdminPasswordStatus({
-        type: 'error',
-        message: 'Terjadi kendala jaringan saat memperbarui kata sandi admin.',
-      });
-    } finally {
-      setIsSavingAdminPassword(false);
-    }
   };
 
   // Reset to default password (123456789)
@@ -378,18 +313,7 @@ type PortalRole = NonNullable<PortalCredentialDoc['role']>;
     isDefaultPwd: boolean;
   }> = [];
 
-  // 1. Admin Account
-  allAccounts.push({
-    id: 'admin_master',
-    role: 'admin',
-    name: adminCredential.name || 'Super Admin',
-    identifier: adminCredential.email,
-    password: adminCredential.password,
-    summary: 'Super Admin • Hak Akses Penuh Sistem Operasional',
-    source: 'admin_credentials',
-    isDefaultPwd: adminCredential.password === '123456789',
-  });
-
+  // 1. Akun master disembunyikan dari tabel pengguna
   const knownIds = new Set<string>();
   if (adminCredential?.email) {
     knownIds.add(adminCredential.email.toLowerCase());
@@ -743,146 +667,6 @@ type PortalRole = NonNullable<PortalCredentialDoc['role']>;
             <span className="material-symbols-outlined text-[20px]">family_restroom</span>
           </div>
         </div>
-      </div>
-
-      {/* Card Profil Super Admin */}
-      <div className="p-6 rounded-3xl bg-white border border-[#2A2823]/10 shadow-xs space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {/* Monogram Avatar Super Admin: SA */}
-            <div className="w-16 h-16 rounded-2xl bg-[#284230] text-white flex items-center justify-center font-black text-xl shadow-xs">
-              SA
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-[#2A2823]">
-                {adminCredential.name || 'Super Admin'}
-              </h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-[#3F5A46] font-bold bg-[#EAF2ED] px-2.5 py-0.5 rounded-full border border-[#3F5A46]/20">
-                  {adminCredential.role.toUpperCase()}
-                </span>
-                <span className="text-xs text-[#6B675F] font-mono">admin_credentials/admin</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Tersinkronisasi ke Cloud Firestore</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#2A2823]/10 text-xs">
-          <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-            <span className="text-[10px] text-[#6B675F] uppercase font-bold block mb-1">
-              Email Login Resmi Admin
-            </span>
-            <span className="text-sm font-bold text-[#284230] font-mono break-all">
-              {adminCredential.email}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-[#6B675F] uppercase font-bold">Kata Sandi Admin</span>
-              <button
-                type="button"
-                onClick={() => setShowAdminPasswordInPlain(!showAdminPasswordInPlain)}
-                className="text-[10px] text-[#3F5A46] font-bold hover:underline cursor-pointer"
-              >
-                {showAdminPasswordInPlain ? 'Sembunyikan' : 'Lihat'}
-              </button>
-            </div>
-            <span className="text-sm font-bold text-[#2A2823] font-mono">
-              {showAdminPasswordInPlain ? adminCredential.password : '••••••••••••'}
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8">
-            <span className="text-[10px] text-[#6B675F] uppercase font-bold block mb-1">
-              Status Database Firestore
-            </span>
-            <span className="text-xs font-semibold text-[#284230] flex items-center gap-1 mt-1">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              <span>Active Super Admin Auth</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Form Ubah Password Admin (Hanya Super Admin) */}
-        {isSuperAdmin && (
-          <div className="pt-2 border-t border-[#2A2823]/10">
-            <h4 className="font-bold text-sm text-[#2A2823] mb-3 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px] text-[#3F5A46]">lock_reset</span>
-              <span>Perbarui Kata Sandi Super Admin di Database</span>
-            </h4>
-
-            {adminPasswordStatus && (
-              <div
-                className={`p-3 rounded-xl mb-3 text-xs flex items-center gap-2 ${
-                  adminPasswordStatus.type === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                    : 'bg-red-50 border border-red-200 text-red-800'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {adminPasswordStatus.type === 'success' ? 'check_circle' : 'error'}
-                </span>
-                <span>{adminPasswordStatus.message}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitAdminPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[10px] font-bold text-[#6B675F] uppercase block mb-1">
-                  Kata Sandi Lama
-                </label>
-                <input
-                  type="password"
-                  value={oldPasswordInput}
-                  onChange={(e) => setOldPasswordInput(e.target.value)}
-                  placeholder="Masukkan sandi saat ini"
-                  className="w-full px-3 py-2 bg-[#FAF7F1] border border-[#2A2823]/15 rounded-xl text-xs text-[#2A2823] focus:ring-2 focus:ring-[#3F5A46] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-[#6B675F] uppercase block mb-1">
-                  Kata Sandi Baru
-                </label>
-                <input
-                  type="password"
-                  value={newPasswordInput}
-                  onChange={(e) => setNewPasswordInput(e.target.value)}
-                  placeholder="Minimal 6 karakter"
-                  className="w-full px-3 py-2 bg-[#FAF7F1] border border-[#2A2823]/15 rounded-xl text-xs text-[#2A2823] focus:ring-2 focus:ring-[#3F5A46] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-[#6B675F] uppercase block mb-1">
-                  Konfirmasi Sandi Baru
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={confirmPasswordInput}
-                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                    placeholder="Ulangi sandi baru"
-                    className="w-full px-3 py-2 bg-[#FAF7F1] border border-[#2A2823]/15 rounded-xl text-xs text-[#2A2823] focus:ring-2 focus:ring-[#3F5A46] outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSavingAdminPassword || !newPasswordInput}
-                    className="px-4 py-2 rounded-xl bg-[#284230] text-white font-bold text-xs hover:bg-[#3F5A46] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                  >
-                    {isSavingAdminPassword ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
 
       {/* Filter & Search Bar untuk Akun Pengguna */}

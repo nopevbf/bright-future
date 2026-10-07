@@ -75,16 +75,9 @@ describe('Admin Account Management RBAC Test Suite (ISTQB Grounded)', () => {
     return render(<AccountManagementSubTab {...props} />);
   };
 
-  // TC-RBAC-001: Verifikasi Identitas Super Admin & Initial Monogram
-  it('TC-RBAC-001: Should display "Super Admin", monogram "SA", and SUPER ADMIN ACCESS banner', () => {
+  // TC-RBAC-001: Verifikasi Banner Akses Penuh Super Admin
+  it('TC-RBAC-001: Should display SUPER ADMIN ACCESS banner and full authorization indicators', () => {
     renderComponent('super_admin');
-
-    // Cek nama Super Admin di card master
-    const superAdminElements = screen.getAllByText(/Super Admin/i);
-    expect(superAdminElements.length).toBeGreaterThan(0);
-
-    // Cek inisial SA
-    expect(screen.getByText('SA')).toBeDefined();
 
     // Cek banner Super Admin Access
     expect(screen.getByText('SUPER ADMIN ACCESS')).toBeDefined();
@@ -195,12 +188,12 @@ describe('Admin Account Management RBAC Test Suite (ISTQB Grounded)', () => {
     });
   });
 
-  // TC-RBAC-006: Verifikasi Alur Delete Akun dan Proteksi Akun Master
-  it('TC-RBAC-006: Should allow deleting non-master accounts and protect master admin account', async () => {
+  // TC-RBAC-006: Verifikasi Alur Delete Akun dan Akun Master Disembunyikan dari Tabel
+  it('TC-RBAC-006: Should hide master account from table and allow deleting non-master accounts', async () => {
     renderComponent('super_admin');
 
-    // Akun Master harus memiliki badge "Akun Master" dan tidak ada tombol delete
-    expect(screen.getByText('Akun Master')).toBeDefined();
+    // Akun Master tidak boleh muncul di baris tabel pengguna
+    expect(screen.queryByText('admin_credentials/admin')).toBeNull();
     expect(screen.queryByTestId('btn-delete-admin_master')).toBeNull();
 
     // Klik tombol delete pada akun tutor
