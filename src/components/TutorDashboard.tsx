@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  seedTutorVisitsIfEmpty,
   subscribeToTutorVisits,
   updateTutorVisitInFirestore,
   FirestoreTutorVisitDoc,
-  INITIAL_TUTOR_VISITS,
   subscribeToTutorAssignments,
   subscribeToManagedStudents,
   getLocalTutorAssignments,
   getLocalManagedStudents,
-  FirestoreTutorAssignmentDoc,
 } from '../firebase';
-import { ManagedStudent } from '../types';
 import {
   resolveStudentsForTutor,
+  buildTutorVisitsFromAssignedStudents,
   AssignedStudentSummary,
 } from '../utils/tutorPairingResolver';
 
@@ -44,16 +41,41 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabType>('dashboard-tutor');
   const [subModuleFilter, setSubModuleFilter] = useState<string>('rute');
-  const [visits, setVisits] = useState<FirestoreTutorVisitDoc[]>(INITIAL_TUTOR_VISITS);
-  const [activeSessionId, setActiveSessionId] = useState<string>('visit-02');
-  const [assignedStudents, setAssignedStudents] = useState<AssignedStudentSummary[]>([]);
+
+  // Dynamic visits state strictly built from assigned students in database
+  const [assignedStudents, setAssignedStudents] = useState<AssignedStudentSummary[]>(() => {
+    return resolveStudentsForTutor(
+      tutorName,
+      getLocalManagedStudents(),
+      getLocalTutorAssignments()
+    );
+  });
+
+  const [visits, setVisits] = useState<FirestoreTutorVisitDoc[]>(() => {
+    const initAssigned = resolveStudentsForTutor(
+      tutorName,
+      getLocalManagedStudents(),
+      getLocalTutorAssignments()
+    );
+    return buildTutorVisitsFromAssignedStudents(initAssigned, []);
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    const initAssigned = resolveStudentsForTutor(
+      tutorName,
+      getLocalManagedStudents(),
+      getLocalTutorAssignments()
+    );
+    const initVisits = buildTutorVisitsFromAssignedStudents(initAssigned, []);
+    return initVisits[0]?.id || '';
+  });
   
   // Interactive Evaluation Form State for Active Session
   const [quizScore, setQuizScore] = useState<number>(88);
   const [focusRating, setFocusRating] = useState<number>(4.0);
   const [independenceRating, setIndependenceRating] = useState<number>(5.0);
   const [qualitativeNotes, setQualitativeNotes] = useState<string>(
-    'Rayhan sangat antusias membongkar model planet 3D. Mampu merumuskan rotasi & revolusi secara mandiri.'
+    'Siswa sangat antusias dan mandiri selama sesi bimbingan.'
   );
 
   // Live timer simulation for active session
@@ -71,75 +93,44 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
     let unsubscribeVisits: (() => void) | undefined;
     let unsubscribeAssignments: (() => void) | undefined;
     let unsubscribeManaged: (() => void) | undefined;
+    let lastDbVisits: FirestoreTutorVisitDoc[] = [];
 
-    // Helper untuk merefleksikan siswa binaan ke visits
-    const syncAssignedToVisits = (
-      currentManaged: ManagedStudent[],
-      currentAssigns: FirestoreTutorAssignmentDoc[]
+    const updateAllVisits = (
+      currentManaged = getLocalManagedStudents(),
+      currentAssigns = getLocalTutorAssignments(),
+      dbVisits = lastDbVisits
     ) => {
       const resolved = resolveStudentsForTutor(tutorName, currentManaged, currentAssigns);
       setAssignedStudents(resolved);
 
-      if (resolved.length > 0) {
-        setVisits((prevVisits) => {
-          const merged = [...prevVisits];
-          resolved.forEach((stu, index) => {
-            const alreadyInVisits = merged.some(
-              (v) =>
-                v.studentName.toLowerCase().trim() === stu.studentName.toLowerCase().trim()
-            );
-            if (!alreadyInVisits) {
-              merged.push({
-                id: `visit-assigned-${stu.studentId || index + 10}`,
-                studentName: stu.studentName,
-                level: stu.level || 'SD',
-                subject: (stu.subjects && stu.subjects[0]) || 'Bimbingan Belajar Tematik',
-                time: (stu.schedule && stu.schedule[0]) || '15:30 WIB (Terjadwal)',
-                status: 'berikutnya',
-                address: stu.address || `${stu.district || 'Magelang'}, Kab. Magelang`,
-                parentName: stu.parentName || 'Wali Murid',
-                parentWa: stu.whatsapp || '085173230198',
-                durationMinutes: 70,
-                notes: 'Siswa binaan resmi terpasangkan via Admin Portal.',
-              });
-            }
-          });
-          return merged;
-        });
-      }
+      const built = buildTutorVisitsFromAssignedStudents(resolved, dbVisits);
+      setVisits(built);
+
+      setActiveSessionId((prevId) => {
+        if (built.some((v) => v.id === prevId)) return prevId;
+        return built[0]?.id || '';
+      });
     };
 
-    seedTutorVisitsIfEmpty().then((data) => {
-      if (data && data.length > 0) {
-        setVisits(data);
-        const currentActive = data.find((v) => v.id === 'visit-02') || data[1] || data[0];
-        if (currentActive) {
-          if (currentActive.score !== undefined) setQuizScore(currentActive.score);
-          if (currentActive.focusRating !== undefined) setFocusRating(currentActive.focusRating);
-          if (currentActive.independenceRating !== undefined) setIndependenceRating(currentActive.independenceRating);
-          if (currentActive.notes) setQualitativeNotes(currentActive.notes);
-          if (currentActive.elapsedMinutes) setElapsedMinutes(currentActive.elapsedMinutes);
-        }
-      }
-      // Sinkron awal dengan cache lokal
-      syncAssignedToVisits(getLocalManagedStudents(), getLocalTutorAssignments());
-    });
+    // Initial sync
+    updateAllVisits();
 
     unsubscribeVisits = subscribeToTutorVisits(
       (data) => {
-        if (data && data.length > 0) {
-          setVisits(data);
+        if (data) {
+          lastDbVisits = data;
+          updateAllVisits(getLocalManagedStudents(), getLocalTutorAssignments(), data);
         }
       },
       (err) => console.warn('Firestore tutor visit subscription note:', err)
     );
 
     unsubscribeAssignments = subscribeToTutorAssignments((assigns) => {
-      syncAssignedToVisits(getLocalManagedStudents(), assigns);
+      updateAllVisits(getLocalManagedStudents(), assigns, lastDbVisits);
     });
 
     unsubscribeManaged = subscribeToManagedStudents((managed) => {
-      syncAssignedToVisits(managed, getLocalTutorAssignments());
+      updateAllVisits(managed, getLocalTutorAssignments(), lastDbVisits);
     });
 
     return () => {
@@ -158,7 +149,17 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
     return () => clearInterval(interval);
   }, [isTimerRunning]);
 
-  const activeVisit = visits.find((v) => v.id === activeSessionId) || visits[1] || visits[0];
+  const activeVisit = visits.find((v) => v.id === activeSessionId) || visits[0] || null;
+
+  useEffect(() => {
+    if (activeVisit) {
+      if (activeVisit.score !== undefined) setQuizScore(activeVisit.score);
+      if (activeVisit.focusRating !== undefined) setFocusRating(activeVisit.focusRating);
+      if (activeVisit.independenceRating !== undefined) setIndependenceRating(activeVisit.independenceRating);
+      if (activeVisit.notes) setQualitativeNotes(activeVisit.notes);
+      if (activeVisit.elapsedMinutes !== undefined) setElapsedMinutes(activeVisit.elapsedMinutes);
+    }
+  }, [activeVisit?.id]);
 
   const handleSelectActiveSession = (visit: FirestoreTutorVisitDoc) => {
     setActiveSessionId(visit.id);
@@ -172,6 +173,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   };
 
   const handleSaveEvaluation = async () => {
+    if (!activeVisit) return;
     try {
       await updateTutorVisitInFirestore({
         id: activeVisit.id,
@@ -192,6 +194,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   };
 
   const handleCheckoutSession = async () => {
+    if (!activeVisit) return;
     try {
       await updateTutorVisitInFirestore({
         id: activeVisit.id,
@@ -214,19 +217,20 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   };
 
   // WhatsApp Draft Construction
-  const parentTargetName = activeVisit.parentName || 'Bunda/Bapak';
-  const parentWaNumber = (activeVisit.parentWa || '085173230198').replace(/[^0-9]/g, '');
+  const parentTargetName = activeVisit?.parentName || 'Bunda/Bapak';
+  const parentWaNumber = (activeVisit?.parentWa || '085173230198').replace(/[^0-9]/g, '');
   const cleanPhoneTarget = parentWaNumber.startsWith('0') ? '62' + parentWaNumber.slice(1) : parentWaNumber;
 
-  const waDraftText =
-    `Selamat sore ${parentTargetName}, salam dari ${tutorName} (Bright Future Magelang) 🌿\n\n` +
-    `Sesi 70 menit ${activeVisit.studentName} hari ini telah selesai dengan baik:\n` +
-    `• Materi: ${activeVisit.subject}\n` +
-    `• Skor Kuis Mandiri: ${quizScore}/100\n` +
-    `• Fokus 70 Menit: ${focusRating.toFixed(1)}/5.0 ★\n` +
-    `• Kemandirian Gawai: ${independenceRating.toFixed(1)}/5.0 ★\n` +
-    `• Catatan Tutor: "${qualitativeNotes}"\n\n` +
-    `Next visit terjadwal sesuai kalender bimbingan. Terima kasih atas dukungannya! ✨`;
+  const waDraftText = activeVisit
+    ? `Selamat sore ${parentTargetName}, salam dari ${tutorName} (Bright Future Magelang) 🌿\n\n` +
+      `Sesi 70 menit ${activeVisit.studentName} hari ini telah selesai dengan baik:\n` +
+      `• Materi: ${activeVisit.subject}\n` +
+      `• Skor Kuis Mandiri: ${quizScore}/100\n` +
+      `• Fokus 70 Menit: ${focusRating.toFixed(1)}/5.0 ★\n` +
+      `• Kemandirian Gawai: ${independenceRating.toFixed(1)}/5.0 ★\n` +
+      `• Catatan Tutor: "${qualitativeNotes}"\n\n` +
+      `Next visit terjadwal sesuai kalender bimbingan. Terima kasih atas dukungannya! ✨`
+    : '';
 
   const handleCopyDraft = () => {
     navigator.clipboard.writeText(waDraftText);
@@ -596,16 +600,20 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                     <span className="text-[11px] text-[#6B675F] uppercase tracking-wider font-semibold">
                       Siswa Binaan Aktif
                     </span>
-                    <span className="text-2xl font-extrabold text-[#284230]">18 Siswa</span>
+                    <span className="text-2xl font-extrabold text-[#284230]">{assignedStudents.length} Siswa</span>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#f6f3ed] flex items-center justify-center text-[#C1683F]">
                     <span className="material-symbols-outlined text-[22px]">diversity_3</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-2">
-                  <span className="text-[#6B675F]">12 SD • 6 SMP (98.6% Hadir)</span>
+                  <span className="text-[#6B675F]">
+                    {assignedStudents.length > 0
+                      ? `${assignedStudents.length} siswa bimbingan terdaftar`
+                      : 'Belum ada siswa binaan'}
+                  </span>
                   <span className="inline-flex items-center gap-0.5 text-[#3F5A46] font-bold bg-[#c8ebce]/60 px-2 py-0.5 rounded-full text-[10px]">
-                    <span className="material-symbols-outlined text-[13px]">trending_up</span> +2 Baru
+                    <span className="material-symbols-outlined text-[13px]">verified</span> Terverifikasi
                   </span>
                 </div>
               </div>
@@ -638,14 +646,18 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                     <span className="text-[11px] text-[#6B675F] uppercase tracking-wider font-semibold">
                       Draf Laporan Evaluasi
                     </span>
-                    <span className="text-2xl font-extrabold text-[#C1683F]">14 / 18</span>
+                    <span className="text-2xl font-extrabold text-[#C1683F]">
+                      {visits.filter((v) => v.status === 'selesai').length} / {visits.length}
+                    </span>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#EFC9AE]/40 flex items-center justify-center text-[#C1683F]">
                     <span className="material-symbols-outlined text-[22px]">mark_chat_unread</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-2">
-                  <span className="text-[#6B675F]">4 Menanti dikirim</span>
+                  <span className="text-[#6B675F]">
+                    {visits.filter((v) => v.status !== 'selesai').length} Menanti selesai
+                  </span>
                   <button
                     onClick={() => {
                       const el = document.getElementById('card-draf-wa');
@@ -663,7 +675,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
             <nav className="flex items-center gap-2 overflow-x-auto pb-1 bg-[#f6f3ed]/80 p-1.5 rounded-2xl shadow-xs border border-[rgba(42,40,35,0.08)]">
               {[
                 { id: 'rute', label: 'Rute & Agenda Visit', icon: 'route' },
-                { id: 'siswa', label: 'Siswa Binaan (18)', icon: 'school' },
+                { id: 'siswa', label: `Siswa Binaan (${assignedStudents.length})`, icon: 'school' },
                 { id: 'presensi', label: 'Presensi GPS (70 Mnt)', icon: 'fmd_good' },
                 { id: 'asesmen', label: 'Asesmen & Afektif', icon: 'fact_check' },
                 { id: 'draf_wa', label: 'Draf WA Ortu', icon: 'chat' },
@@ -698,7 +710,11 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                       </div>
                       <div>
                         <h2 className="text-base font-bold text-[#284230]">Rute Bimbingan Hari Ini</h2>
-                        <p className="text-[11px] text-[#6B675F]">Standar 70 menit tatap muka rumah per sesi di Magelang</p>
+                        <p className="text-[11px] text-[#6B675F]">
+                          {visits.length > 0
+                            ? `${visits.length} sesi terjadwal • Standar 70 menit tatap muka rumah per sesi`
+                            : 'Belum ada rute bimbingan aktif dari database'}
+                        </p>
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f6f3ed] text-[#424843] text-[11px] font-semibold border border-[rgba(42,40,35,0.08)]">
@@ -709,49 +725,62 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
                   {/* List of Visits */}
                   <div className="flex flex-col gap-3">
-                    {visits.map((item) => {
-                      const isActive = item.id === activeVisit.id;
-                      const isSelesai = item.status === 'selesai';
-                      const isLive = item.status === 'berlangsung';
+                    {visits.length === 0 ? (
+                      <div className="rounded-2xl p-8 bg-[#FAF7F1] border border-dashed border-[rgba(42,40,35,0.15)] flex flex-col items-center justify-center text-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-[#f6f3ed] flex items-center justify-center text-[#6B675F]">
+                          <span className="material-symbols-outlined text-2xl">route</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-[#1c1c18]">Belum Ada Rute Bimbingan Hari Ini</span>
+                          <span className="text-xs text-[#6B675F] max-w-sm mt-1">
+                            Saat admin memasangkan siswa dengan tutor ({tutorName}), rute dan agenda visit akan otomatis tercermin di sini.
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      visits.map((item, idx) => {
+                        const isActive = activeVisit && item.id === activeVisit.id;
+                        const isSelesai = item.status === 'selesai';
+                        const isLive = item.status === 'berlangsung';
 
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => handleSelectActiveSession(item)}
-                          className={`rounded-2xl p-4 flex flex-col gap-3 transition-all cursor-pointer border ${
-                            isActive
-                              ? 'bg-[#FAF7F1] border-[#C1683F]/50 shadow-sm ring-1 ring-[#C1683F]/30'
-                              : isSelesai
-                              ? 'bg-[#f6f3ed]/50 border-[rgba(42,40,35,0.08)] hover:bg-[#f6f3ed]'
-                              : 'bg-white border-[rgba(42,40,35,0.08)] hover:bg-[#FAF7F1]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                                  isSelesai
-                                    ? 'bg-[#c8ebce] text-[#284230]'
-                                    : isLive
-                                    ? 'bg-[#EFC9AE] text-[#6b2702]'
-                                    : 'bg-[#f0eee8] text-[#6B675F]'
-                                }`}
-                              >
-                                {isSelesai ? (
-                                  <span className="material-symbols-outlined text-[16px]">check</span>
-                                ) : isLive ? (
-                                  <span className="w-2 h-2 rounded-full bg-[#C1683F] animate-ping"></span>
-                                ) : (
-                                  item.id.replace('visit-0', '')
-                                )}
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => handleSelectActiveSession(item)}
+                            className={`rounded-2xl p-4 flex flex-col gap-3 transition-all cursor-pointer border ${
+                              isActive
+                                ? 'bg-[#FAF7F1] border-[#C1683F]/50 shadow-sm ring-1 ring-[#C1683F]/30'
+                                : isSelesai
+                                ? 'bg-[#f6f3ed]/50 border-[rgba(42,40,35,0.08)] hover:bg-[#f6f3ed]'
+                                : 'bg-white border-[rgba(42,40,35,0.08)] hover:bg-[#FAF7F1]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
+                                    isSelesai
+                                      ? 'bg-[#c8ebce] text-[#284230]'
+                                      : isLive
+                                      ? 'bg-[#EFC9AE] text-[#6b2702]'
+                                      : 'bg-[#f0eee8] text-[#6B675F]'
+                                  }`}
+                                >
+                                  {isSelesai ? (
+                                    <span className="material-symbols-outlined text-[16px]">check</span>
+                                  ) : isLive ? (
+                                    <span className="w-2 h-2 rounded-full bg-[#C1683F] animate-ping"></span>
+                                  ) : (
+                                    <span>{idx + 1}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-[#1c1c18]">{item.studentName}</span>
+                                  <span className="px-2 py-0.5 rounded-full bg-[#f0eee8] text-[#6B675F] text-[10px] font-bold">
+                                    {item.level}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-[#1c1c18]">{item.studentName}</span>
-                                <span className="px-2 py-0.5 rounded-full bg-[#f0eee8] text-[#6B675F] text-[10px] font-bold">
-                                  {item.level}
-                                </span>
-                              </div>
-                            </div>
 
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-[#6B675F] font-semibold">{item.time}</span>
@@ -845,7 +874,8 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                           )}
                         </div>
                       );
-                    })}
+                    })
+                  )}
                   </div>
                 </div>
 
@@ -930,11 +960,21 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between bg-[#FAF7F1] p-3 rounded-2xl border border-[rgba(42,40,35,0.08)]">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-[#284230] text-white flex items-center justify-center font-bold text-xs">
-                        {activeVisit.studentName.slice(0, 2).toUpperCase()}
-                      </div>
+                  {!activeVisit ? (
+                    <div className="p-8 text-center text-xs text-[#6B675F] bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] flex flex-col items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined text-3xl text-[#6B675F]">person_off</span>
+                      <p className="font-semibold text-[#1c1c18]">Belum Ada Sesi Dipilih</p>
+                      <p className="text-[11px] max-w-xs text-center">
+                        Pilih siswa di rute bimbingan untuk memasukkan nilai dan refleksi sesi pembelajaran.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between bg-[#FAF7F1] p-3 rounded-2xl border border-[rgba(42,40,35,0.08)]">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[#284230] text-white flex items-center justify-center font-bold text-xs">
+                            {activeVisit.studentName.slice(0, 2).toUpperCase()}
+                          </div>
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-[#1c1c18] leading-tight">
                           {activeVisit.studentName}
@@ -1041,16 +1081,18 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                       />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleSaveEvaluation}
-                      className="w-full py-2.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#284230] shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">save</span>
-                      <span>Simpan ke Database &amp; Sinkronkan WA</span>
-                    </button>
-                  </div>
-                </div>
+                      <button
+                        type="button"
+                        onClick={handleSaveEvaluation}
+                        className="w-full py-2.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#284230] shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">save</span>
+                        <span>Simpan ke Database &amp; Sinkronkan WA</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
                 {/* Draf WA Ortu Card */}
                 <div
@@ -1063,56 +1105,68 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                       <h3 className="text-base font-bold text-[#284230]">Draf WhatsApp Wali Murid</h3>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[10px] font-bold">
-                      Siap Dikirim
+                      {activeVisit ? 'Siap Dikirim' : 'Menunggu Sesi'}
                     </span>
                   </div>
 
-                  <div className="text-[#6B675F] text-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[15px] text-[#3F5A46]">person</span>
-                      <span>
-                        Tujuan: <strong className="text-[#1c1c18]">{parentTargetName}</strong>
-                      </span>
+                  {!activeVisit ? (
+                    <div className="p-8 text-center text-xs text-[#6B675F] bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] flex flex-col items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined text-3xl text-[#6B675F]">chat_bubble_outline</span>
+                      <p className="font-semibold text-[#1c1c18]">Draf WA Belum Tersedia</p>
+                      <p className="text-[11px] max-w-xs text-center">
+                        Pilih dan simpan evaluasi siswa untuk mengenerate pesan otomatis ke WhatsApp wali murid.
+                      </p>
                     </div>
-                    <span className="font-mono text-[11px] text-[#6B675F]">{activeVisit.parentWa || '085173230198'}</span>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="text-[#6B675F] text-xs flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[15px] text-[#3F5A46]">person</span>
+                          <span>
+                            Tujuan: <strong className="text-[#1c1c18]">{parentTargetName}</strong>
+                          </span>
+                        </div>
+                        <span className="font-mono text-[11px] text-[#6B675F]">{activeVisit.parentWa || '085173230198'}</span>
+                      </div>
 
-                  <div className="bg-[#FAF7F1] p-3.5 rounded-2xl text-xs text-[#1c1c18] leading-relaxed flex flex-col gap-2 border border-[rgba(42,40,35,0.08)]">
-                    <p className="text-[#6B675F] text-[11px]">
-                      Selamat sore {parentTargetName}, salam dari {tutorName} (Bright Future) 🌿 Sesi 70 menit {activeVisit.studentName} hari ini selesai dengan baik:
-                    </p>
-                    <div className="py-2 px-3 bg-white rounded-xl text-[11px] flex flex-col gap-1 text-[#1c1c18] border border-[rgba(42,40,35,0.06)]">
-                      <span>• Materi: <strong>{activeVisit.subject}</strong></span>
-                      <span>• Skor Kuis: <strong className="text-[#284230]">{quizScore}/100</strong> (Sangat Baik)</span>
-                      <span>• Fokus: <strong>{focusRating.toFixed(1)}/5.0 ★</strong> • Mandiri tanpa gawai</span>
-                      <span>• Progres: <em>{qualitativeNotes}</em></span>
-                    </div>
-                    <p className="text-[#6B675F] text-[11px]">
-                      Terima kasih atas kerja samanya Bapak/Ibu! ✨
-                    </p>
-                  </div>
+                      <div className="bg-[#FAF7F1] p-3.5 rounded-2xl text-xs text-[#1c1c18] leading-relaxed flex flex-col gap-2 border border-[rgba(42,40,35,0.08)]">
+                        <p className="text-[#6B675F] text-[11px]">
+                          Selamat sore {parentTargetName}, salam dari {tutorName} (Bright Future) 🌿 Sesi 70 menit {activeVisit.studentName} hari ini selesai dengan baik:
+                        </p>
+                        <div className="py-2 px-3 bg-white rounded-xl text-[11px] flex flex-col gap-1 text-[#1c1c18] border border-[rgba(42,40,35,0.06)]">
+                          <span>• Materi: <strong>{activeVisit.subject}</strong></span>
+                          <span>• Skor Kuis: <strong className="text-[#284230]">{quizScore}/100</strong> (Sangat Baik)</span>
+                          <span>• Fokus: <strong>{focusRating.toFixed(1)}/5.0 ★</strong> • Mandiri tanpa gawai</span>
+                          <span>• Progres: <em>{qualitativeNotes}</em></span>
+                        </div>
+                        <p className="text-[#6B675F] text-[11px]">
+                          Terima kasih atas kerja samanya Bapak/Ibu! ✨
+                        </p>
+                      </div>
 
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleCopyDraft}
-                      className="flex-1 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">
-                        {copiedDraft ? 'done_all' : 'content_copy'}
-                      </span>
-                      <span>{copiedDraft ? 'Tersalin!' : 'Salin Draf'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSendToWhatsApp}
-                      className="px-4 py-2.5 rounded-xl bg-[#25D366] text-white hover:bg-emerald-600 transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer text-xs font-bold"
-                      title="Buka WhatsApp Langsung"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">send</span>
-                      <span>Kirim WA</span>
-                    </button>
-                  </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCopyDraft}
+                          className="flex-1 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            {copiedDraft ? 'done_all' : 'content_copy'}
+                          </span>
+                          <span>{copiedDraft ? 'Tersalin!' : 'Salin Draf'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendToWhatsApp}
+                          className="px-4 py-2.5 rounded-xl bg-[#25D366] text-white hover:bg-emerald-600 transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer text-xs font-bold"
+                          title="Buka WhatsApp Langsung"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">send</span>
+                          <span>Kirim WA</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Broadcast Banner */}

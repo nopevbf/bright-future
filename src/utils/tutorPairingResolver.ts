@@ -4,7 +4,7 @@
  */
 
 import { ManagedStudent } from '../types';
-import { FirestoreTutorAssignmentDoc } from '../firebase';
+import { FirestoreTutorAssignmentDoc, FirestoreTutorVisitDoc } from '../firebase';
 
 export interface AssignedStudentSummary {
   studentId: string;
@@ -148,4 +148,75 @@ export function calculateTutorLoadLabel(assignedCount: number): string {
     return 'Siap Penugasan Baru';
   }
   return `${assignedCount} Siswa Aktif`;
+}
+
+const DEFAULT_SCHEDULE_TIMES = [
+  '13:30 - 14:40 WIB',
+  '15:00 - 16:10 WIB',
+  '16:30 - 17:40 WIB',
+  '18:30 - 19:40 WIB',
+];
+
+/**
+ * Builds dynamic tutor visits list purely from assigned students from database.
+ * No hardcoded dummy visits inserted.
+ */
+export function buildTutorVisitsFromAssignedStudents(
+  assignedStudents: AssignedStudentSummary[] = [],
+  existingVisits: FirestoreTutorVisitDoc[] = []
+): FirestoreTutorVisitDoc[] {
+  if (!assignedStudents || assignedStudents.length === 0) {
+    return [];
+  }
+
+  return assignedStudents.map((stu, idx) => {
+    // Check if there is an existing persisted visit evaluation doc in Firestore
+    const existing = existingVisits.find(
+      (v) =>
+        norm(v.studentName) === norm(stu.studentName) ||
+        v.id === `visit-${stu.studentId}` ||
+        v.id === stu.studentId
+    );
+
+    // Resolve timing from student schedule if specified
+    let scheduleTime = '';
+    if (stu.schedule && stu.schedule.length > 0) {
+      const match = stu.schedule[0].match(/(\d{1,2}[:.]\d{2})/);
+      if (match) {
+        scheduleTime = `${match[1].replace('.', ':')} WIB`;
+      } else {
+        scheduleTime = stu.schedule[0];
+      }
+    }
+    if (!scheduleTime) {
+      scheduleTime = DEFAULT_SCHEDULE_TIMES[idx % DEFAULT_SCHEDULE_TIMES.length];
+    }
+
+    const defaultSubject =
+      stu.subjects && stu.subjects.length > 0
+        ? stu.subjects[0]
+        : `Bimbingan Belajar ${stu.level || 'SD'}`;
+
+    return {
+      id: existing?.id || `visit-${stu.studentId || idx + 1}`,
+      studentName: stu.studentName,
+      level: existing?.level || stu.grade || stu.level || 'SD',
+      time: existing?.time || scheduleTime,
+      status: existing?.status || (idx === 0 ? 'berlangsung' : 'berikutnya'),
+      address:
+        existing?.address ||
+        stu.address ||
+        `${stu.district ? `${stu.district}, ` : ''}Kabupaten Magelang`,
+      subject: existing?.subject || defaultSubject,
+      score: existing?.score,
+      focusRating: existing?.focusRating,
+      independenceRating: existing?.independenceRating,
+      notes: existing?.notes || `Kunjungan belajar rumah bersama ${stu.studentName}.`,
+      parentName: existing?.parentName || stu.parentName || 'Wali Murid',
+      parentWa: existing?.parentWa || stu.whatsapp || '085173230198',
+      durationMinutes: existing?.durationMinutes || 70,
+      elapsedMinutes: existing?.elapsedMinutes,
+      updatedAt: existing?.updatedAt,
+    };
+  });
 }
