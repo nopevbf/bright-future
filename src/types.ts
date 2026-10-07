@@ -74,3 +74,6 @@ export interface TutorRegistrationData {
   experienceNotes?: string;
   submittedAt?: string;
 }
+
+export type { ManagedStudent } from './components/admin/studentData';
+

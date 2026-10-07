@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   db,
   doc,
   setDoc,
+  subscribeToTutorAssignments,
+  subscribeToManagedStudents,
+  getLocalTutorAssignments,
+  getLocalManagedStudents,
 } from '../firebase';
+import { resolveTutorForStudent, AssignedTutorSummary } from '../utils/tutorPairingResolver';
 
 interface ParentDashboardProps {
   onLogout: () => void;
@@ -43,13 +48,51 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const [isParafModalOpen, setIsParafModalOpen] = useState<boolean>(false);
   const [parafConfirmed, setParafConfirmed] = useState<boolean>(false);
   const [parafNote, setParafNote] = useState<string>('Materi rotasi bumi dipahami dengan sangat baik.');
-
   // Session Notes Details Modal
   const [isSessionDetailsOpen, setIsSessionDetailsOpen] = useState<boolean>(false);
 
   // Invoice Payment Simulator
   const [invoicePaid, setInvoicePaid] = useState<boolean>(false);
   const [isPaymentSuccessModalOpen, setIsPaymentSuccessModalOpen] = useState<boolean>(false);
+
+  const currentChildName = selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma';
+  const [assignedTutor, setAssignedTutor] = useState<AssignedTutorSummary | null>(() => {
+    return resolveTutorForStudent(
+      selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma',
+      getLocalManagedStudents(),
+      getLocalTutorAssignments()
+    );
+  });
+
+  // Listen to tutor assignments & managed students in real time for selected child
+  useEffect(() => {
+    const updateTutor = (
+      currentManaged = getLocalManagedStudents(),
+      currentAssigns = getLocalTutorAssignments()
+    ) => {
+      const resolved = resolveTutorForStudent(currentChildName, currentManaged, currentAssigns);
+      setAssignedTutor(resolved);
+    };
+
+    updateTutor();
+
+    const unsubAssignments = subscribeToTutorAssignments((assigns) => {
+      updateTutor(getLocalManagedStudents(), assigns);
+    });
+
+    const unsubManaged = subscribeToManagedStudents((managed) => {
+      updateTutor(managed, getLocalTutorAssignments());
+    });
+
+    return () => {
+      if (typeof unsubAssignments === 'function') unsubAssignments();
+      if (typeof unsubManaged === 'function') unsubManaged();
+    };
+  }, [currentChildName]);
+
+  const displayTutorName = assignedTutor?.tutorName || 'Kak Anindya Laksmi, S.Pd.';
+  const tutorWaNumber = (assignedTutor?.tutorPhone || '081298765432').replace(/[^0-9]/g, '');
+  const tutorInitials = displayTutorName.replace('Kak ', '').slice(0, 2).toUpperCase() || 'KA';
 
   const handleConfirmParaf = async () => {
     setParafConfirmed(true);
@@ -121,8 +164,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="space-y-3 text-xs text-[#2A2823]">
               <div className="p-3 bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-1">
                 <p className="font-bold text-[#3F5A46]">Konfirmasi Kehadiran Sesi 70 Menit:</p>
-                <p>• Siswa: <strong>Rayhan Kusuma (Kelas 5 SD)</strong></p>
-                <p>• Tutor: <strong>Kak Anindya Laksmi, S.Pd.</strong></p>
+                <p>• Siswa: <strong>{currentChildName}</strong></p>
+                <p>• Tutor: <strong>{displayTutorName}</strong></p>
                 <p>• Materi: IPAS Bab 4: Rotasi Bumi &amp; Jam Matahari</p>
                 <p>• Lokasi: Meja Belajar Mertoyudan, Magelang</p>
               </div>
@@ -610,20 +653,20 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 {/* Tutor Snap & WA */}
                 <div className="flex items-center gap-3 pt-2">
                   <div className="w-11 h-11 rounded-full bg-[#3F5A46] text-white flex items-center justify-center font-bold text-sm shadow-xs ring-2 ring-[#6F8F76]/30">
-                    KA
+                    {tutorInitials}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xs sm:text-sm font-bold text-[#1c1c18]">Kak Anindya Laksmi, S.Pd.</h3>
+                      <h3 className="text-xs sm:text-sm font-bold text-[#1c1c18]">{displayTutorName}</h3>
                       <span className="inline-flex items-center gap-0.5 text-[10px] text-[#47654f] font-bold bg-[#c8ebce]/60 px-2 py-0.5 rounded-full">
                         <span className="material-symbols-outlined text-[13px]">verified</span> Tutor Resmi
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#6B675F]">Pendidikan IPA Universitas Tidar • Rating 4.98 (84 Sesi)</p>
+                    <p className="text-[11px] text-[#6B675F]">Tutor Terakreditasi Bright Future • Rating 4.98 (84 Sesi)</p>
                   </div>
                   <a
                     className="ml-auto sm:ml-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FAF7F1] hover:bg-[#F1ECE1] text-[#1c1c18] text-xs font-bold border border-[rgba(42,40,35,0.12)] transition-colors cursor-pointer"
-                    href="https://wa.me/6281298765432"
+                    href={`https://wa.me/${tutorWaNumber || '6281298765432'}`}
                     target="_blank"
                     rel="noreferrer"
                   >

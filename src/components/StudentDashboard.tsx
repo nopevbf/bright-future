@@ -4,7 +4,12 @@ import {
   doc,
   getDoc,
   setDoc,
+  subscribeToTutorAssignments,
+  subscribeToManagedStudents,
+  getLocalTutorAssignments,
+  getLocalManagedStudents,
 } from '../firebase';
+import { resolveTutorForStudent, AssignedTutorSummary } from '../utils/tutorPairingResolver';
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -78,6 +83,47 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   // LKPD Viewer Modal State
   const [isLkpdModalOpen, setIsLkpdModalOpen] = useState<boolean>(false);
 
+  // Assigned Tutor State (Live from DB)
+  const [assignedTutor, setAssignedTutor] = useState<AssignedTutorSummary | null>(() => {
+    return resolveTutorForStudent(
+      studentId || studentName,
+      getLocalManagedStudents(),
+      getLocalTutorAssignments()
+    );
+  });
+
+  // Listen to tutor assignments & managed students in real time
+  useEffect(() => {
+    const updateTutor = (
+      currentManaged = getLocalManagedStudents(),
+      currentAssigns = getLocalTutorAssignments()
+    ) => {
+      const resolved = resolveTutorForStudent(
+        studentId || studentName,
+        currentManaged,
+        currentAssigns
+      );
+      if (resolved) {
+        setAssignedTutor(resolved);
+      }
+    };
+
+    updateTutor();
+
+    const unsubAssignments = subscribeToTutorAssignments((assigns) => {
+      updateTutor(getLocalManagedStudents(), assigns);
+    });
+
+    const unsubManaged = subscribeToManagedStudents((managed) => {
+      updateTutor(managed, getLocalTutorAssignments());
+    });
+
+    return () => {
+      if (typeof unsubAssignments === 'function') unsubAssignments();
+      if (typeof unsubManaged === 'function') unsubManaged();
+    };
+  }, [studentId, studentName]);
+
   // Load student progress from Firestore
   useEffect(() => {
     async function loadStudentProgress() {
@@ -95,6 +141,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     }
     loadStudentProgress();
   }, []);
+
+  const displayTutorName = assignedTutor?.tutorName || 'Kak Anindya, S.Pd.';
+  const tutorInitials = displayTutorName.replace('Kak ', '').slice(0, 2).toUpperCase() || 'KA';
 
   const handleToggleTableReady = () => {
     const nextState = !isTableReady;
@@ -508,7 +557,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </div>
             <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-[#c8ebce]/60 text-[#284230] text-[11px] font-semibold border border-[rgba(42,40,35,0.08)]">
               <span className="w-2 h-2 rounded-full bg-[#3F5A46] animate-pulse"></span>
-              <span>Kunjungan Rumah Hari Ini: 13:30 WIB bersama Kak Anindya, S.Pd.</span>
+              <span>Kunjungan Rumah Hari Ini: 13:30 WIB bersama {displayTutorName}</span>
             </div>
           </div>
 
@@ -828,15 +877,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </button>
               </div>
 
-              {/* Catatan Tutor Kak Anindya */}
+              {/* Catatan Tutor Bimbingan Resmi */}
               <div className="rounded-3xl bg-white p-6 shadow-xs flex flex-col gap-3 border border-[rgba(42,40,35,0.08)]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#3F5A46] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-2 ring-[#6F8F76]/30">
-                    KA
+                    {tutorInitials}
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-[#1c1c18]">Catatan dari Kak Anindya, S.Pd.</h4>
-                    <span className="text-[10px] text-[#3F5A46] font-semibold">Hari ini pukul 11:20 WIB</span>
+                    <h4 className="text-xs font-bold text-[#1c1c18]">Catatan dari {displayTutorName}</h4>
+                    <span className="text-[10px] text-[#3F5A46] font-semibold">Tutor Pendamping Resmi • Terhubung DB</span>
                   </div>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-[#F1ECE1]/80 border border-[rgba(42,40,35,0.06)]">

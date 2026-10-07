@@ -16,12 +16,18 @@ import {
   verifyAdminCredentialsFromFirestore,
 } from '../firebase';
 
+export interface LoggedUserPayload {
+  name: string;
+  identifier: string;
+  role?: string;
+}
+
 interface LoginModalProps {
   onClose: () => void;
   onAdminLoginSuccess?: () => void;
-  onTutorLoginSuccess?: () => void;
-  onSiswaLoginSuccess?: () => void;
-  onOrangTuaLoginSuccess?: () => void;
+  onTutorLoginSuccess?: (user?: LoggedUserPayload) => void;
+  onSiswaLoginSuccess?: (user?: LoggedUserPayload) => void;
+  onOrangTuaLoginSuccess?: (user?: LoggedUserPayload) => void;
 }
 
 type UserRole = 'admin' | 'tutor' | 'siswa' | 'orang_tua';
@@ -339,7 +345,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (onTutorLoginSuccess) onTutorLoginSuccess();
+                      if (onTutorLoginSuccess) {
+                        onTutorLoginSuccess({
+                          name: loginSuccessData.name,
+                          identifier: loginSuccessData.identifier,
+                          role: loginSuccessData.role,
+                        });
+                      }
                       onClose();
                     }}
                     className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
@@ -351,7 +363,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (onSiswaLoginSuccess) onSiswaLoginSuccess();
+                      if (onSiswaLoginSuccess) {
+                        onSiswaLoginSuccess({
+                          name: loginSuccessData.name,
+                          identifier: loginSuccessData.identifier,
+                          role: loginSuccessData.role,
+                        });
+                      }
                       onClose();
                     }}
                     className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
@@ -363,7 +381,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (onOrangTuaLoginSuccess) onOrangTuaLoginSuccess();
+                      if (onOrangTuaLoginSuccess) {
+                        onOrangTuaLoginSuccess({
+                          name: loginSuccessData.name,
+                          identifier: loginSuccessData.identifier,
+                          role: loginSuccessData.role,
+                        });
+                      }
                       onClose();
                     }}
                     className="w-full py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] cursor-pointer flex items-center justify-center gap-2 shadow-xs"

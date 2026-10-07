@@ -59,6 +59,26 @@ export default function App() {
   const [activeMidtransSubmission, setActiveMidtransSubmission] =
     useState<SubmittedRegistration | null>(null);
 
+  // Authenticated user identity states for dynamic portals
+  const [currentTutorName, setCurrentTutorName] = useState<string>(() => {
+    return sessionStorage.getItem('bf_tutor_name') || 'Kak Anindya, S.Pd.';
+  });
+  const [currentTutorEmail, setCurrentTutorEmail] = useState<string>(() => {
+    return sessionStorage.getItem('bf_tutor_email') || 'anindya.tutor@brightfuture.id';
+  });
+  const [currentStudentName, setCurrentStudentName] = useState<string>(() => {
+    return sessionStorage.getItem('bf_siswa_name') || 'Rayhan Kusuma';
+  });
+  const [currentStudentId, setCurrentStudentId] = useState<string>(() => {
+    return sessionStorage.getItem('bf_siswa_id') || 'BF-2026-09-8812';
+  });
+  const [currentParentName, setCurrentParentName] = useState<string>(() => {
+    return sessionStorage.getItem('bf_orang_tua_name') || 'Bunda Ratna Dewi';
+  });
+  const [currentParentPhone, setCurrentParentPhone] = useState<string>(() => {
+    return sessionStorage.getItem('bf_orang_tua_phone') || '0812-9876-5432';
+  });
+
   useEffect(() => {
     const handleHashChange = () => {
       if (window.location.hash === '#admin') {
@@ -147,6 +167,8 @@ export default function App() {
       <TutorDashboard
         onLogout={() => {
           sessionStorage.removeItem('bf_tutor_session');
+          sessionStorage.removeItem('bf_tutor_name');
+          sessionStorage.removeItem('bf_tutor_email');
           setIsTutorLoggedIn(false);
           window.location.hash = '';
         }}
@@ -154,8 +176,8 @@ export default function App() {
           setIsTutorLoggedIn(false);
           window.location.hash = '';
         }}
-        tutorName="Kak Anindya, S.Pd."
-        tutorEmail="anindya.tutor@brightfuture.id"
+        tutorName={currentTutorName}
+        tutorEmail={currentTutorEmail}
       />
     );
   }
@@ -166,6 +188,8 @@ export default function App() {
       <StudentDashboard
         onLogout={() => {
           sessionStorage.removeItem('bf_siswa_session');
+          sessionStorage.removeItem('bf_siswa_name');
+          sessionStorage.removeItem('bf_siswa_id');
           setIsSiswaLoggedIn(false);
           window.location.hash = '';
         }}
@@ -173,8 +197,8 @@ export default function App() {
           setIsSiswaLoggedIn(false);
           window.location.hash = '';
         }}
-        studentName="Rayhan Kusuma"
-        studentId="BF-2026-09-8812"
+        studentName={currentStudentName}
+        studentId={currentStudentId}
       />
     );
   }
@@ -185,6 +209,8 @@ export default function App() {
       <ParentDashboard
         onLogout={() => {
           sessionStorage.removeItem('bf_orang_tua_session');
+          sessionStorage.removeItem('bf_orang_tua_name');
+          sessionStorage.removeItem('bf_orang_tua_phone');
           setIsOrangTuaLoggedIn(false);
           window.location.hash = '';
         }}
@@ -192,16 +218,16 @@ export default function App() {
           setIsOrangTuaLoggedIn(false);
           window.location.hash = '';
         }}
-        parentName="Bunda Ratna Dewi"
-        parentPhone="0812-9876-5432"
+        parentName={currentParentName}
+        parentPhone={currentParentPhone}
         onOpenMidtransPayment={(invoice) => {
           setActiveMidtransSubmission({
-            studentId: 'BF-2026-09-8812',
+            studentId: currentStudentId || 'BF-2026-09-8812',
             invoiceNumber: invoice.inv,
             studentName: invoice.studentName,
-            parentName: 'Bunda Ratna Dewi',
+            parentName: currentParentName,
             level: 'sd',
-            whatsapp: '081298765432',
+            whatsapp: currentParentPhone.replace(/[^0-9]/g, '') || '081298765432',
             homeAddress: 'Jl. Mayor Unus No. 15, Mertoyudan, Kab. Magelang',
             selectedSchedule: ['Kamis 13:30', 'Sabtu 15:30'],
             totalAmount: invoice.amount,
@@ -292,16 +318,34 @@ export default function App() {
             setIsTutorLoggedIn(false);
             window.location.hash = '#admin';
           }}
-          onTutorLoginSuccess={() => {
+          onTutorLoginSuccess={(user) => {
+            if (user?.name) {
+              sessionStorage.setItem('bf_tutor_name', user.name);
+              setCurrentTutorName(user.name);
+            }
+            if (user?.identifier) {
+              sessionStorage.setItem('bf_tutor_email', user.identifier);
+              setCurrentTutorEmail(user.identifier);
+            }
             sessionStorage.setItem('bf_tutor_session', 'true');
             sessionStorage.removeItem('bf_admin_session');
             sessionStorage.removeItem('bf_siswa_session');
+            sessionStorage.removeItem('bf_orang_tua_session');
             setIsTutorLoggedIn(true);
             setIsAdminLoggedIn(false);
             setIsSiswaLoggedIn(false);
+            setIsOrangTuaLoggedIn(false);
             window.location.hash = '#tutor';
           }}
-          onSiswaLoginSuccess={() => {
+          onSiswaLoginSuccess={(user) => {
+            if (user?.name) {
+              sessionStorage.setItem('bf_siswa_name', user.name);
+              setCurrentStudentName(user.name);
+            }
+            if (user?.identifier) {
+              sessionStorage.setItem('bf_siswa_id', user.identifier);
+              setCurrentStudentId(user.identifier);
+            }
             sessionStorage.setItem('bf_siswa_session', 'true');
             sessionStorage.removeItem('bf_admin_session');
             sessionStorage.removeItem('bf_tutor_session');
@@ -312,7 +356,15 @@ export default function App() {
             setIsOrangTuaLoggedIn(false);
             window.location.hash = '#siswa';
           }}
-          onOrangTuaLoginSuccess={() => {
+          onOrangTuaLoginSuccess={(user) => {
+            if (user?.name) {
+              sessionStorage.setItem('bf_orang_tua_name', user.name);
+              setCurrentParentName(user.name);
+            }
+            if (user?.identifier) {
+              sessionStorage.setItem('bf_orang_tua_phone', user.identifier);
+              setCurrentParentPhone(user.identifier);
+            }
             sessionStorage.setItem('bf_orang_tua_session', 'true');
             sessionStorage.removeItem('bf_admin_session');
             sessionStorage.removeItem('bf_tutor_session');

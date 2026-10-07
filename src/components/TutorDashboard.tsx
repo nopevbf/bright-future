@@ -5,7 +5,17 @@ import {
   updateTutorVisitInFirestore,
   FirestoreTutorVisitDoc,
   INITIAL_TUTOR_VISITS,
+  subscribeToTutorAssignments,
+  subscribeToManagedStudents,
+  getLocalTutorAssignments,
+  getLocalManagedStudents,
+  FirestoreTutorAssignmentDoc,
 } from '../firebase';
+import { ManagedStudent } from '../types';
+import {
+  resolveStudentsForTutor,
+  AssignedStudentSummary,
+} from '../utils/tutorPairingResolver';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -36,6 +46,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   const [subModuleFilter, setSubModuleFilter] = useState<string>('rute');
   const [visits, setVisits] = useState<FirestoreTutorVisitDoc[]>(INITIAL_TUTOR_VISITS);
   const [activeSessionId, setActiveSessionId] = useState<string>('visit-02');
+  const [assignedStudents, setAssignedStudents] = useState<AssignedStudentSummary[]>([]);
   
   // Interactive Evaluation Form State for Active Session
   const [quizScore, setQuizScore] = useState<number>(88);
@@ -57,7 +68,46 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
   // 1. Initial Load & Real-time Live Listener to Cloud Firestore
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeVisits: (() => void) | undefined;
+    let unsubscribeAssignments: (() => void) | undefined;
+    let unsubscribeManaged: (() => void) | undefined;
+
+    // Helper untuk merefleksikan siswa binaan ke visits
+    const syncAssignedToVisits = (
+      currentManaged: ManagedStudent[],
+      currentAssigns: FirestoreTutorAssignmentDoc[]
+    ) => {
+      const resolved = resolveStudentsForTutor(tutorName, currentManaged, currentAssigns);
+      setAssignedStudents(resolved);
+
+      if (resolved.length > 0) {
+        setVisits((prevVisits) => {
+          const merged = [...prevVisits];
+          resolved.forEach((stu, index) => {
+            const alreadyInVisits = merged.some(
+              (v) =>
+                v.studentName.toLowerCase().trim() === stu.studentName.toLowerCase().trim()
+            );
+            if (!alreadyInVisits) {
+              merged.push({
+                id: `visit-assigned-${stu.studentId || index + 10}`,
+                studentName: stu.studentName,
+                level: stu.level || 'SD',
+                subject: (stu.subjects && stu.subjects[0]) || 'Bimbingan Belajar Tematik',
+                time: (stu.schedule && stu.schedule[0]) || '15:30 WIB (Terjadwal)',
+                status: 'berikutnya',
+                address: stu.address || `${stu.district || 'Magelang'}, Kab. Magelang`,
+                parentName: stu.parentName || 'Wali Murid',
+                parentWa: stu.whatsapp || '085173230198',
+                durationMinutes: 70,
+                notes: 'Siswa binaan resmi terpasangkan via Admin Portal.',
+              });
+            }
+          });
+          return merged;
+        });
+      }
+    };
 
     seedTutorVisitsIfEmpty().then((data) => {
       if (data && data.length > 0) {
@@ -71,9 +121,11 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
           if (currentActive.elapsedMinutes) setElapsedMinutes(currentActive.elapsedMinutes);
         }
       }
+      // Sinkron awal dengan cache lokal
+      syncAssignedToVisits(getLocalManagedStudents(), getLocalTutorAssignments());
     });
 
-    unsubscribe = subscribeToTutorVisits(
+    unsubscribeVisits = subscribeToTutorVisits(
       (data) => {
         if (data && data.length > 0) {
           setVisits(data);
@@ -82,10 +134,20 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
       (err) => console.warn('Firestore tutor visit subscription note:', err)
     );
 
+    unsubscribeAssignments = subscribeToTutorAssignments((assigns) => {
+      syncAssignedToVisits(getLocalManagedStudents(), assigns);
+    });
+
+    unsubscribeManaged = subscribeToManagedStudents((managed) => {
+      syncAssignedToVisits(managed, getLocalTutorAssignments());
+    });
+
     return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
+      if (typeof unsubscribeVisits === 'function') unsubscribeVisits();
+      if (typeof unsubscribeAssignments === 'function') unsubscribeAssignments();
+      if (typeof unsubscribeManaged === 'function') unsubscribeManaged();
     };
-  }, []);
+  }, [tutorName]);
 
   // Timer tick effect for active session
   useEffect(() => {
@@ -157,7 +219,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
   const cleanPhoneTarget = parentWaNumber.startsWith('0') ? '62' + parentWaNumber.slice(1) : parentWaNumber;
 
   const waDraftText =
-    `Selamat sore ${parentTargetName}, salam dari Kak Anindya (Bright Future Magelang) 🌿\n\n` +
+    `Selamat sore ${parentTargetName}, salam dari ${tutorName} (Bright Future Magelang) 🌿\n\n` +
     `Sesi 70 menit ${activeVisit.studentName} hari ini telah selesai dengan baik:\n` +
     `• Materi: ${activeVisit.subject}\n` +
     `• Skor Kuis Mandiri: ${quizScore}/100\n` +
@@ -1017,7 +1079,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
                   <div className="bg-[#FAF7F1] p-3.5 rounded-2xl text-xs text-[#1c1c18] leading-relaxed flex flex-col gap-2 border border-[rgba(42,40,35,0.08)]">
                     <p className="text-[#6B675F] text-[11px]">
-                      Selamat sore {parentTargetName}, salam dari Kak Anindya (Bright Future) 🌿 Sesi 70 menit {activeVisit.studentName} hari ini selesai dengan baik:
+                      Selamat sore {parentTargetName}, salam dari {tutorName} (Bright Future) 🌿 Sesi 70 menit {activeVisit.studentName} hari ini selesai dengan baik:
                     </p>
                     <div className="py-2 px-3 bg-white rounded-xl text-[11px] flex flex-col gap-1 text-[#1c1c18] border border-[rgba(42,40,35,0.06)]">
                       <span>• Materi: <strong>{activeVisit.subject}</strong></span>

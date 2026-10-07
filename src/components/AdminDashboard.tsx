@@ -371,8 +371,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
   // Portal credentials accounts state
   const [portalAccounts, setPortalAccounts] = useState<PortalCredentialDoc[]>([]);
 
-  // Master managed students state
+  // Master managed students & tutor assignments state
   const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(INITIAL_MANAGED_STUDENTS);
+  const [tutorAssignments, setTutorAssignments] = useState<FirestoreTutorAssignmentDoc[]>([]);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<ManagedStudent | null>(null);
   const [isStudentFormOpen, setIsStudentFormOpen] = useState<boolean>(false);
@@ -589,6 +590,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
     const unsubscribeAssignments = subscribeToTutorAssignments(
       (assignments) => {
         if (assignments && assignments.length > 0) {
+          setTutorAssignments(assignments);
           setManagedStudents((prev) =>
             prev.map((student) => {
               const matched = assignments.find((a) => a.studentId === student.id);
@@ -2583,7 +2585,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
 
               {/* Konten Sub-tab 1: Manajemen Tutor Aktif */}
               {tutorSubTab === 'aktif' && (
-                <TutorManagementSubTab acceptedApplicants={acceptedTutorApplicants} />
+                <TutorManagementSubTab
+                  acceptedApplicants={acceptedTutorApplicants}
+                  managedStudents={managedStudents}
+                  assignments={tutorAssignments}
+                />
               )}
 
               {/* Konten Sub-tab 2: Verifikasi Pendaftar Tutor Baru */}
