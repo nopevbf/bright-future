@@ -5,9 +5,11 @@
 
 import { ManagedStudent } from '../types';
 import { FirestoreTutorAssignmentDoc, FirestoreTutorVisitDoc } from '../firebase';
+export type { FirestoreTutorVisitDoc };
 
 export interface AssignedStudentSummary {
   studentId: string;
+  id?: string;
   studentName: string;
   level?: string;
   grade?: string;
@@ -15,8 +17,12 @@ export interface AssignedStudentSummary {
   address?: string;
   parentName?: string;
   whatsapp?: string;
+  parentPhone?: string;
   schedule?: string[];
+  scheduleDays?: string[];
   subjects?: string[];
+  subject?: string;
+  tutorName?: string;
   status?: string;
 }
 
@@ -54,6 +60,7 @@ export function resolveStudentsForTutor(
     if (norm(s.tutorName) === targetTutor) {
       studentMap.set(s.id, {
         studentId: s.id,
+        id: s.id,
         studentName: s.studentName,
         level: s.level,
         grade: s.grade,
@@ -61,6 +68,7 @@ export function resolveStudentsForTutor(
         address: s.address,
         parentName: s.parentName,
         whatsapp: s.whatsapp,
+        parentPhone: s.whatsapp,
         subjects: s.subjects,
         status: s.status,
       });
@@ -73,6 +81,7 @@ export function resolveStudentsForTutor(
       const existing = studentMap.get(a.studentId);
       studentMap.set(a.studentId, {
         studentId: a.studentId,
+        id: a.studentId,
         studentName: a.studentName || existing?.studentName || 'Siswa',
         level: a.level || existing?.level,
         grade: a.grade || existing?.grade,
@@ -80,7 +89,9 @@ export function resolveStudentsForTutor(
         address: a.address || existing?.address,
         parentName: a.parentName || existing?.parentName,
         whatsapp: a.whatsapp || existing?.whatsapp,
+        parentPhone: a.whatsapp || existing?.whatsapp,
         schedule: a.schedule || existing?.schedule,
+        scheduleDays: a.schedule || existing?.schedule,
         subjects: a.subjects || existing?.subjects,
         status: a.status || existing?.status,
       });

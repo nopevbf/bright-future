@@ -13,6 +13,7 @@ import {
   buildTutorVisitsFromAssignedStudents,
   AssignedStudentSummary,
 } from '../utils/tutorPairingResolver';
+import { TutorVisitSchedule } from './tutor/TutorVisitSchedule';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -502,7 +503,25 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
         {/* Main Content Dashboard */}
         <main className="relative w-full pt-20 px-6 sm:px-8 pb-14 min-h-screen">
           <div className="flex flex-col w-full gap-8 max-w-7xl mx-auto">
-            {/* Top Greeting & Operational Status Bar */}
+            {activeTab === 'jadwal-visit-rumah' ? (
+              <TutorVisitSchedule
+                tutorName={tutorName}
+                assignedStudents={assignedStudents}
+                visits={visits}
+                onNavigateTab={(tab) => {
+                  setActiveTab(tab as TabType);
+                }}
+                onCheckoutSession={(id) => {
+                  const target = visits.find((v) => v.id === id);
+                  if (target) {
+                    handleSelectActiveSession(target);
+                    handleCheckoutSession();
+                  }
+                }}
+              />
+            ) : (
+              <>
+                {/* Top Greeting & Operational Status Bar */}
             <section className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-2 border-b border-[rgba(42,40,35,0.08)]">
               <div className="flex flex-col gap-1.5 max-w-3xl">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1195,6 +1214,8 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                 </div>
               </div>
             </div>
+            </>
+          )}
           </div>
         </main>
       </div>
