@@ -16,6 +16,7 @@ import {
 import { TutorVisitSchedule } from './tutor/TutorVisitSchedule';
 import { TutorGpsAttendance } from './tutor/TutorGpsAttendance';
 import { TutorStudentClasses } from './tutor/TutorStudentClasses';
+import { TutorWorksheetsModules } from './tutor/TutorWorksheetsModules';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -550,6 +551,15 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   if (targetVisit) {
                     handleSelectActiveSession(targetVisit);
                   }
+                }}
+              />
+            ) : activeTab === 'modul-dan-materi' ? (
+              <TutorWorksheetsModules
+                tutorName={tutorName}
+                assignedStudents={assignedStudents}
+                visits={visits}
+                onNavigateTab={(tab) => {
+                  setActiveTab(tab as TabType);
                 }}
               />
             ) : (
