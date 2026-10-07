@@ -15,6 +15,7 @@ import {
 } from '../utils/tutorPairingResolver';
 import { TutorVisitSchedule } from './tutor/TutorVisitSchedule';
 import { TutorGpsAttendance } from './tutor/TutorGpsAttendance';
+import { TutorStudentClasses } from './tutor/TutorStudentClasses';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -533,6 +534,21 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   if (target) {
                     handleSelectActiveSession(target);
                     handleCheckoutSession();
+                  }
+                }}
+              />
+            ) : activeTab === 'kelas-siswa-binaan' ? (
+              <TutorStudentClasses
+                tutorName={tutorName}
+                assignedStudents={assignedStudents}
+                visits={visits}
+                onNavigateTab={(tab) => {
+                  setActiveTab(tab as TabType);
+                }}
+                onSelectStudent={(sId) => {
+                  const targetVisit = visits.find((v) => v.id === sId || v.studentName?.toLowerCase().includes(sId.toLowerCase()));
+                  if (targetVisit) {
+                    handleSelectActiveSession(targetVisit);
                   }
                 }}
               />
