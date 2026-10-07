@@ -114,7 +114,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             return;
           }
           setLoginSuccessData({
-            name: adminAuth.admin.name || 'Monica Yuliana (Super Admin)',
+            name: adminAuth.admin.name || 'Super Admin',
             identifier: adminAuth.admin.email,
             role: 'super_admin',
             summary: 'Otentikasi Berhasil via Firestore: Hak akses Master Operasional Aktif.',

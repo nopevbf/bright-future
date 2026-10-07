@@ -140,7 +140,7 @@ export interface PortalCredentialDoc {
 export const DEFAULT_ADMIN_CREDENTIAL: AdminCredentialDoc = {
   email: 'admin@brightfuture.id',
   password: 'Bismillah@01',
-  name: 'Monica Yuliana, S.Pd., Gr.',
+  name: 'Super Admin',
   role: 'super_admin',
   databaseStatus: 'Active Firestore Synchronized',
 };
@@ -544,7 +544,12 @@ export async function fetchAdminCredentialFromFirestore(): Promise<AdminCredenti
     const adminRef = doc(db, 'admin_credentials', 'admin');
     const adminSnap = await getDoc(adminRef);
     if (adminSnap.exists()) {
-      return adminSnap.data() as AdminCredentialDoc;
+      const data = adminSnap.data() as AdminCredentialDoc;
+      if (data.role === 'super_admin' && data.name !== 'Super Admin') {
+        data.name = 'Super Admin';
+        setDoc(adminRef, { name: 'Super Admin' }, { merge: true }).catch(() => {});
+      }
+      return data;
     }
   } catch (error) {
     console.warn('Could not fetch admin credential from Firestore:', error);
@@ -799,6 +804,98 @@ export async function updatePortalAccountPasswordInFirestore(
   } catch (error) {
     console.error('Error updating portal password in Firestore:', error);
     return { success: false, error: 'Gagal memperbarui kata sandi di Firestore.' };
+  }
+}
+
+/**
+ * Creates a new portal account directly in Cloud Firestore (Super Admin only).
+ */
+export async function createPortalAccountInFirestore(
+  accountData: Omit<PortalCredentialDoc, 'id'> & { id?: string }
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const cleanId = (accountData.id || accountData.identifier || `acc_${Date.now()}`)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .toLowerCase();
+    const docRef = doc(db, 'portal_credentials', cleanId);
+    const newDoc: PortalCredentialDoc = {
+      ...accountData,
+      id: cleanId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await setDoc(docRef, newDoc, { merge: true });
+    return { success: true, id: cleanId };
+  } catch (error) {
+    console.error('Error creating portal account in Firestore:', error);
+    return { success: false, error: 'Gagal membuat akun baru di Firestore.' };
+  }
+}
+
+/**
+ * Updates a portal account's details (name, identifier, whatsapp, summary, password, role) in Cloud Firestore.
+ */
+export async function updatePortalAccountInFirestore(
+  docId: string,
+  updates: Partial<PortalCredentialDoc>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docRef = doc(db, 'portal_credentials', cleanId);
+    await setDoc(
+      docRef,
+      {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating portal account in Firestore:', error);
+    return { success: false, error: 'Gagal memperbarui data akun di Firestore.' };
+  }
+}
+
+/**
+ * Deletes a portal account from Cloud Firestore (Super Admin only).
+ */
+export async function deletePortalAccountFromFirestore(
+  docId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docRef = doc(db, 'portal_credentials', cleanId);
+    await deleteDoc(docRef);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting portal account from Firestore:', error);
+    return { success: false, error: 'Gagal menghapus akun dari Firestore.' };
+  }
+}
+
+/**
+ * Updates a user's role/permission directly in Cloud Firestore (Super Admin only).
+ */
+export async function updateUserRoleInFirestore(
+  docId: string,
+  newRole: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const docRef = doc(db, 'portal_credentials', cleanId);
+    await setDoc(
+      docRef,
+      {
+        role: newRole,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user role in Firestore:', error);
+    return { success: false, error: 'Gagal memperbarui peran akun di Firestore.' };
   }
 }
 
