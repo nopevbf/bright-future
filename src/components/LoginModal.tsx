@@ -24,7 +24,7 @@ export interface LoggedUserPayload {
 
 interface LoginModalProps {
   onClose: () => void;
-  onAdminLoginSuccess?: () => void;
+  onAdminLoginSuccess?: (user?: LoggedUserPayload) => void;
   onTutorLoginSuccess?: (user?: LoggedUserPayload) => void;
   onSiswaLoginSuccess?: (user?: LoggedUserPayload) => void;
   onOrangTuaLoginSuccess?: (user?: LoggedUserPayload) => void;
@@ -109,7 +109,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         const adminAuth = await verifyAdminCredentialsFromFirestore(identifier, password);
         if (adminAuth.success && adminAuth.admin) {
           if (onAdminLoginSuccess) {
-            onAdminLoginSuccess();
+            onAdminLoginSuccess({
+              name: adminAuth.admin.name || 'Super Admin',
+              identifier: adminAuth.admin.email,
+              role: adminAuth.admin.role || 'super_admin',
+            });
             onClose();
             return;
           }

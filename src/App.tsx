@@ -60,6 +60,15 @@ export default function App() {
     useState<SubmittedRegistration | null>(null);
 
   // Authenticated user identity states for dynamic portals
+  const [currentAdminName, setCurrentAdminName] = useState<string>(() => {
+    return sessionStorage.getItem('bf_admin_name') || 'Super Admin';
+  });
+  const [currentAdminEmail, setCurrentAdminEmail] = useState<string>(() => {
+    return sessionStorage.getItem('bf_admin_email') || 'admin@brightfuture.id';
+  });
+  const [currentAdminRole, setCurrentAdminRole] = useState<string>(() => {
+    return sessionStorage.getItem('bf_admin_role') || 'super_admin';
+  });
   const [currentTutorName, setCurrentTutorName] = useState<string>(() => {
     return sessionStorage.getItem('bf_tutor_name') || 'Kak Anindya, S.Pd.';
   });
@@ -150,6 +159,9 @@ export default function App() {
       <AdminDashboard
         onLogout={() => {
           sessionStorage.removeItem('bf_admin_session');
+          sessionStorage.removeItem('bf_admin_name');
+          sessionStorage.removeItem('bf_admin_email');
+          sessionStorage.removeItem('bf_admin_role');
           setIsAdminLoggedIn(false);
           window.location.hash = '';
         }}
@@ -157,6 +169,9 @@ export default function App() {
           setIsAdminLoggedIn(false);
           window.location.hash = '';
         }}
+        adminName={currentAdminName}
+        adminEmail={currentAdminEmail}
+        adminRole={currentAdminRole}
       />
     );
   }
@@ -311,11 +326,27 @@ export default function App() {
       {isLoginOpen && (
         <LoginModal
           onClose={() => setIsLoginOpen(false)}
-          onAdminLoginSuccess={() => {
+          onAdminLoginSuccess={(user) => {
+            if (user?.name) {
+              sessionStorage.setItem('bf_admin_name', user.name);
+              setCurrentAdminName(user.name);
+            }
+            if (user?.identifier) {
+              sessionStorage.setItem('bf_admin_email', user.identifier);
+              setCurrentAdminEmail(user.identifier);
+            }
+            if (user?.role) {
+              sessionStorage.setItem('bf_admin_role', user.role);
+              setCurrentAdminRole(user.role);
+            }
             sessionStorage.setItem('bf_admin_session', 'true');
             sessionStorage.removeItem('bf_tutor_session');
+            sessionStorage.removeItem('bf_siswa_session');
+            sessionStorage.removeItem('bf_orang_tua_session');
             setIsAdminLoggedIn(true);
             setIsTutorLoggedIn(false);
+            setIsSiswaLoggedIn(false);
+            setIsOrangTuaLoggedIn(false);
             window.location.hash = '#admin';
           }}
           onTutorLoginSuccess={(user) => {

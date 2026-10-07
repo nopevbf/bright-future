@@ -54,9 +54,22 @@ import {
 } from './admin/studentData';
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 
-interface AdminDashboardProps {
+export interface AdminDashboardProps {
   onLogout: () => void;
   onViewLanding: () => void;
+  adminName?: string;
+  adminEmail?: string;
+  adminRole?: string;
+}
+
+export function getAdminMonogram(name: string): string {
+  if (!name) return 'SA';
+  const clean = name.replace(/^(Ibu|Bpk|Bapak|Kak|dr|Drs|Ir)\.?\s+/i, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return clean.slice(0, 2).toUpperCase() || 'SA';
 }
 
 type TabType =
@@ -350,7 +363,13 @@ const INITIAL_INVOICES: AdminInvoiceItem[] = [
   },
 ];
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onViewLanding }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  onLogout,
+  onViewLanding,
+  adminName,
+  adminEmail,
+  adminRole,
+}) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabType>('ringkasan');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -415,6 +434,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
 
   // Database credentials & accounts state
   const [adminCredential, setAdminCredential] = useState<AdminCredentialDoc>(DEFAULT_ADMIN_CREDENTIAL);
+
+  // Dynamic active admin identity
+  const activeAdminName = adminName || adminCredential.name || 'Super Admin';
+  const activeAdminEmail = adminEmail || adminCredential.email || 'admin@brightfuture.id';
+  const activeAdminRole = adminRole || adminCredential.role || 'super_admin';
+  const isMasterAdmin = activeAdminRole === 'super_admin';
+  const roleLabel = isMasterAdmin ? 'Super Admin' : 'Admin';
+  const roleSubtitle = isMasterAdmin ? 'Super Admin Operasional' : 'Admin Operasional';
+  const activeMonogram = getAdminMonogram(activeAdminName);
   const [connectedDatabaseAccounts, setConnectedDatabaseAccounts] = useState<{
     admin: AdminCredentialDoc;
     portalAccounts: PortalCredentialDoc[];
@@ -1556,14 +1584,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
         <div className="p-3 shrink-0 bg-[#f0eee8]/60 border-t border-[#2A2823]/10">
           <div className="flex items-center gap-3 p-2 rounded-xl bg-white/80 shadow-xs">
             <div className="w-9 h-9 shrink-0 rounded-full bg-[#c8ebce] flex items-center justify-center text-[#284230] font-bold text-sm">
-              SA
+              {activeMonogram}
             </div>
             {!isSidebarCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs text-[#2A2823] font-bold truncate">
-                  {adminCredential.name || 'Super Admin'}
+                  {activeAdminName}
                 </span>
-                <span className="text-[10px] text-[#6B675F] truncate">Super Admin Operasional</span>
+                <span className="text-[10px] text-[#6B675F] truncate">{roleSubtitle}</span>
               </div>
             )}
             <button
@@ -1653,16 +1681,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
               </button>
             </div>
 
-            {/* Super Admin Identity Badge */}
+            {/* Admin Identity Badge */}
             <div className="flex items-center gap-2.5 pl-1">
               <div className="w-9 h-9 rounded-full bg-[#3F5A46] text-white flex items-center justify-center font-bold text-xs shadow-xs ring-2 ring-[#6F8F76]/30">
-                SA
+                {activeMonogram}
               </div>
               <div className="hidden xl:flex flex-col text-left">
                 <span className="text-xs text-[#2A2823] font-bold leading-tight">
-                  {adminCredential.name || 'Super Admin'}
+                  {activeAdminName}
                 </span>
-                <span className="text-[10px] text-[#6B675F]">Super Admin ({adminCredential.email})</span>
+                <span className="text-[10px] text-[#6B675F]">{roleLabel} ({activeAdminEmail})</span>
               </div>
             </div>
           </div>
@@ -1680,11 +1708,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ebe8e2] text-[#6B675F] text-xs font-semibold mb-2">
                       <span className="w-2 h-2 rounded-full bg-[#6F8F76] animate-pulse"></span>
                       <span className="uppercase tracking-wider text-[#284230]">
-                        Live Operational Hub • Kab. Magelang
+                         Live Operational Hub • Kab. Magelang
                       </span>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2A2823] tracking-tight">
-                      Selamat Datang, {adminCredential.name || 'Super Admin'}
+                      Selamat Datang, {activeAdminName}
                     </h1>
                     <p className="text-sm text-[#6B675F] mt-1">
                       Overview operasional bimbel house-to-house, rute GPS tutor, dan rekonsiliasi pembayaran.
@@ -2921,6 +2949,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
               verifiedRegistrations={firestoreRegistrations.filter((r) => r.paymentStatus === 'verified')}
               acceptedTutors={tutorRegistrations.filter((t) => t.status === 'accepted')}
               isSyncingDb={isSyncingDb}
+              currentUserRole={activeAdminRole}
               onSyncDatabase={handleSyncDatabase}
               onUpdateAdminPassword={updateAdminPasswordInFirestore}
               onUpdatePortalPassword={updatePortalAccountPasswordInFirestore}
@@ -2959,7 +2988,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onView
             <div className="flex items-center gap-2 text-[#2A2823]">
               <span className="material-symbols-outlined text-[#3F5A46] text-[18px]">security</span>
               <span>
-                Bright Future Learning Center • Sistem Multi-Role Operasional (Super Admin: {adminCredential.name || 'Super Admin'})
+                Bright Future Learning Center • Sistem Multi-Role Operasional ({roleLabel}: {activeAdminName})
               </span>
             </div>
             <div className="flex items-center gap-4 text-[11px] font-semibold">

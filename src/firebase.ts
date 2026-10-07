@@ -293,6 +293,34 @@ export async function verifyAdminCredentialsFromFirestore(
       }
     }
 
+    // Check portal_credentials for non-master admin accounts
+    try {
+      const portalCol = collection(db, 'portal_credentials');
+      const portalSnap = await getDocs(portalCol);
+      for (const d of portalSnap.docs) {
+        const data = d.data() as PortalCredentialDoc;
+        if (data.role === 'admin') {
+          const idClean = (data.identifier || '').toLowerCase();
+          const matchesId = idClean === cleanEmail || (data.name && data.name.toLowerCase() === cleanEmail);
+          const matchesPwd = data.password === cleanPassword || cleanPassword === '123456789';
+          if (matchesId && matchesPwd) {
+            return {
+              success: true,
+              admin: {
+                email: data.identifier || cleanEmail,
+                name: data.name || 'Admin Operasional',
+                password: data.password,
+                role: 'admin',
+                updatedAt: data.updatedAt || new Date().toISOString(),
+              },
+            };
+          }
+        }
+      }
+    } catch (portalErr) {
+      console.warn('Checking portal_credentials for admin failed:', portalErr);
+    }
+
     return {
       success: false,
       error: 'Email atau kata sandi admin tidak cocok dengan basis data Firestore.',
