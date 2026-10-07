@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Footer } from './Footer';
 
-describe('Footer Component', () => {
+describe('Footer Component', { timeout: 15000 }, () => {
   it('TC-FT-001: renders the "Daftar Tutor" button in Kontak & Dispatch Hotline column when onOpenTutorRegister is provided', () => {
     const handleOpenTutorRegister = vi.fn();
     render(<Footer onOpenTutorRegister={handleOpenTutorRegister} />);

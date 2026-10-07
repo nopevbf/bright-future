@@ -14,6 +14,7 @@ import {
   AssignedStudentSummary,
 } from '../utils/tutorPairingResolver';
 import { TutorVisitSchedule } from './tutor/TutorVisitSchedule';
+import { TutorGpsAttendance } from './tutor/TutorGpsAttendance';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -204,11 +205,11 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
         focusRating,
         notes: qualitativeNotes,
         elapsedMinutes: 70,
-        time: `${activeVisit.time.split(' ')[0]} - Selesai (70 mnt)`,
+        time: `${activeVisit.time.split(' ')[0]} - Selesai`,
       });
       setIsTimerRunning(false);
       setFeedbackMessage(
-        `Presensi GPS 70 Menit untuk ${activeVisit.studentName} berhasil di-checkout dan dicatat di database!`
+        `Presensi GPS untuk ${activeVisit.studentName} berhasil di-checkout dan dicatat di database!`
       );
     } catch (err) {
       console.error('Check-out error:', err);
@@ -224,7 +225,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
   const waDraftText = activeVisit
     ? `Selamat sore ${parentTargetName}, salam dari ${tutorName} (Bright Future Magelang) 🌿\n\n` +
-      `Sesi 70 menit ${activeVisit.studentName} hari ini telah selesai dengan baik:\n` +
+      `Sesi bimbingan ${activeVisit.studentName} hari ini telah selesai dengan baik:\n` +
       `• Materi: ${activeVisit.subject}\n` +
       `• Skor Kuis Mandiri: ${quizScore}/100\n` +
       `• Fokus 70 Menit: ${focusRating.toFixed(1)}/5.0 ★\n` +
@@ -464,7 +465,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
               <span className="text-[11px] text-[#284230] font-bold">Zonasi: Magelang &amp; Mertoyudan</span>
             </div>
             <span className="text-xs text-[#6B675F] hidden md:inline truncate">
-              • 4 Sesi Kunjungan Rumah Hari Ini (70 Menit GPS)
+              • 4 Sesi Kunjungan Rumah Hari Ini (GPS Aktif)
             </span>
           </div>
 
@@ -519,6 +520,22 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   }
                 }}
               />
+            ) : activeTab === 'presensi-kunjungan' ? (
+              <TutorGpsAttendance
+                tutorName={tutorName}
+                assignedStudents={assignedStudents}
+                visits={visits}
+                onNavigateTab={(tab) => {
+                  setActiveTab(tab as TabType);
+                }}
+                onCheckoutSession={(id) => {
+                  const target = visits.find((v) => v.id === id);
+                  if (target) {
+                    handleSelectActiveSession(target);
+                    handleCheckoutSession();
+                  }
+                }}
+              />
             ) : (
               <>
                 {/* Top Greeting & Operational Status Bar */}
@@ -539,7 +556,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   Selamat Bertugas, {tutorName.split(',')[0]}
                 </h1>
                 <p className="text-xs sm:text-sm text-[#6B675F] leading-relaxed">
-                  Monitoring rute visit rumah 70 menit GPS, input asesmen perkembangan harian, dan draf evaluasi WhatsApp wali murid tersinkronisasi database.
+                  Monitoring rute visit rumah GPS, input asesmen perkembangan harian, dan draf evaluasi WhatsApp wali murid tersinkronisasi database.
                 </p>
               </div>
 
@@ -548,7 +565,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   type="button"
                   onClick={() => {
                     setIsTimerRunning(true);
-                    setFeedbackMessage('Sesi 70 menit tatap muka berjalan aktif dengan geofence GPS!');
+                    setFeedbackMessage('Sesi tatap muka berjalan aktif dengan geofence GPS!');
                     setTimeout(() => setFeedbackMessage(null), 3000);
                   }}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold shadow-xs hover:bg-[#3F5A46] cursor-pointer transition-all"
@@ -695,7 +712,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
               {[
                 { id: 'rute', label: 'Rute & Agenda Visit', icon: 'route' },
                 { id: 'siswa', label: `Siswa Binaan (${assignedStudents.length})`, icon: 'school' },
-                { id: 'presensi', label: 'Presensi GPS (70 Mnt)', icon: 'fmd_good' },
+                { id: 'presensi', label: 'Presensi GPS', icon: 'fmd_good' },
                 { id: 'asesmen', label: 'Asesmen & Afektif', icon: 'fact_check' },
                 { id: 'draf_wa', label: 'Draf WA Ortu', icon: 'chat' },
                 { id: 'modul', label: 'Bank Modul LKPD', icon: 'menu_book' },
@@ -731,7 +748,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                         <h2 className="text-base font-bold text-[#284230]">Rute Bimbingan Hari Ini</h2>
                         <p className="text-[11px] text-[#6B675F]">
                           {visits.length > 0
-                            ? `${visits.length} sesi terjadwal • Standar 70 menit tatap muka rumah per sesi`
+                            ? `${visits.length} sesi terjadwal • Standar tatap muka rumah per sesi`
                             : 'Belum ada rute bimbingan aktif dari database'}
                         </p>
                       </div>
@@ -815,7 +832,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                                 {isSelesai
                                   ? 'Selesai'
                                   : isLive
-                                  ? `Menit ke-${elapsedMinutes} / 70`
+                                  ? `Menit ke-${elapsedMinutes}`
                                   : item.status === 'berikutnya'
                                   ? 'Berikutnya'
                                   : 'Antre'}
@@ -1150,7 +1167,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
 
                       <div className="bg-[#FAF7F1] p-3.5 rounded-2xl text-xs text-[#1c1c18] leading-relaxed flex flex-col gap-2 border border-[rgba(42,40,35,0.08)]">
                         <p className="text-[#6B675F] text-[11px]">
-                          Selamat sore {parentTargetName}, salam dari {tutorName} (Bright Future) 🌿 Sesi 70 menit {activeVisit.studentName} hari ini selesai dengan baik:
+                          Selamat sore {parentTargetName}, salam dari {tutorName} (Bright Future) 🌿 Sesi bimbingan {activeVisit.studentName} hari ini selesai dengan baik:
                         </p>
                         <div className="py-2 px-3 bg-white rounded-xl text-[11px] flex flex-col gap-1 text-[#1c1c18] border border-[rgba(42,40,35,0.06)]">
                           <span>• Materi: <strong>{activeVisit.subject}</strong></span>

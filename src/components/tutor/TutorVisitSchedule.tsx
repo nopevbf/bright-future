@@ -208,7 +208,7 @@ export const TutorVisitSchedule: React.FC<TutorVisitScheduleProps> = ({
             Jadwal &amp; Agenda Kunjungan Rumah
           </h1>
           <p className="text-xs sm:text-sm text-[#6B675F] max-w-3xl leading-relaxed">
-            Atur kalender mingguan Magelang &amp; Mertoyudan, periksa detail titik temu, estimasi waktu tempuh antar-rumah, dan kelengkapan materi 70 menit per sesi.
+            Atur kalender mingguan Magelang &amp; Mertoyudan, periksa detail titik temu, estimasi waktu tempuh antar-rumah, dan kelengkapan materi per sesi.
           </p>
         </div>
 
@@ -800,12 +800,12 @@ export const TutorVisitSchedule: React.FC<TutorVisitScheduleProps> = ({
             </div>
           </div>
 
-          {/* Card Panduan Singkat 70 Menit */}
+          {/* Card Panduan Singkat SOP */}
           <div className="bg-white rounded-2xl p-5 shadow-xs border border-[rgba(42,40,35,0.08)] flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[20px] text-[#3F5A46]">checklist</span>
-                <h3 className="text-base font-bold text-[#284230]">Panduan Singkat 70 Menit</h3>
+                <h3 className="text-base font-bold text-[#284230]">Panduan Singkat SOP Kunjungan</h3>
               </div>
             </div>
 
@@ -816,7 +816,7 @@ export const TutorVisitSchedule: React.FC<TutorVisitScheduleProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-[#3F5A46] shrink-0">check</span>
-                <span>50 mnt konsep &amp; LKPD + 20 mnt evaluasi mandiri</span>
+                <span>Konsep materi, LKPD &amp; evaluasi mandiri terarah</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-[#3F5A46] shrink-0">check</span>

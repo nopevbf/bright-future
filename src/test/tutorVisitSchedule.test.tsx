@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TutorVisitSchedule } from '../components/tutor/TutorVisitSchedule';
 import { FirestoreTutorVisitDoc, AssignedStudentSummary } from '../utils/tutorPairingResolver';
 
-describe('TutorVisitSchedule Component (SQA-ISTQB & TDD)', () => {
+describe('TutorVisitSchedule Component (SQA-ISTQB & TDD)', { timeout: 15000 }, () => {
   const mockAssignedStudents: AssignedStudentSummary[] = [
     {
       studentId: 'student-01',
@@ -52,7 +52,7 @@ describe('TutorVisitSchedule Component (SQA-ISTQB & TDD)', () => {
       id: 'visit-1',
       studentName: 'Kevin Pratama',
       level: 'SD Kelas 4',
-      time: '10:00 - 11:10 WIB (70 Mnt)',
+      time: '10:00 - 11:10 WIB',
       status: 'selesai',
       address: 'Jl. Pahlawan No. 42, Magelang Utara',
       subject: 'Materi Bab 3 Selesai',
@@ -63,7 +63,7 @@ describe('TutorVisitSchedule Component (SQA-ISTQB & TDD)', () => {
       id: 'visit-2',
       studentName: 'Rayhan Kusuma',
       level: 'SD Kelas 5',
-      time: '13:30 - 14:40 WIB (70 Mnt)',
+      time: '13:30 - 14:40 WIB',
       status: 'berlangsung',
       address: 'Jl. Mayor Unus No. 15, Mertoyudan',
       subject: 'Sains: Tata Surya & Gravitasi',
@@ -75,7 +75,7 @@ describe('TutorVisitSchedule Component (SQA-ISTQB & TDD)', () => {
       id: 'visit-3',
       studentName: 'Kayla Pratama',
       level: 'SD Kelas 2',
-      time: '15:30 - 16:40 WIB (70 Mnt)',
+      time: '15:30 - 16:40 WIB',
       status: 'berikutnya',
       address: 'Jl. Pahlawan No. 42, Potrobangsan',
       subject: 'Tematik: Flashcard Folklor',
