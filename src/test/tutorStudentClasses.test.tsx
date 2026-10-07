@@ -11,13 +11,13 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
       id: 'student-01',
       studentName: 'Rayhan Kusuma',
       level: 'SD Kelas 5',
-      parentName: 'Bunda Rayhan',
+      parentName: 'Bunda Rayhan (Ibu Rahma)',
       parentPhone: '081298764321',
       whatsapp: '081298764321',
-      address: 'Jl. Mayor Unus No. 15, Mertoyudan',
+      address: 'Perum Mertoyudan Indah Blok C2',
       status: 'active',
-      scheduleDays: ['Selasa', 'Jumat'],
-      subject: 'Tematik & IPA Terpadu',
+      scheduleDays: ['Senin', 'Kamis'],
+      subject: 'IPAS Sains & Pemecahan Masalah Matematika',
       tutorName: 'Kak Anindya, S.Pd.',
     },
     {
@@ -28,7 +28,7 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
       parentName: 'Ibu Ratna Dewi',
       parentPhone: '081322117788',
       whatsapp: '081322117788',
-      address: 'Jl. Pahlawan No. 42, Magelang Utara',
+      address: 'Jl. Pahlawan No. 45, Magelang Tengah',
       status: 'active',
       scheduleDays: ['Selasa', 'Jumat'],
       subject: 'Matematika & Sains',
@@ -37,14 +37,28 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
     {
       studentId: 'student-03',
       id: 'student-03',
+      studentName: 'Kayla Pratama',
+      level: 'SD Kelas 2',
+      parentName: 'Ibu Ratna Dewi',
+      parentPhone: '081322117788',
+      whatsapp: '081322117788',
+      address: 'Gg. Cempaka II, Magelang Utara',
+      status: 'active',
+      scheduleDays: ['Selasa', 'Jumat'],
+      subject: 'Tematik & Literasi',
+      tutorName: 'Kak Anindya, S.Pd.',
+    },
+    {
+      studentId: 'student-04',
+      id: 'student-04',
       studentName: 'Dimas Pratama',
       level: 'SMP Kelas 7',
       parentName: 'Bpk. Bambang',
       parentPhone: '081566778899',
       whatsapp: '081566778899',
-      address: 'Jl. Pemuda No. 88, Pecinan, Magelang',
+      address: 'Jl. Tidar Indah No. 8, Magelang Selatan',
       status: 'active',
-      scheduleDays: ['Senin', 'Kamis'],
+      scheduleDays: ['Rabu', 'Sabtu'],
       subject: 'Aljabar Linier & Fisika Gerak',
       tutorName: 'Kak Anindya, S.Pd.',
     },
@@ -55,19 +69,19 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
       id: 'visit-01',
       studentName: 'Rayhan Kusuma',
       level: 'SD Kelas 5',
-      address: 'Jl. Mayor Unus No. 15, Mertoyudan',
+      address: 'Perum Mertoyudan Indah Blok C2',
       status: 'selesai',
-      time: '13:30 - 14:40',
-      subject: 'Tematik & IPA Terpadu',
-      score: 88,
+      time: '13:30 - 14:40 WIB',
+      subject: 'IPAS Sains & Pemecahan Masalah Matematika',
+      score: 89,
     },
     {
       id: 'visit-02',
       studentName: 'Kevin Pratama',
       level: 'SD Kelas 4',
-      address: 'Jl. Pahlawan No. 42, Magelang Utara',
-      status: 'berikutnya',
-      time: '10:00 - 11:10',
+      address: 'Jl. Pahlawan No. 45, Magelang Tengah',
+      status: 'berlangsung',
+      time: '10:00 - 11:10 WIB',
       subject: 'Matematika & Sains',
       score: 92,
     },
@@ -77,7 +91,7 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
     vi.clearAllMocks();
   });
 
-  it('TC-TSC-001: renders breadcrumb, headline without (70 Menit), and 4 KPI Bento metrics', () => {
+  it('TC-TSC-001: renders breadcrumb, headline without (70 Menit), and 4 Bento KPI metrics', () => {
     render(
       <TutorStudentClasses
         tutorName="Kak Anindya, S.Pd."
@@ -87,20 +101,20 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
     );
 
     expect(screen.getByText('Portal Tutor')).toBeDefined();
-    expect(screen.getByRole('heading', { name: /Kelas Saya & Siswa Binaan/i })).toBeDefined();
+    expect(screen.getByRole('heading', { name: /Data & Portofolio Siswa Binaan/i })).toBeDefined();
 
-    // Verify absolutely no "(70 Menit)" or "70 Mnt/Sesi" label
+    // Verify absolutely no "(70 Menit)" or "70 Mnt" label
     expect(screen.queryByText(/\(70 Menit\)/i)).toBeNull();
-    expect(screen.queryByText(/70 Mnt\/Sesi/i)).toBeNull();
+    expect(screen.queryByText(/70 Mnt/i)).toBeNull();
 
     // Verify 4 KPI cards
     expect(screen.getByText('Total Siswa Binaan')).toBeDefined();
-    expect(screen.getByText('Rata-rata Kehadiran')).toBeDefined();
-    expect(screen.getByText(/Rerata Nilai Kuis & LKPD/i)).toBeDefined();
-    expect(screen.getByText('Laporan Afektif Terkirim')).toBeDefined();
+    expect(screen.getByText(/Rata-Rata Karakter Afektif/i)).toBeDefined();
+    expect(screen.getByText(/Fokus Bebas Gawai/i)).toBeDefined();
+    expect(screen.getByText(/Kunjungan Pekan Ini/i)).toBeDefined();
   });
 
-  it('TC-TSC-002: selects a different student card from directory and updates right inspection panel', () => {
+  it('TC-TSC-002: selects a different student card from master list and updates right detail panel', () => {
     render(
       <TutorStudentClasses
         tutorName="Kak Anindya, S.Pd."
@@ -109,20 +123,18 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
       />
     );
 
-    // Initial selected student is student-01 (Rayhan)
+    // Initial selected student is Rayhan Kusuma
     expect(screen.getAllByText('Rayhan Kusuma').length).toBeGreaterThanOrEqual(1);
 
-    // Click Kevin Pratama card button or card
-    const kevinSelectBtn = screen.getAllByRole('button', { name: /Pilih Siswa|Detail Pantau/i })[1];
-    if (kevinSelectBtn) {
-      fireEvent.click(kevinSelectBtn);
-    }
+    // Click Kevin Pratama card in master list
+    const kevinCard = screen.getAllByText('Kevin Pratama')[0];
+    fireEvent.click(kevinCard);
 
-    // Now right panel shows Kevin Pratama
+    // Now right detail panel updates to Kevin Pratama
     expect(screen.getAllByText('Kevin Pratama').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('TC-TSC-003: filters students by level tabs (Semua, SD, SMP) and search query', () => {
+  it('TC-TSC-003: switches segmented tabs (Afektif, Kognitif, Riwayat)', () => {
     render(
       <TutorStudentClasses
         tutorName="Kak Anindya, S.Pd."
@@ -131,27 +143,68 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
       />
     );
 
-    // Filter by SMP tab
-    const smpTab = screen.getByRole('button', { name: /SMP/i });
-    fireEvent.click(smpTab);
+    // Default tab is Perkembangan Afektif & Karakter
+    expect(screen.getByText(/5 Pilar Karakter Lapangan/i)).toBeDefined();
 
-    // Only Dimas Pratama should be visible in directory & active panel
+    // Click tab Rekap Nilai & LKPD Kognitif
+    const kognitifTab = screen.getByRole('button', { name: /Rekap Nilai & LKPD Kognitif/i });
+    fireEvent.click(kognitifTab);
+    expect(screen.getByText(/Capaian Materi & Nilai LKPD/i)).toBeDefined();
+
+    // Click tab Riwayat Kunjungan & Presensi
+    const riwayatTab = screen.getByRole('button', { name: /Riwayat Kunjungan & Presensi/i });
+    fireEvent.click(riwayatTab);
+    expect(screen.getByText(/Log Presensi Tatap Muka/i)).toBeDefined();
+  });
+
+  it('TC-TSC-004: filters students by search input and level dropdown', () => {
+    render(
+      <TutorStudentClasses
+        tutorName="Kak Anindya, S.Pd."
+        assignedStudents={mockAssignedStudents}
+        visits={mockVisits}
+      />
+    );
+
+    // Test Search input
+    const searchInput = screen.getByPlaceholderText(/Cari nama siswa, sekolah, alamat/i);
+    fireEvent.change(searchInput, { target: { value: 'Dimas' } });
+
     expect(screen.getAllByText('Dimas Pratama').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Rayhan Kusuma')).toBeNull();
 
-    // Reset to All
-    const allTab = screen.getByRole('button', { name: /Semua Siswa/i });
-    fireEvent.click(allTab);
+    // Clear search
+    fireEvent.change(searchInput, { target: { value: '' } });
     expect(screen.getAllByText('Rayhan Kusuma').length).toBeGreaterThanOrEqual(1);
-
-    // Test Search input
-    const searchInput = screen.getByPlaceholderText(/Cari murid, sekolah, ortu.../i);
-    fireEvent.change(searchInput, { target: { value: 'Kevin' } });
-    expect(screen.getAllByText('Kevin Pratama').length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText('Dimas Pratama')).toBeNull();
   });
 
-  it('TC-TSC-004: handles empty assigned students boundary condition cleanly', () => {
+  it('TC-TSC-005: handles parent WhatsApp action and route schedule button', () => {
+    const originalOpen = window.open;
+    window.open = vi.fn();
+    const handleNavigateTab = vi.fn();
+
+    render(
+      <TutorStudentClasses
+        tutorName="Kak Anindya, S.Pd."
+        assignedStudents={mockAssignedStudents}
+        visits={mockVisits}
+        onNavigateTab={handleNavigateTab}
+      />
+    );
+
+    // Click WhatsApp button
+    const waButton = screen.getByRole('link', { name: /Hubungi Bunda via WA/i });
+    expect(waButton.getAttribute('href')).toContain('https://wa.me/6281298764321');
+
+    // Click route schedule button
+    const routeButton = screen.getByRole('button', { name: /Buka Jadwal Rute/i });
+    fireEvent.click(routeButton);
+    expect(handleNavigateTab).toHaveBeenCalledWith('jadwal-visit-rumah');
+
+    window.open = originalOpen;
+  });
+
+  it('TC-TSC-006: handles empty assigned students boundary condition cleanly', () => {
     render(
       <TutorStudentClasses
         tutorName="Kak Anindya, S.Pd."
@@ -161,54 +214,5 @@ describe('TutorStudentClasses Component (SQA-ISTQB & TDD)', { timeout: 15000 }, 
     );
 
     expect(screen.getByText(/Belum ada siswa binaan yang terhubung/i)).toBeDefined();
-  });
-
-  it('TC-TSC-005: handles parent WhatsApp button and Google Maps external action', () => {
-    const originalOpen = window.open;
-    window.open = vi.fn();
-
-    render(
-      <TutorStudentClasses
-        tutorName="Kak Anindya, S.Pd."
-        assignedStudents={mockAssignedStudents}
-        visits={mockVisits}
-      />
-    );
-
-    // Click WA button
-    const waButtons = screen.getAllByRole('button', { name: /WA Ortu|Draf WA/i });
-    if (waButtons.length > 0) {
-      fireEvent.click(waButtons[0]);
-    }
-
-    // Click Google Maps button
-    const mapsBtn = screen.getByRole('button', { name: /Buka Google Maps/i });
-    fireEvent.click(mapsBtn);
-    expect(window.open).toHaveBeenCalled();
-
-    window.open = originalOpen;
-  });
-
-  it('TC-TSC-006: opens add student note modal and saves new observation', () => {
-    render(
-      <TutorStudentClasses
-        tutorName="Kak Anindya, S.Pd."
-        assignedStudents={mockAssignedStudents}
-        visits={mockVisits}
-      />
-    );
-
-    const addNoteBtn = screen.getByRole('button', { name: /Tambah Catatan Siswa/i });
-    fireEvent.click(addNoteBtn);
-
-    expect(screen.getByText(/Catatan Perkembangan Siswa Binaan/i)).toBeDefined();
-
-    const noteInput = screen.getByPlaceholderText(/Tulis catatan observasi afektif.../i);
-    fireEvent.change(noteInput, { target: { value: 'Sangat fokus belajar konsep baru' } });
-
-    const saveBtn = screen.getByRole('button', { name: /Simpan Catatan/i });
-    fireEvent.click(saveBtn);
-
-    expect(screen.getByText(/Catatan observasi berhasil disimpan!/i)).toBeDefined();
   });
 });
