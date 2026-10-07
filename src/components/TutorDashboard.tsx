@@ -17,6 +17,7 @@ import { TutorVisitSchedule } from './tutor/TutorVisitSchedule';
 import { TutorGpsAttendance } from './tutor/TutorGpsAttendance';
 import { TutorStudentClasses } from './tutor/TutorStudentClasses';
 import { TutorWorksheetsModules } from './tutor/TutorWorksheetsModules';
+import { TutorEvaluationWhatsApp } from './tutor/TutorEvaluationWhatsApp';
 
 interface TutorDashboardProps {
   onLogout: () => void;
@@ -31,6 +32,7 @@ type TabType =
   | 'presensi-kunjungan'
   | 'kelas-siswa-binaan'
   | 'modul-dan-materi'
+  | 'evaluasi-dan-draf-wa'
   | 'evaluasi-dan-nilai'
   | 'catatan-perkembangan'
   | 'pengumuman-draf-wa'
@@ -380,11 +382,9 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
               { id: 'dashboard-tutor', label: 'Beranda & Ringkasan', icon: 'grid_view' },
               { id: 'jadwal-visit-rumah', label: 'Jadwal Visit Rumah', icon: 'directions_car' },
               { id: 'presensi-kunjungan', label: 'Presensi Kunjungan GPS', icon: 'fmd_good' },
-              { id: 'kelas-siswa-binaan', label: 'Kelas & Siswa Binaan', icon: 'family_restroom' },
+              { id: 'kelas-siswa-binaan', label: 'Data & Portofolio Siswa', icon: 'family_restroom' },
               { id: 'modul-dan-materi', label: 'Modul & Lembar Kerja', icon: 'menu_book' },
-              { id: 'evaluasi-dan-nilai', label: 'Evaluasi & Input Nilai', icon: 'fact_check' },
-              { id: 'catatan-perkembangan', label: 'Catatan Afektif & Progres', icon: 'psychology' },
-              { id: 'pengumuman-draf-wa', label: 'Draf Pesan WhatsApp', icon: 'chat' },
+              { id: 'evaluasi-dan-draf-wa', label: 'Evaluasi & Draf WhatsApp', icon: 'fact_check' },
             ].map((item) => (
               <button
                 key={item.id}
@@ -393,9 +393,8 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   if (item.id === 'jadwal-visit-rumah') setSubModuleFilter('rute');
                   if (item.id === 'kelas-siswa-binaan') setSubModuleFilter('siswa');
                   if (item.id === 'presensi-kunjungan') setSubModuleFilter('presensi');
-                  if (item.id === 'evaluasi-dan-nilai') setSubModuleFilter('asesmen');
-                  if (item.id === 'pengumuman-draf-wa') setSubModuleFilter('draf_wa');
                   if (item.id === 'modul-dan-materi') setSubModuleFilter('modul');
+                  if (item.id === 'evaluasi-dan-draf-wa') setSubModuleFilter('evaluasi_wa');
                 }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-semibold text-xs cursor-pointer ${
                   isSidebarCollapsed ? 'justify-center px-0' : ''
@@ -562,6 +561,37 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                   setActiveTab(tab as TabType);
                 }}
               />
+            ) : (activeTab === 'evaluasi-dan-draf-wa' || activeTab === 'evaluasi-dan-nilai' || activeTab === 'catatan-perkembangan' || activeTab === 'pengumuman-draf-wa') ? (
+              <TutorEvaluationWhatsApp
+                tutorName={tutorName}
+                assignedStudents={assignedStudents}
+                visits={visits}
+                onNavigateTab={(tab) => {
+                  setActiveTab(tab as TabType);
+                }}
+                onUpdateVisitEvaluation={async (vId, evalData) => {
+                  await updateTutorVisitInFirestore({
+                    id: vId,
+                    score: evalData.score,
+                    focusRating: evalData.focusRating,
+                    independenceRating: evalData.independenceRating,
+                    notes: evalData.notes,
+                  });
+                  setVisits((prev) =>
+                    prev.map((v) =>
+                      v.id === vId
+                        ? {
+                            ...v,
+                            score: evalData.score,
+                            focusRating: evalData.focusRating,
+                            independenceRating: evalData.independenceRating,
+                            notes: evalData.notes,
+                          }
+                        : v
+                    )
+                  );
+                }}
+              />
             ) : (
               <>
                 {/* Top Greeting & Operational Status Bar */}
@@ -602,8 +632,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const el = document.getElementById('card-input-nilai');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    setActiveTab('evaluasi-dan-draf-wa');
                   }}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white text-[#1c1c18] hover:bg-[#FAF7F1] text-xs font-semibold shadow-xs border border-[rgba(42,40,35,0.12)] cursor-pointer transition-all"
                 >
@@ -613,8 +642,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const el = document.getElementById('card-draf-wa');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    setActiveTab('evaluasi-dan-draf-wa');
                   }}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white text-[#1c1c18] hover:bg-[#FAF7F1] text-xs font-semibold shadow-xs border border-[rgba(42,40,35,0.12)] cursor-pointer transition-all"
                 >
