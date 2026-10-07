@@ -328,37 +328,6 @@ type PortalRole = NonNullable<PortalCredentialDoc['role']>;
     }
   };
 
-  // QUICK SETTING ROLE HANDLER
-  const handleQuickRoleChange = async (accountId: string, accountName: string, newRole: string) => {
-    if (!isSuperAdmin) {
-      showToast('Akses Ditolak: Hanya Super Admin yang dapat mengubah hak akses/peran.');
-      return;
-    }
-    const targetRole = newRole as PortalRole;
-    try {
-      if (onUpdateRole) {
-        const res = await onUpdateRole(accountId, targetRole);
-        if (res.success) {
-          setLocalUpdatedAccounts((prev) => ({
-            ...prev,
-            [accountId]: { ...(prev[accountId] || {}), role: targetRole },
-          }));
-          showToast(`Hak akses ${accountName} berhasil diubah menjadi ${targetRole.toUpperCase()} di Firestore!`);
-        } else {
-          showToast(res.error || 'Gagal memperbarui peran akun.');
-        }
-      } else {
-        setLocalUpdatedAccounts((prev) => ({
-          ...prev,
-          [accountId]: { ...(prev[accountId] || {}), role: targetRole },
-        }));
-        showToast(`Peran ${accountName} diubah ke ${targetRole.toUpperCase()}!`);
-      }
-    } catch {
-      showToast('Terjadi kendala jaringan saat mengubah peran akun.');
-    }
-  };
-
   // DELETE ACCOUNT HANDLER
   const handleConfirmDelete = async () => {
     if (!deletingAccount) return;
@@ -985,28 +954,10 @@ type PortalRole = NonNullable<PortalCredentialDoc['role']>;
 
                   return (
                     <tr key={rowKey} className="hover:bg-[#FAF7F1]/60 transition-colors">
-                      {/* Peran & Quick Role Selector */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex flex-col gap-1 items-start">
+                      {/* Peran / Hak Akses */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center">
                           {renderRoleBadge(account.role)}
-                          {/* Quick Setting Role dropdown khusus Super Admin (non-master) */}
-                          {isSuperAdmin && !isMasterAdmin && (
-                            <select
-                              value={account.role}
-                              data-testid={`select-role-${account.id}`}
-                              onChange={(e) =>
-                                handleQuickRoleChange(account.id, account.name, e.target.value)
-                              }
-                              className="text-[10px] font-semibold bg-[#FAF7F1] border border-[#2A2823]/15 rounded-md px-1.5 py-0.5 text-[#2A2823] cursor-pointer hover:bg-white focus:ring-1 focus:ring-[#3F5A46] outline-none"
-                              title="Ubah peran akun ini di Firestore"
-                            >
-                              <option value="super_admin">Super Admin</option>
-                              <option value="admin">Admin</option>
-                              <option value="tutor">Tutor</option>
-                              <option value="siswa">Siswa</option>
-                              <option value="orang_tua">Wali Murid</option>
-                            </select>
-                          )}
                         </div>
                       </td>
 

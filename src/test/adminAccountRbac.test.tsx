@@ -91,14 +91,17 @@ describe('Admin Account Management RBAC Test Suite (ISTQB Grounded)', () => {
     expect(screen.getByText(/Hak Akses Penuh: Super Admin Aktif/i)).toBeDefined();
   });
 
-  // TC-RBAC-002: Verifikasi Tombol Aksi Mutasi Database Aktif untuk Super Admin
-  it('TC-RBAC-002: Should provide active Create, Edit, Quick Role, and Delete actions when role is super_admin', () => {
+  // TC-RBAC-002: Verifikasi Tombol Aksi Mutasi Database Aktif untuk Super Admin (Tanpa Inline Dropdown)
+  it('TC-RBAC-002: Should provide active Create, Edit (with role settings), and Delete actions when role is super_admin, with no inline role dropdown', () => {
     renderComponent('super_admin');
 
     // Tombol Tambah Akun Baru harus ada dan aktif
     const btnTambah = screen.getByTestId('btn-tambah-akun');
     expect(btnTambah).toBeDefined();
     expect(btnTambah.hasAttribute('disabled')).toBe(false);
+
+    // Tidak boleh ada dropdown select peran inline pada baris tabel
+    expect(screen.queryByTestId('select-role-portal_tutor_1')).toBeNull();
 
     // Tombol Edit akun harus ada untuk akun non-master
     const btnEdit = screen.getByTestId('btn-edit-portal_tutor_1');
