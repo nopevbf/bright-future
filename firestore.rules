@@ -57,9 +57,8 @@ service cloud.firestore {
       // Allows retrieval and listing of registrations for admin dashboard & verification
       allow read: if true;
 
-      // Allows admin to update status (verification, penugasan tutor, payment status)
-      allow update: if isValidId(registrationId);
-      allow delete: if false;
+      // Allows admin to update status (verification, penugasan tutor, payment status) and delete
+      allow update, delete: if isValidId(registrationId);
     }
 
     match /admin_credentials/{credId} {
@@ -72,8 +71,7 @@ service cloud.firestore {
     match /portal_credentials/{credId} {
       // Multi-role portal credentials authentication
       allow read: if true;
-      allow create, update: if isValidId(credId);
-      allow delete: if false;
+      allow create, update, delete: if isValidId(credId);
     }
 
     match /invoices/{invoiceId} {

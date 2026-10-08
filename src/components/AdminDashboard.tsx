@@ -395,7 +395,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [portalAccounts, setPortalAccounts] = useState<PortalCredentialDoc[]>([]);
 
   // Master managed students & tutor assignments state
-  const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(INITIAL_MANAGED_STUDENTS);
+  const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>([]);
   const [tutorAssignments, setTutorAssignments] = useState<FirestoreTutorAssignmentDoc[]>([]);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<ManagedStudent | null>(null);
@@ -417,7 +417,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newVisitAddress, setNewVisitAddress] = useState<string>('');
 
   // Invoices list state & details
-  const [invoices, setInvoices] = useState<AdminInvoiceItem[]>(INITIAL_INVOICES);
+  const [invoices, setInvoices] = useState<AdminInvoiceItem[]>([]);
   const [selectedInvoiceForDetail, setSelectedInvoiceForDetail] = useState<AdminInvoiceItem | null>(null);
 
   // New invoice state
@@ -570,21 +570,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
 
     // Initial load and real-time live listener for Invoices from Firestore
-    seedInitialInvoicesIfEmpty(INITIAL_INVOICES)
+    seedInitialInvoicesIfEmpty()
       .then((data) => {
-        if (data && data.length > 0) {
-          setInvoices(data);
-        }
+        setInvoices(data || []);
       })
       .catch((err) => {
-        console.error('Error seeding/fetching invoices from Firestore:', err);
+        console.error('Error fetching invoices from Firestore:', err);
       });
 
     const unsubscribeInvoices = subscribeToInvoices(
       (data) => {
-        if (data && data.length > 0) {
-          setInvoices(data);
-        }
+        setInvoices(data || []);
       },
       (err) => {
         console.warn('Real-time invoice listener warning:', err);
@@ -595,21 +591,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsLoadingTutorRegistrations(true);
     seedInitialTutorRegistrationsIfEmpty()
       .then((data) => {
-        if (data && data.length > 0) {
-          setTutorRegistrations(data);
-        }
+        setTutorRegistrations(data || []);
         setIsLoadingTutorRegistrations(false);
       })
       .catch((err) => {
-        console.error('Error seeding/fetching tutor registrations from Firestore:', err);
+        console.error('Error fetching tutor registrations from Firestore:', err);
         setIsLoadingTutorRegistrations(false);
       });
 
     const unsubscribeTutors = subscribeToTutorRegistrations(
       (data) => {
-        if (data && data.length > 0) {
-          setTutorRegistrations(data);
-        }
+        setTutorRegistrations(data || []);
         setIsLoadingTutorRegistrations(false);
       },
       (err) => {
@@ -621,8 +613,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Real-time live listener for Tutor Assignments & Dispatch from Firestore
     const unsubscribeAssignments = subscribeToTutorAssignments(
       (assignments) => {
+        setTutorAssignments(assignments || []);
         if (assignments && assignments.length > 0) {
-          setTutorAssignments(assignments);
           setManagedStudents((prev) =>
             prev.map((student) => {
               const matched = assignments.find((a) => a.studentId === student.id);
@@ -642,9 +634,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Real-time live listener for multi-role Portal Credentials from Firestore
     const unsubscribePortalAccounts = subscribeToPortalAccounts(
       (accounts) => {
-        if (accounts && accounts.length > 0) {
-          setPortalAccounts(accounts);
-        }
+        setPortalAccounts(accounts || []);
       },
       (err) => {
         console.warn('Real-time portal accounts listener warning:', err);

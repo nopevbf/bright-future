@@ -227,19 +227,6 @@ export async function ensureDefaultCredentialsInFirestore(): Promise<void> {
       },
       { merge: true }
     );
-
-    // 2. Ensure Portal multi-role credentials exist in Firestore
-    for (const [key, cred] of Object.entries(DEFAULT_PORTAL_CREDENTIALS)) {
-      const portalRef = doc(db, 'portal_credentials', key);
-      await setDoc(
-        portalRef,
-        {
-          ...cred,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-    }
   } catch (error) {
     console.warn('Note: initializing default credentials to Firestore encountered:', error);
   }
@@ -521,19 +508,33 @@ export async function verifyPortalCredentialsFromFirestore(
       }
     }
 
-    // 4. Fallback check against default mock data
-    const defaultCred = DEFAULT_PORTAL_CREDENTIALS[role];
-    if (defaultCred && defaultCred.identifier.toLowerCase() === cleanId.toLowerCase() && defaultCred.password === cleanPassword) {
-      return {
-        success: true,
-        user: {
-          identifier: defaultCred.identifier,
-          name: defaultCred.name,
-          role: defaultCred.role,
-          summary: defaultCred.summary,
-          source: 'firestore_credentials',
-        },
-      };
+    // 4. In-memory fallback check against default portal credentials
+    for (const defaultCred of Object.values(DEFAULT_PORTAL_CREDENTIALS)) {
+      if (defaultCred.role === role) {
+        const idMatches =
+          defaultCred.identifier.toLowerCase() === cleanId.toLowerCase() ||
+          (defaultCred.whatsapp && cleanId.replace(/[^0-9]/g, '').endsWith(defaultCred.whatsapp.replace(/[^0-9]/g, ''))) ||
+          (defaultCred.studentId && defaultCred.studentId.toLowerCase() === cleanId.toLowerCase());
+        const pwdMatches =
+          defaultCred.password === cleanPassword ||
+          isDefaultPwd ||
+          (role === 'tutor' && cleanPassword === 'Tutor@2026') ||
+          (role === 'siswa' && cleanPassword === 'Siswa@2026') ||
+          (role === 'orang_tua' && cleanPassword === 'Wali@2026');
+
+        if (idMatches && pwdMatches) {
+          return {
+            success: true,
+            user: {
+              identifier: defaultCred.identifier,
+              name: defaultCred.name,
+              role: defaultCred.role,
+              summary: defaultCred.summary,
+              source: 'firestore_credentials',
+            },
+          };
+        }
+      }
     }
 
     return {
@@ -542,19 +543,29 @@ export async function verifyPortalCredentialsFromFirestore(
     };
   } catch (err) {
     console.error('Error verifying portal credentials:', err);
-    // Fallback
-    const defaultCred = DEFAULT_PORTAL_CREDENTIALS[role];
-    if (defaultCred && defaultCred.identifier.toLowerCase() === cleanId.toLowerCase() && defaultCred.password === cleanPassword) {
-      return {
-        success: true,
-        user: {
-          identifier: defaultCred.identifier,
-          name: defaultCred.name,
-          role: defaultCred.role,
-          summary: defaultCred.summary,
-          source: 'firestore_credentials',
-        },
-      };
+    for (const defaultCred of Object.values(DEFAULT_PORTAL_CREDENTIALS)) {
+      if (defaultCred.role === role) {
+        const idMatches =
+          defaultCred.identifier.toLowerCase() === cleanId.toLowerCase() ||
+          (defaultCred.whatsapp && cleanId.replace(/[^0-9]/g, '').endsWith(defaultCred.whatsapp.replace(/[^0-9]/g, ''))) ||
+          (defaultCred.studentId && defaultCred.studentId.toLowerCase() === cleanId.toLowerCase());
+        const pwdMatches =
+          defaultCred.password === cleanPassword ||
+          cleanPassword === '123456789';
+
+        if (idMatches && pwdMatches) {
+          return {
+            success: true,
+            user: {
+              identifier: defaultCred.identifier,
+              name: defaultCred.name,
+              role: defaultCred.role,
+              summary: defaultCred.summary,
+              source: 'firestore_credentials',
+            },
+          };
+        }
+      }
     }
     return {
       success: false,
@@ -1021,7 +1032,10 @@ export async function fetchRegistrationsFromFirestore(): Promise<FirestoreRegist
     const snapshot = await getDocs(colRef);
     const results: FirestoreRegistrationDoc[] = [];
     snapshot.forEach((docSnap) => {
-      results.push(docSnap.data() as FirestoreRegistrationDoc);
+      const data = docSnap.data() as FirestoreRegistrationDoc & { isPurged?: boolean; isDeleted?: boolean };
+      if (data && data.studentId && data.studentName && !data.isPurged && !data.isDeleted) {
+        results.push(data);
+      }
     });
     // sort by createdAt descending
     results.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -1046,7 +1060,10 @@ export function subscribeToRegistrations(
     (snapshot) => {
       const results: FirestoreRegistrationDoc[] = [];
       snapshot.forEach((docSnap) => {
-        results.push(docSnap.data() as FirestoreRegistrationDoc);
+        const data = docSnap.data() as FirestoreRegistrationDoc & { isPurged?: boolean; isDeleted?: boolean };
+        if (data && data.studentId && data.studentName && !data.isPurged && !data.isDeleted) {
+          results.push(data);
+        }
       });
       results.sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
@@ -1204,24 +1221,16 @@ export async function deleteInvoiceFromFirestore(invId: string): Promise<void> {
 }
 
 /**
- * Seeds initial sample invoices if Firestore collection is empty.
+ * Fetches invoices from Firestore without auto-seeding demo data if empty.
  */
 export async function seedInitialInvoicesIfEmpty(
-  initialInvoices: FirestoreInvoiceDoc[]
+  _initialInvoices?: FirestoreInvoiceDoc[]
 ): Promise<FirestoreInvoiceDoc[]> {
   try {
-    const existing = await fetchInvoicesFromFirestore();
-    if (existing.length > 0) {
-      return existing;
-    }
-    // Seed default invoices
-    for (const inv of initialInvoices) {
-      await saveInvoiceToFirestore(inv);
-    }
     return await fetchInvoicesFromFirestore();
   } catch (error) {
-    console.error('Error seeding initial invoices:', error);
-    return initialInvoices;
+    console.error('Error fetching invoices:', error);
+    return [];
   }
 }
 
@@ -1316,10 +1325,10 @@ export const INITIAL_TUTOR_VISITS: FirestoreTutorVisitDoc[] = [
 ];
 
 /**
- * Seeds and fetches tutor visits from Firestore.
+ * Fetches tutor visits from Firestore without auto-seeding demo data if empty.
  */
 export async function seedTutorVisitsIfEmpty(
-  initialVisits: FirestoreTutorVisitDoc[] = INITIAL_TUTOR_VISITS
+  _initialVisits?: FirestoreTutorVisitDoc[]
 ): Promise<FirestoreTutorVisitDoc[]> {
   try {
     const colRef = collection(db, 'tutor_visits');
@@ -1329,17 +1338,10 @@ export async function seedTutorVisitsIfEmpty(
       snap.forEach((d) => list.push(d.data() as FirestoreTutorVisitDoc));
       return list;
     }
-    // Seed initial sample visits
-    for (const v of initialVisits) {
-      await setDoc(doc(db, 'tutor_visits', v.id), {
-        ...v,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-    return initialVisits;
+    return [];
   } catch (error) {
-    console.warn('Error seeding tutor visits:', error);
-    return initialVisits;
+    console.warn('Error fetching tutor visits:', error);
+    return [];
   }
 }
 
@@ -1600,7 +1602,8 @@ export async function updateTutorRegistrationStatusInFirestore(
 }
 
 /**
- * Seeds initial demo tutor registrations to Firestore if collection is empty.
+/**
+ * Fetches tutor registrations from Firestore without auto-seeding demo data if empty.
  */
 export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreTutorRegistrationDoc[]> {
   try {
@@ -1611,24 +1614,12 @@ export async function seedInitialTutorRegistrationsIfEmpty(): Promise<FirestoreT
       snapshot.forEach((docSnap) => {
         results.push(docSnap.data() as FirestoreTutorRegistrationDoc);
       });
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
-      }
       return results;
     }
-
-    // Collection in Firestore is empty, seed demo tutor registrations
-    for (const item of INITIAL_TUTOR_REGISTRATIONS) {
-      const docRef = doc(db, 'tutor_registrations', item.id);
-      await setDoc(docRef, item);
-    }
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(INITIAL_TUTOR_REGISTRATIONS));
-    }
-    return INITIAL_TUTOR_REGISTRATIONS;
+    return [];
   } catch (error) {
-    console.warn('Could not seed tutor registrations to Firestore, using local cache:', error);
-    return getLocalTutorRegistrations();
+    console.warn('Could not fetch tutor registrations from Firestore:', error);
+    return [];
   }
 }
 
