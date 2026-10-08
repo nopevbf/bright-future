@@ -53,6 +53,7 @@ import {
   INITIAL_MANAGED_STUDENTS,
 } from './admin/studentData';
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
+import { enableMaintenanceMode, isMaintenanceActive } from '../utils/maintenanceManager';
 
 export interface AdminDashboardProps {
   onLogout: () => void;
@@ -89,7 +90,8 @@ type TabType =
   | 'laporan'
   | 'promo'
   | 'sertifikat'
-  | 'akun';
+  | 'akun'
+  | 'maintenance';
 
 interface ScheduleItem {
   id: string;
@@ -1567,6 +1569,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {!isSidebarCollapsed && <span>Akun &amp; Hak Akses</span>}
               </div>
             </button>
+
+            <button
+              data-testid="nav-maintenance"
+              onClick={() => setActiveTab('maintenance')}
+              className={`w-full flex items-center ${
+                isSidebarCollapsed ? 'justify-center' : 'justify-between'
+              } px-3 py-2.5 rounded-xl transition-all font-semibold text-xs sm:text-sm cursor-pointer ${
+                activeTab === 'maintenance'
+                  ? 'bg-[#C1683F] text-white shadow-sm font-bold'
+                  : 'text-[#424843] hover:bg-[#ebe8e2] hover:text-[#1c1c18]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-[20px] shrink-0">construction</span>
+                {!isSidebarCollapsed && <span>Status &amp; Maintenance</span>}
+              </div>
+              {!isSidebarCollapsed && isMaintenanceActive() && (
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -2950,6 +2972,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onLogout={onLogout}
             />
           )}
+
+          {/* TAB: STATUS & MODE MAINTENANCE */}
+          {activeTab === 'maintenance' && (
+            <div className="space-y-6">
+              {/* Header Tab */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-[#2A2823]/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#EFC9AE]/50 border-2 border-[#C1683F]/30 flex items-center justify-center text-[#C1683F] shadow-xs">
+                    <span className="material-symbols-outlined text-[28px]">construction</span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-black text-[#284230] tracking-tight">
+                      Manajemen Mode Pemeliharaan
+                    </h2>
+                    <p className="text-xs text-[#6B675F]">
+                      Kontrol status darurat pemeliharaan sistem, countdown 7 hari landing page, dan proteksi operasional.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                      isMaintenanceActive()
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isMaintenanceActive() ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'
+                      }`}
+                    ></span>
+                    Status: {isMaintenanceActive() ? 'Sedang Aktif' : 'Normal / Siap'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Maintenance Control Box */}
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#2A2823]/10 shadow-xs space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[#C1683F] font-bold text-sm">
+                    <span className="material-symbols-outlined text-[20px]">warning</span>
+                    <span>Pemberitahuan Prosedur Pemeliharaan Sistem</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#424843] leading-relaxed">
+                    Mengaktifkan Mode Maintenance akan mengunci akses publik pada landing page dan menampilkan modal layar penuh dengan latar belakang buram berhitung mundur <strong>7 hari</strong>.
+                  </p>
+                </div>
+
+                {/* Impact Checklist */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[#2A2823]/8 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#284230]">
+                      <span className="material-symbols-outlined text-[18px] text-[#3F5A46]">lock</span>
+                      <span>Modal Tak Dapat Ditutup</span>
+                    </div>
+                    <p className="text-[11px] text-[#6B675F] leading-tight">
+                      Modal maintenance di landing page tidak memiliki tombol close normal dan memblokir klik latar belakang.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[#2A2823]/8 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#284230]">
+                      <span className="material-symbols-outlined text-[18px] text-[#C1683F]">logout</span>
+                      <span>Auto-Logout Sesi Admin</span>
+                    </div>
+                    <p className="text-[11px] text-[#6B675F] leading-tight">
+                      Sesi akun admin akan otomatis dikeluarkan seketika dan langsung dialihkan (*redirect*) ke Landing Page.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[#2A2823]/8 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#284230]">
+                      <span className="material-symbols-outlined text-[18px] text-amber-600">keyboard</span>
+                      <span>Cheat Bypass 7x Spasi</span>
+                    </div>
+                    <p className="text-[11px] text-[#6B675F] leading-tight">
+                      Menekan tombol spasi 7 kali pada modal maintenance akan memunculkan toggle rahasia untuk mematikan mode maintenance.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Trigger Button */}
+                <div className="pt-4 border-t border-[#2A2823]/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-xs text-[#6B675F]">
+                    Durasi default: <strong>7 Hari (168 Jam)</strong> hitung mundur otomatis.
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="btn-activate-maintenance"
+                    onClick={() => {
+                      enableMaintenanceMode(7);
+                      onLogout();
+                    }}
+                    className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#C1683F] hover:bg-[#a8552f] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">power_settings_new</span>
+                    <span>Aktifkan Maintenance &amp; Logout ke Landing Page</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* Quick Fallback for Other Tabs */}
           {['mapel', 'presensi', 'nilai', 'lkpd', 'bank_soal', 'video', 'laporan', 'promo', 'sertifikat'].includes(

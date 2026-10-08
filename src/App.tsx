@@ -24,6 +24,12 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { TutorDashboard } from './components/TutorDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
 import { ParentDashboard } from './components/ParentDashboard';
+import { MaintenanceModal } from './components/MaintenanceModal';
+import {
+  isMaintenanceActive,
+  getMaintenanceTargetTimestamp,
+  disableMaintenanceMode,
+} from './utils/maintenanceManager';
 
 export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
@@ -87,6 +93,25 @@ export default function App() {
   const [currentParentPhone, setCurrentParentPhone] = useState<string>(() => {
     return sessionStorage.getItem('bf_orang_tua_phone') || '0812-9876-5432';
   });
+
+  // Maintenance mode barrier states
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState<boolean>(() => isMaintenanceActive());
+  const [maintenanceTargetTime, setMaintenanceTargetTime] = useState<number>(() =>
+    getMaintenanceTargetTimestamp()
+  );
+
+  useEffect(() => {
+    const handleMaintenanceChange = () => {
+      setIsMaintenanceMode(isMaintenanceActive());
+      setMaintenanceTargetTime(getMaintenanceTargetTimestamp());
+    };
+    window.addEventListener('bf_maintenance_status_changed', handleMaintenanceChange);
+    window.addEventListener('storage', handleMaintenanceChange);
+    return () => {
+      window.removeEventListener('bf_maintenance_status_changed', handleMaintenanceChange);
+      window.removeEventListener('storage', handleMaintenanceChange);
+    };
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -429,6 +454,18 @@ export default function App() {
       {/* Tutor Registration Modal */}
       {isTutorRegisterOpen && (
         <TutorRegistrationModal onClose={() => setIsTutorRegisterOpen(false)} />
+      )}
+
+      {/* Maintenance Barrier Modal with 7-Day Countdown */}
+      {isMaintenanceMode && (
+        <MaintenanceModal
+          isOpen={isMaintenanceMode}
+          targetTimestamp={maintenanceTargetTime}
+          onDeactivate={() => {
+            disableMaintenanceMode();
+            setIsMaintenanceMode(false);
+          }}
+        />
       )}
     </div>
   );
