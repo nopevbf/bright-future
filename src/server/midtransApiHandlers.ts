@@ -7,6 +7,7 @@ import {
   CreateSnapTransactionParams,
   CreateCoreChargeParams,
   CoreChargeResult,
+  TransactionStatusResult,
   MappedPaymentStatus,
 } from '../utils/midtransService.ts';
 
@@ -19,6 +20,8 @@ const SANDBOX_SNAP_URL = 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 const PRODUCTION_SNAP_URL = 'https://app.midtrans.com/snap/v1/transactions';
 const SANDBOX_CHARGE_URL = 'https://api.sandbox.midtrans.com/v2/charge';
 const PRODUCTION_CHARGE_URL = 'https://api.midtrans.com/v2/charge';
+const SANDBOX_BASE_URL = 'https://api.sandbox.midtrans.com/v2';
+const PRODUCTION_BASE_URL = 'https://api.midtrans.com/v2';
 
 /**
  * Handles incoming Midtrans Webhook Notification.
@@ -286,6 +289,108 @@ export async function handleCoreChargeRequest(
       body: {
         status: 'error',
         message: error instanceof Error ? error.message : 'Internal server error while executing charge',
+      },
+    };
+  }
+}
+
+/**
+ * Handles checking transaction status directly from Midtrans API (/v2/{order_id}/status).
+ * If transaction is completed (settlement/capture), optionally updates Firestore.
+ */
+export async function handleTransactionStatusRequest(
+  orderId: string,
+  serverKey: string,
+  isProduction = false,
+  onDatabaseUpdate?: (orderId: string, status: MappedPaymentStatus) => Promise<unknown>,
+  fetchFn: typeof fetch = fetch
+): Promise<ApiResponse<TransactionStatusResult>> {
+  if (!orderId || typeof orderId !== 'string' || orderId.trim() === '') {
+    return {
+      status: 400,
+      body: {
+        status: 'error',
+        isPaid: false,
+        message: 'Order ID is required',
+      },
+    };
+  }
+
+  // Graceful fallback for mock/demo testing when server key is not configured
+  if (!serverKey || serverKey.trim() === '' || serverKey.startsWith('MY_')) {
+    return {
+      status: 200,
+      body: {
+        status: 'success',
+        isMock: true,
+        orderId,
+        transactionStatus: 'pending',
+        isPaid: false,
+        invoiceStatus: 'PENDING',
+        message: 'Running in simulated sandbox mode (Server key not set)',
+      },
+    };
+  }
+
+  try {
+    const baseUrl = isProduction ? PRODUCTION_BASE_URL : SANDBOX_BASE_URL;
+    const statusUrl = `${baseUrl}/${encodeURIComponent(orderId)}/status`;
+    const authHeader = `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`;
+
+    const response = await fetchFn(statusUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: authHeader,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        status: response.status,
+        body: {
+          status: 'error',
+          orderId,
+          isPaid: false,
+          message: data.status_message || 'Gagal memeriksa status transaksi dari Midtrans',
+          rawResponse: data,
+        },
+      };
+    }
+
+    const mapped = mapMidtransStatus(data.transaction_status, data.fraud_status);
+
+    if (mapped.isPaid && onDatabaseUpdate) {
+      try {
+        await onDatabaseUpdate(orderId, mapped);
+      } catch (dbErr) {
+        console.error('[Midtrans Status] Error updating database:', dbErr);
+      }
+    }
+
+    return {
+      status: 200,
+      body: {
+        status: 'success',
+        orderId: data.order_id || orderId,
+        transactionStatus: data.transaction_status,
+        isPaid: mapped.isPaid,
+        invoiceStatus: mapped.invoiceStatus,
+        message: mapped.message,
+        rawResponse: data,
+      },
+    };
+  } catch (error) {
+    console.error('[Midtrans Status] Error checking transaction status:', error);
+    return {
+      status: 500,
+      body: {
+        status: 'error',
+        orderId,
+        isPaid: false,
+        message: error instanceof Error ? error.message : 'Internal server error while checking status',
       },
     };
   }

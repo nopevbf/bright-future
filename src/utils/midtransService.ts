@@ -88,6 +88,17 @@ export interface CoreChargeResult {
   [key: string]: unknown;
 }
 
+export interface TransactionStatusResult {
+  status: 'success' | 'error';
+  orderId?: string;
+  transactionStatus?: string;
+  isPaid: boolean;
+  invoiceStatus?: string;
+  message: string;
+  isMock?: boolean;
+  rawResponse?: Record<string, unknown>;
+}
+
 /**
  * Constructs the Core API charge payload for direct in-app payments.
  */
@@ -111,6 +122,10 @@ export function generateCoreChargePayload(
     transaction_details: {
       order_id: params.orderId,
       gross_amount: Math.round(params.grossAmount),
+    },
+    custom_expiry: {
+      expiry_duration: 15,
+      unit: 'minute',
     },
   };
 

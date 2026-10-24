@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SubmittedRegistration } from '../types';
 import {
   X,
@@ -8,12 +8,11 @@ import {
   CreditCard,
   Copy,
   Check,
-  ExternalLink,
   RefreshCw,
   Loader2,
-  ShieldCheck,
   Clock,
-  Sparkles,
+  AlertTriangle,
+  Search,
 } from 'lucide-react';
 import {
   updateRegistrationStatusInFirestore,
@@ -30,20 +29,38 @@ interface MidtransDemoModalProps {
 
 type PaymentMethodType = 'qris' | 'bca_va' | 'bri_va' | 'mandiri_va';
 
+interface MethodChargeRecord {
+  data: CoreChargeResult;
+  expiresAt: number; // Timestamp in milliseconds
+  isExpired: boolean;
+}
+
 export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   submission,
   onClose,
   onPaymentSuccess,
 }) => {
   const [activeMethod, setActiveMethod] = useState<PaymentMethodType>('qris');
-  const [chargeData, setChargeData] = useState<Record<string, CoreChargeResult>>({});
+  const [chargeRecords, setChargeRecords] = useState<Record<string, MethodChargeRecord>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(false);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [now, setNow] = useState<number>(Date.now());
 
   const invoiceNumber = submission?.invoiceNumber || '';
+  const isAutoRefreshing = useRef<boolean>(false);
+
+  // Live clock ticker every 1 second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Real-time Firestore Invoice Status Listener
   useEffect(() => {
@@ -52,7 +69,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     const unsubscribe = subscribeToInvoice(invoiceNumber, (invDoc) => {
       if (invDoc && invDoc.status === 'LUNAS') {
         setIsPaid(true);
-        setIsProcessing(false);
+        setIsCheckingStatus(false);
         onPaymentSuccess?.(invoiceNumber);
       }
     });
@@ -62,16 +79,20 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     };
   }, [invoiceNumber, onPaymentSuccess]);
 
-  // Request Charge details from Midtrans Core API
+  // Request Charge details from Midtrans Core API (with 15 min custom_expiry)
   const fetchChargeDetails = useCallback(
-    async (method: PaymentMethodType) => {
+    async (method: PaymentMethodType, forceRefresh = false) => {
       if (!submission) return;
 
-      // Return cached charge data if already fetched
-      if (chargeData[method]) return;
+      const existing = chargeRecords[method];
+      // Use cached if valid and not expired
+      if (!forceRefresh && existing && !existing.isExpired && existing.expiresAt > Date.now()) {
+        return;
+      }
 
       setIsLoading(true);
       setErrorMsg(null);
+      setStatusNotice(null);
 
       try {
         const res = await fetch('/api/midtrans/charge', {
@@ -96,67 +117,128 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           }),
         });
 
-        const data = await res.json();
+        const data: CoreChargeResult = await res.json();
 
         if (!res.ok || data.status === 'error') {
           throw new Error(data.message || 'Gagal membuat tagihan pembayaran Midtrans');
         }
 
-        setChargeData((prev) => ({
+        // Midtrans custom_expiry is 15 minutes (900,000 ms)
+        const expiryDurationMs = 15 * 60 * 1000;
+        const expiresAt = Date.now() + expiryDurationMs;
+
+        setChargeRecords((prev) => ({
           ...prev,
-          [method]: data,
+          [method]: {
+            data,
+            expiresAt,
+            isExpired: false,
+          },
         }));
       } catch (err) {
         console.error('[Midtrans Modal] Error fetching charge:', err);
         setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat kode pembayaran');
       } finally {
         setIsLoading(false);
+        isAutoRefreshing.current = false;
       }
     },
-    [chargeData, submission]
+    [chargeRecords, submission]
   );
 
-  // Fetch initial payment method data on mount or method switch
+  // Initial fetch on mount or method change
   useEffect(() => {
     if (submission) {
       fetchChargeDetails(activeMethod);
     }
   }, [activeMethod, fetchChargeDetails, submission]);
 
+  // Current method charge record & countdown calculations
+  const currentRecord = chargeRecords[activeMethod];
+  const currentCharge = currentRecord?.data;
+
+  // Calculate remaining seconds
+  const remainingSeconds = currentRecord
+    ? Math.max(0, Math.floor((currentRecord.expiresAt - now) / 1000))
+    : 15 * 60;
+
+  const isCurrentExpired = Boolean(currentRecord && remainingSeconds <= 0);
+
+  // Auto-invalidation and auto-regeneration when countdown expires
+  useEffect(() => {
+    if (isCurrentExpired && !isAutoRefreshing.current && !isLoading && !isPaid) {
+      isAutoRefreshing.current = true;
+      setChargeRecords((prev) => {
+        if (!prev[activeMethod]) return prev;
+        return {
+          ...prev,
+          [activeMethod]: {
+            ...prev[activeMethod],
+            isExpired: true,
+          },
+        };
+      });
+
+      // Auto-refresh a fresh 15-minute charge
+      fetchChargeDetails(activeMethod, true);
+    }
+  }, [activeMethod, fetchChargeDetails, isCurrentExpired, isLoading, isPaid]);
+
   if (!submission) return null;
 
+  // Format MM:SS countdown
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const countdownFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
   const handleCopy = (text: string, key: string) => {
-    if (!text) return;
+    if (!text || isCurrentExpired) return;
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  const markPaymentCompleted = async (paymentChannel: string) => {
-    setIsPaid(true);
-    setIsProcessing(false);
+  // Manual Check Payment Status Button Handler
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    setStatusNotice(null);
+
+    const orderIdToCheck = currentCharge?.orderId || submission.invoiceNumber;
 
     try {
-      if (submission.studentId) {
-        await updateRegistrationStatusInFirestore(submission.studentId, 'paid');
+      const res = await fetch(`/api/midtrans/status?order_id=${encodeURIComponent(orderIdToCheck)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Gagal mengecek status pembayaran');
       }
-      if (submission.invoiceNumber) {
-        await updateInvoiceStatusInFirestore(submission.invoiceNumber, 'LUNAS');
+
+      if (data.isPaid || data.transactionStatus === 'settlement' || data.transactionStatus === 'capture') {
+        setIsPaid(true);
+        try {
+          if (submission.studentId) {
+            await updateRegistrationStatusInFirestore(submission.studentId, 'paid');
+          }
+          if (submission.invoiceNumber) {
+            await updateInvoiceStatusInFirestore(submission.invoiceNumber, 'LUNAS');
+          }
+        } catch (dbErr) {
+          console.warn('[MidtransModal] Firestore sync note:', dbErr);
+        }
+        onPaymentSuccess?.(submission.invoiceNumber);
+      } else if (data.transactionStatus === 'expire') {
+        setStatusNotice('Transaksi sebelumnya telah kedaluwarsa. Sistem membuat kode pembayaran baru...');
+        fetchChargeDetails(activeMethod, true);
+      } else {
+        setStatusNotice('Pembayaran belum terdeteksi. Silakan selesaikan transaksi di m-Banking atau E-Wallet Anda, lalu klik Cek Status kembali.');
       }
-      onPaymentSuccess?.(submission.invoiceNumber);
     } catch (err) {
-      console.warn('[MidtransModal] Firestore sync warning:', err);
+      console.error('[Midtrans Modal] Error checking status:', err);
+      setStatusNotice('Gagal menghubungkan ke server untuk cek status. Silakan coba lagi.');
+    } finally {
+      setIsCheckingStatus(false);
     }
   };
-
-  const handleSimulatePayment = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      markPaymentCompleted(activeMethod.toUpperCase());
-    }, 1000);
-  };
-
-  const currentCharge = chargeData[activeMethod];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -188,7 +270,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           </button>
         </div>
 
-        {/* Invoice Summary */}
+        {/* Invoice Summary & 15-Minute Countdown */}
         <div className="p-4 sm:p-5 bg-[#FAF7F1] border-b border-[rgba(42,40,35,0.06)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
@@ -220,9 +302,28 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           <div className="p-5 sm:p-6 space-y-4">
             {/* 4 Method Selection Buttons */}
             <div>
-              <label className="block text-xs font-bold text-[#2A2823] uppercase mb-2">
-                Pilih Metode Pembayaran Midtrans
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold text-[#2A2823] uppercase">
+                  Pilih Metode Pembayaran
+                </label>
+
+                {/* 15-Minute Countdown Timer Badge */}
+                <div
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
+                    isCurrentExpired
+                      ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
+                      : remainingSeconds < 180
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}
+                  title="Batas waktu berlaku kode pembayaran"
+                >
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isCurrentExpired ? 'Kedaluwarsa (Memperbarui...)' : `Sisa Waktu: ${countdownFormatted}`}
+                  </span>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 {/* 1. QRIS */}
@@ -296,21 +397,42 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
             </div>
 
             {/* Content Display Card */}
-            <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] min-h-[220px] flex flex-col justify-center items-center text-center relative">
+            <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] min-h-[220px] flex flex-col justify-center items-center text-center relative overflow-hidden">
               {isLoading ? (
                 <div className="py-8 space-y-2 flex flex-col items-center justify-center">
                   <Loader2 className="w-8 h-8 text-[#3F5A46] animate-spin" />
                   <p className="text-xs font-semibold text-[#2A2823]">
                     Menghubungi Midtrans Gateway...
                   </p>
-                  <p className="text-[10px] text-[#6B675F]">Mengambil kode pembayaran resmi real-time</p>
+                  <p className="text-[10px] text-[#6B675F]">Mengambil kode pembayaran resmi 15 menit</p>
+                </div>
+              ) : isCurrentExpired ? (
+                /* Expired Invalidation Overlay: Blocks user from forcing old data */
+                <div className="py-6 space-y-3 flex flex-col items-center justify-center max-w-xs mx-auto">
+                  <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-red-800">Kode Pembayaran Kedaluwarsa</h4>
+                    <p className="text-[10.5px] text-red-700 mt-1 leading-relaxed">
+                      Batas waktu 15 menit telah habis. Kode lama tidak dapat digunakan lagi demi keamanan transaksi.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchChargeDetails(activeMethod, true)}
+                    className="px-3 py-1.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#2e4233] flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Buat Kode Pembayaran Baru</span>
+                  </button>
                 </div>
               ) : errorMsg ? (
                 <div className="py-6 space-y-3">
                   <p className="text-xs font-bold text-red-600">{errorMsg}</p>
                   <button
                     type="button"
-                    onClick={() => fetchChargeDetails(activeMethod)}
+                    onClick={() => fetchChargeDetails(activeMethod, true)}
                     className="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-xs font-bold text-[#2A2823] hover:bg-gray-50 flex items-center gap-1.5 mx-auto cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -322,8 +444,8 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                 <div className="w-full space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold text-[#2A2823] px-1">
                     <span>Scan QRIS Resmi</span>
-                    <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
-                      Berlaku 15-30 Menit
+                    <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md font-mono">
+                      {countdownFormatted}
                     </span>
                   </div>
 
@@ -487,40 +609,37 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
               )}
             </div>
 
-            {/* Sandbox Testing Link & Quick Simulation */}
-            <div className="pt-1 space-y-2">
-              <a
-                href="https://simulator.sandbox.midtrans.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#007AE6] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-blue-200 cursor-pointer"
-              >
-                <span>Buka Simulator Midtrans Sandbox (Testing)</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+            {/* Status Notice Feedback (If user clicks check status and still pending) */}
+            {statusNotice && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed text-center animate-in fade-in">
+                {statusNotice}
+              </div>
+            )}
 
+            {/* Action Button: Cek Status Pembayaran (Official / Manual) */}
+            <div className="pt-1">
               <button
                 type="button"
-                disabled={isProcessing}
-                onClick={handleSimulatePayment}
-                className="w-full py-2.5 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={isCheckingStatus || isLoading}
+                onClick={handleCheckStatus}
+                className="w-full py-3 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
               >
-                {isProcessing ? (
+                {isCheckingStatus ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Memverifikasi Pembayaran...</span>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memeriksa Status ke Midtrans...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Simulasi Bayar Lunas Sekarang</span>
+                    <Search className="w-4 h-4" />
+                    <span>Cek Status Pembayaran</span>
                   </>
                 )}
               </button>
             </div>
 
             <p className="text-[10px] text-center text-[#6B675F]">
-              Status pembayaran akan otomatis terverifikasi begitu Anda menyelesaikan transaksi di m-Banking atau Simulator.
+              Pembayaran otomatis diverifikasi sistem. Jika baru saja transfer, tekan tombol <strong>Cek Status Pembayaran</strong> di atas.
             </p>
           </div>
         ) : (

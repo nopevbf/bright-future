@@ -162,7 +162,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     });
   });
 
-  it('MDT-MODAL-006: clicking simulate complete payment transitions to paid state', async () => {
+  it('MDT-MODAL-006: should NOT render simulator external link or bypass simulation buttons', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -170,11 +170,53 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    const payButton = await screen.findByRole('button', { name: /simulasi bayar lunas/i });
-    fireEvent.click(payButton);
+    expect(screen.queryByText(/Buka Simulator Midtrans Sandbox/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Simulasi Bayar Lunas Sekarang/i)).not.toBeInTheDocument();
+  });
+
+  it('MDT-MODAL-007: should render 15-minute countdown timer badge', async () => {
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
 
     await waitFor(() => {
-      expect(screen.getByText(/pembayaran sukses/i)).toBeInTheDocument();
-    }, { timeout: 3000 });
+      expect(screen.getByText(/14:|15:00/i)).toBeInTheDocument();
+    });
+  });
+
+  it('MDT-MODAL-008: clicking Cek Status Pembayaran checks status and transitions to paid state when settlement', async () => {
+    // Mock the status endpoint to return settlement
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation(async (url: string, opts: any) => {
+      if (url.includes('/api/midtrans/status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            isPaid: true,
+            invoiceStatus: 'LUNAS',
+            transactionStatus: 'settlement',
+          }),
+        };
+      }
+      return originalFetch(url, opts);
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    const checkBtn = await screen.findByRole('button', { name: /cek status pembayaran/i });
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/pembayaran sukses terverifikasi/i)).toBeInTheDocument();
+    });
   });
 });

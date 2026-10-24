@@ -203,4 +203,38 @@ describe('Midtrans Core API Direct Charge Handler (ISTQB Grounded & TDD)', () =>
     expect(result.body.status).toBe('success');
     expect(result.body.vaNumber).toBeTruthy();
   });
+
+  it('TC-MDT-CORE-007: should include custom_expiry of 15 minutes in Core API charge payload', async () => {
+    let capturedBody: any = null;
+    const mockFetch = vi.fn().mockImplementation(async (_url: string, opts: any) => {
+      capturedBody = JSON.parse(opts.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status_code: '201',
+          status_message: 'Success',
+          order_id: 'INV-BF-001_qris_1',
+          payment_type: 'qris',
+        }),
+      };
+    });
+
+    await handleCoreChargeRequest(
+      {
+        orderId: 'INV-BF-001',
+        grossAmount: 350000,
+        paymentMethod: 'qris',
+      },
+      dummyServerKey,
+      false,
+      mockFetch as unknown as typeof fetch
+    );
+
+    expect(capturedBody).toBeTruthy();
+    expect(capturedBody.custom_expiry).toEqual({
+      expiry_duration: 15,
+      unit: 'minute',
+    });
+  });
 });
