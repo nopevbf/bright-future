@@ -106,7 +106,7 @@ export function generateInvoiceWhatsAppUrl(params: InvoiceReportParams): string 
     `â­ *Total Tagihan:* *${formatRupiah(params.grandTotal)}*`,
     `â° *Batas Pembayaran:* ${params.dueDateStr}`,
     '',
-    `Pembayaran dapat dilakukan via Midtrans Snap (QRIS/VA) atau Transfer Manual Bank Jateng 123456789 a.n Monica Yuliana.`,
+    `Pembayaran dapat dilakukan via Midtrans Snap (QRIS/VA) atau Transfer Manual Bank Jateng 3014266266 a.n Monica Yuliana.`,
     `Terima kasih atas kerja samanya. ðŸ™`,
   ].join('\n');
 

@@ -1009,7 +1009,7 @@ export async function saveRegistrationToFirestore(registration: SubmittedRegistr
           package: `Paket ${registration.level?.toUpperCase() || 'SD'} (8 Sesi)`,
           channel:
             registration.paymentMethod === 'manual_transfer'
-              ? 'Transfer Bank Jateng (123456789 a.n. Monica Yuliana)'
+              ? 'Transfer Bank Jateng (3014266266 a.n. Monica Yuliana)'
               : 'Midtrans QRIS / Virtual Account',
           amount: registration.totalAmount,
           status: 'PENDING',

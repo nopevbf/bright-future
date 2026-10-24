@@ -222,7 +222,7 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
   doc.setFontSize(8);
   doc.setTextColor(80, 77, 70);
   doc.text('1. Midtrans (Real-time): QRIS Gopay/ShopeePay, Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas).', 20, yPos + 13);
-  doc.text('2. Transfer Manual: Bank Jateng No. Rekening 123456789 a.n. Monica Yuliana.', 20, yPos + 18);
+  doc.text('2. Transfer Manual: Bank Jateng No. Rekening 3014266266 a.n. Monica Yuliana.', 20, yPos + 18);
   doc.text('3. Kirim konfirmasi bukti bayar melalui WhatsApp Hotline Admin di 0851-7323-0198.', 20, yPos + 23);
   doc.text('4. Bukti pembayaran resmi ini sah dan tercatat di Cloud Firestore Bright Future.', 20, yPos + 28);
 

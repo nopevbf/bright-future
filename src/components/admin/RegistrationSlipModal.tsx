@@ -165,7 +165,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                 </span>
                 <span className="font-bold text-xs text-[#284230] block">
                   {registration.paymentMethod === 'manual_transfer'
-                    ? 'Transfer Manual (Bank Jateng 123456789 a.n Monica Yuliana)'
+                    ? 'Transfer Manual (Bank Jateng 3014266266 a.n Monica Yuliana)'
                     : 'Midtrans Gateway (QRIS / Virtual Account)'}
                 </span>
               </div>
@@ -224,8 +224,8 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
           {/* Payment Account Notice */}
           <div className="p-3 bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] rounded-xl text-[10px] space-y-0.5 text-[#6B675F]">
             <p className="font-bold text-[#284230]">INSTRUKSI REKENING &amp; GATEWAY RESMI:</p>
-            <p>â€¢ <strong>Transfer Manual:</strong> Bank Jateng No. Rekening <strong className="text-[#2A2823] font-mono">123456789</strong> a.n. <strong>Monica Yuliana</strong></p>
-            <p>â€¢ <strong>Midtrans (Real-time):</strong> QRIS (GoPay/ShopeePay), Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas)</p>
+            <p>• <strong>Transfer Manual:</strong> Bank Jateng No. Rekening <strong className="text-[#2A2823] font-mono">3014266266</strong> a.n. <strong>Monica Yuliana</strong></p>
+            <p>• <strong>Midtrans (Real-time):</strong> QRIS (GoPay/ShopeePay), Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas)</p>
           </div>
 
           {/* Verification Badge & Signatures */}

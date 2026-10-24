@@ -45,7 +45,7 @@ describe('RegistrationForm Payment Method Selection (ISTQB & TDD)', () => {
     fireEvent.click(manualOption);
 
     expect(screen.getByText(/Bank Jateng \(Rekening Resmi Bimbel\)/i)).toBeInTheDocument();
-    expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getByText('3014266266')).toBeInTheDocument();
     expect(screen.getByText('Monica Yuliana')).toBeInTheDocument();
   });
 
@@ -123,7 +123,7 @@ describe('RegistrationForm Payment Method Selection (ISTQB & TDD)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Panduan Transfer Bank Jateng/i)).toBeInTheDocument();
-      expect(screen.getByText('123456789')).toBeInTheDocument();
+      expect(screen.getByText('3014266266')).toBeInTheDocument();
       expect(screen.getByText('Monica Yuliana')).toBeInTheDocument();
     });
   });

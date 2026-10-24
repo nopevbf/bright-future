@@ -884,7 +884,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                       </div>
                       <div className="flex items-center justify-between text-[#2A2823]">
                         <span>No. Rekening:</span>
-                        <span className="font-mono font-bold select-all">123456789</span>
+                        <span className="font-mono font-bold select-all">3014266266</span>
                       </div>
                       <div className="flex items-center justify-between text-[#2A2823]">
                         <span>Atas Nama:</span>

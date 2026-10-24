@@ -3531,7 +3531,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <option value="BCA Virtual Account (Midtrans)">BCA Virtual Account (Midtrans)</option>
                   <option value="Mandiri Virtual Account (Midtrans)">Mandiri Virtual Account (Midtrans)</option>
                   <option value="QRIS Gopay / ShopeePay (Midtrans)">QRIS Gopay / ShopeePay (Midtrans)</option>
-                  <option value="Transfer Manual Bank Jateng (123456789 a.n Monica Yuliana)">Transfer Manual Bank Jateng (123456789 a.n Monica Yuliana)</option>
+                  <option value="Transfer Manual Bank Jateng (3014266266 a.n Monica Yuliana)">Transfer Manual Bank Jateng (3014266266 a.n Monica Yuliana)</option>
                 </select>
               </div>
             </div>

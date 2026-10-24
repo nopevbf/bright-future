@@ -235,7 +235,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     if (!submittedData) return;
     const paymentText =
       submittedData.paymentMethod === 'manual_transfer'
-        ? 'Transfer Manual Bank Jateng (123456789 a.n Monica Yuliana)'
+        ? 'Transfer Manual Bank Jateng (3014266266 a.n Monica Yuliana)'
         : 'Midtrans Snap (QRIS, VA BCA, Mandiri, BNI, BRI, GoPay)';
 
     const text = `*BUKTI PENDAFTARAN BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${paymentText}\nStatus: Menunggu Pembayaran / Verifikasi Admin`;
@@ -245,7 +245,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   };
 
   const handleCopyRekening = () => {
-    navigator.clipboard.writeText('123456789');
+    navigator.clipboard.writeText('3014266266');
     setCopiedRekening(true);
     setTimeout(() => setCopiedRekening(false), 2500);
   };
@@ -549,7 +549,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[#6B675F]">Nomor Rekening:</span>
                     <span className="font-mono font-extrabold text-sm text-[#2A2823] tracking-wider select-all">
-                      123456789
+                      3014266266
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -723,7 +723,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     <span className="text-[#6B675F]">Nomor Rekening:</span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-extrabold text-base text-[#3F5A46] tracking-wider">
-                        123456789
+                        3014266266
                       </span>
                       <button
                         type="button"
@@ -806,7 +806,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
               <a
                 href={`https://wa.me/6285173230198?text=${encodeURIComponent(
-                  `*KONFIRMASI PENDAFTARAN SISWA BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${submittedData.paymentMethod === 'manual_transfer' ? 'Transfer Bank Jateng (123456789 a.n Monica Yuliana)' : 'Midtrans Snap Gateway'}\nStatus: Menunggu Konfirmasi Admin`
+                  `*KONFIRMASI PENDAFTARAN SISWA BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${submittedData.paymentMethod === 'manual_transfer' ? 'Transfer Bank Jateng (3014266266 a.n Monica Yuliana)' : 'Midtrans Snap Gateway'}\nStatus: Menunggu Konfirmasi Admin`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
