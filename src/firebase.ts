@@ -1241,6 +1241,34 @@ export async function updateInvoiceStatusInFirestore(
 }
 
 /**
+ * Listens to a single invoice document in real time.
+ */
+export function subscribeToInvoice(
+  invId: string,
+  onUpdate: (invoice: FirestoreInvoiceDoc | null) => void
+): () => void {
+  if (!db || !invId) return () => {};
+  try {
+    const docRef = doc(db, 'invoices', invId);
+    return onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          onUpdate(snap.data() as FirestoreInvoiceDoc);
+        } else {
+          onUpdate(null);
+        }
+      },
+      (error) => {
+        console.warn(`[Firebase] Single invoice listener warning for ${invId}:`, error);
+      }
+    );
+  } catch {
+    return () => {};
+  }
+}
+
+/**
  * Deletes an invoice from Firestore.
  */
 export async function deleteInvoiceFromFirestore(invId: string): Promise<void> {

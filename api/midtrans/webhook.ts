@@ -53,6 +53,9 @@ export default async function handler(req: any, res: any) {
         return;
       }
 
+      // Extract base invoice ID if orderId contains method/timestamp suffix (e.g. INV-001_bca_1729760000)
+      const baseOrderId = orderId && orderId.includes('_') ? orderId.split('_')[0] : orderId;
+
       try {
         // Dynamic import to avoid cold-start crashes in serverless runtime
         const { db } = await import('../../src/firebase.ts');
@@ -62,9 +65,14 @@ export default async function handler(req: any, res: any) {
 
         if (!db) return;
 
-        // 1. Update Invoice if exists
-        const invRef = doc(db, 'invoices', orderId);
-        const invSnap = await getDoc(invRef);
+        // 1. Update Invoice if exists (check baseOrderId first, then orderId)
+        let invRef = doc(db, 'invoices', baseOrderId);
+        let invSnap = await getDoc(invRef);
+        if (!invSnap.exists() && baseOrderId !== orderId) {
+          invRef = doc(db, 'invoices', orderId);
+          invSnap = await getDoc(invRef);
+        }
+
         if (invSnap.exists()) {
           await updateDoc(invRef, {
             status: mappedStatus.invoiceStatus,
@@ -74,7 +82,7 @@ export default async function handler(req: any, res: any) {
 
         // 2. Update Student Registration with matching invoiceNumber
         const regCol = collection(db, 'registrations');
-        const q = query(regCol, where('invoiceNumber', '==', orderId));
+        const q = query(regCol, where('invoiceNumber', 'in', [baseOrderId, orderId]));
         const regSnaps = await getDocs(q);
         for (const rDoc of regSnaps.docs) {
           await updateDoc(doc(db, 'registrations', rDoc.id), {

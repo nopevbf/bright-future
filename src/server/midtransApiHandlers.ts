@@ -1,9 +1,12 @@
 import {
   generateSnapPayload,
+  generateCoreChargePayload,
   verifyMidtransSignature,
   mapMidtransStatus,
   MidtransNotificationPayload,
   CreateSnapTransactionParams,
+  CreateCoreChargeParams,
+  CoreChargeResult,
   MappedPaymentStatus,
 } from '../utils/midtransService.ts';
 
@@ -14,6 +17,8 @@ export interface ApiResponse<T = Record<string, unknown>> {
 
 const SANDBOX_SNAP_URL = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 const PRODUCTION_SNAP_URL = 'https://app.midtrans.com/snap/v1/transactions';
+const SANDBOX_CHARGE_URL = 'https://api.sandbox.midtrans.com/v2/charge';
+const PRODUCTION_CHARGE_URL = 'https://api.midtrans.com/v2/charge';
 
 /**
  * Handles incoming Midtrans Webhook Notification.
@@ -155,6 +160,132 @@ export async function handleSnapTokenRequest(
       body: {
         status: 'error',
         message: error instanceof Error ? error.message : 'Internal server error while creating snap token',
+      },
+    };
+  }
+}
+
+/**
+ * Handles direct charge via Midtrans Core API (QRIS, BCA VA, BRI VA, Mandiri Bill).
+ * Returns real QR Code image/string or Virtual Account numbers directly to the client.
+ */
+export async function handleCoreChargeRequest(
+  params: unknown,
+  serverKey: string,
+  isProduction = false,
+  fetchFn: typeof fetch = fetch
+): Promise<ApiResponse<CoreChargeResult>> {
+  const chargeParams = params as CreateCoreChargeParams;
+
+  const validMethods = ['qris', 'bca_va', 'bri_va', 'mandiri_va'];
+  if (
+    !chargeParams ||
+    !chargeParams.orderId ||
+    !chargeParams.grossAmount ||
+    chargeParams.grossAmount <= 0 ||
+    !validMethods.includes(chargeParams.paymentMethod)
+  ) {
+    return {
+      status: 400,
+      body: {
+        status: 'error',
+        message: 'Valid orderId, grossAmount (> 0), and paymentMethod (qris, bca_va, bri_va, mandiri_va) are required',
+      },
+    };
+  }
+
+  // Graceful fallback for mock/demo testing when server key is not configured
+  if (!serverKey || serverKey.trim() === '' || serverKey.startsWith('MY_')) {
+    const isQris = chargeParams.paymentMethod === 'qris';
+    const isBca = chargeParams.paymentMethod === 'bca_va';
+    const isBri = chargeParams.paymentMethod === 'bri_va';
+    const isMandiri = chargeParams.paymentMethod === 'mandiri_va';
+
+    return {
+      status: 200,
+      body: {
+        status: 'success',
+        isMock: true,
+        orderId: chargeParams.orderId,
+        paymentType: chargeParams.paymentMethod,
+        qrCodeUrl: isQris ? 'https://api.sandbox.midtrans.com/v2/qris/mock-tx-qris/qr-code' : null,
+        qrString: isQris ? '00020101021226540014ID.LINKAJA.WWW01189360091800000000000208123456785204549953033605802ID' : null,
+        vaNumber: isBca ? '7001281234567890' : isBri ? '8578000012345678' : null,
+        bank: isBca ? 'bca' : isBri ? 'bri' : null,
+        billerCode: isMandiri ? '70012' : null,
+        billKey: isMandiri ? '990001234567' : null,
+        expiryTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        grossAmount: chargeParams.grossAmount,
+        message: 'Running in simulated sandbox mode (Server key not set)',
+      },
+    };
+  }
+
+  try {
+    const chargeUrl = isProduction ? PRODUCTION_CHARGE_URL : SANDBOX_CHARGE_URL;
+    const authHeader = `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`;
+
+    // Ensure orderId is uniquely keyed per payment attempt to avoid Midtrans 406 duplication error
+    const effectiveOrderId = chargeParams.orderId.includes('_')
+      ? chargeParams.orderId
+      : `${chargeParams.orderId}_${chargeParams.paymentMethod}_${Date.now()}`;
+
+    const payload = generateCoreChargePayload({
+      ...chargeParams,
+      orderId: effectiveOrderId,
+    });
+
+    const response = await fetchFn(chargeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        status: response.status,
+        body: {
+          status: 'error',
+          message: data.status_message || (data.error_messages ? data.error_messages.join(', ') : 'Midtrans Charge error'),
+          ...data,
+        },
+      };
+    }
+
+    const qrAction = data.actions?.find((a: any) => a.name === 'generate-qr-code');
+    const vaEntry = data.va_numbers?.[0];
+
+    return {
+      status: 200,
+      body: {
+        status: 'success',
+        orderId: data.order_id || effectiveOrderId,
+        transactionId: data.transaction_id,
+        paymentType: chargeParams.paymentMethod,
+        qrCodeUrl: qrAction ? qrAction.url : null,
+        qrString: data.qr_string || null,
+        vaNumber: vaEntry ? vaEntry.va_number : (data.permata_va_number || null),
+        bank: vaEntry ? vaEntry.bank : (chargeParams.paymentMethod === 'bca_va' ? 'bca' : chargeParams.paymentMethod === 'bri_va' ? 'bri' : null),
+        billerCode: data.biller_code || null,
+        billKey: data.bill_key || null,
+        expiryTime: data.expiry_time || null,
+        grossAmount: data.gross_amount ? Number(data.gross_amount) : chargeParams.grossAmount,
+        rawResponse: data,
+      },
+    };
+  } catch (error) {
+    console.error('[Midtrans Charge] Error executing direct Core API charge:', error);
+    return {
+      status: 500,
+      body: {
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Internal server error while executing charge',
       },
     };
   }

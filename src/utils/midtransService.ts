@@ -60,6 +60,109 @@ export interface MappedPaymentStatus {
   message: string;
 }
 
+export type CorePaymentMethod = 'qris' | 'bca_va' | 'bri_va' | 'mandiri_va';
+
+export interface CreateCoreChargeParams {
+  orderId: string;
+  grossAmount: number;
+  paymentMethod: CorePaymentMethod;
+  customerDetails?: CustomerDetails;
+  itemDetails?: ItemDetail[];
+}
+
+export interface CoreChargeResult {
+  status: 'success' | 'error';
+  message?: string;
+  orderId?: string;
+  transactionId?: string;
+  paymentType?: CorePaymentMethod;
+  qrCodeUrl?: string | null;
+  qrString?: string | null;
+  vaNumber?: string | null;
+  bank?: string | null;
+  billerCode?: string | null;
+  billKey?: string | null;
+  expiryTime?: string | null;
+  grossAmount?: number;
+  isMock?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Constructs the Core API charge payload for direct in-app payments.
+ */
+export function generateCoreChargePayload(
+  params: CreateCoreChargeParams
+): Record<string, unknown> {
+  if (!params.orderId || params.orderId.trim() === '') {
+    throw new Error('Order ID is required');
+  }
+
+  if (typeof params.grossAmount !== 'number' || params.grossAmount <= 0) {
+    throw new Error('Gross amount must be greater than zero');
+  }
+
+  const validMethods: CorePaymentMethod[] = ['qris', 'bca_va', 'bri_va', 'mandiri_va'];
+  if (!validMethods.includes(params.paymentMethod)) {
+    throw new Error(`Unsupported payment method: ${params.paymentMethod}`);
+  }
+
+  const base: Record<string, unknown> = {
+    transaction_details: {
+      order_id: params.orderId,
+      gross_amount: Math.round(params.grossAmount),
+    },
+  };
+
+  if (params.customerDetails) {
+    base.customer_details = {
+      first_name: params.customerDetails.firstName,
+      ...(params.customerDetails.lastName && { last_name: params.customerDetails.lastName }),
+      ...(params.customerDetails.email && { email: params.customerDetails.email }),
+      ...(params.customerDetails.phone && { phone: params.customerDetails.phone }),
+    };
+  }
+
+  if (params.itemDetails && params.itemDetails.length > 0) {
+    base.item_details = params.itemDetails.map((item) => ({
+      id: item.id,
+      name: item.name.slice(0, 50),
+      price: Math.round(item.price),
+      quantity: item.quantity,
+    }));
+  }
+
+  switch (params.paymentMethod) {
+    case 'qris':
+      return {
+        ...base,
+        payment_type: 'qris',
+        qris: { acquirer: 'gopay' },
+      };
+    case 'bca_va':
+      return {
+        ...base,
+        payment_type: 'bank_transfer',
+        bank_transfer: { bank: 'bca' },
+      };
+    case 'bri_va':
+      return {
+        ...base,
+        payment_type: 'bank_transfer',
+        bank_transfer: { bank: 'bri' },
+      };
+    case 'mandiri_va':
+      return {
+        ...base,
+        payment_type: 'echannel',
+        echannel: {
+          bill_info1: 'Pembayaran Bimbel:',
+          bill_info2: 'Bright Future SPP',
+        },
+      };
+  }
+}
+
 /**
  * Constructs the Snap transaction payload with input validations.
  */
