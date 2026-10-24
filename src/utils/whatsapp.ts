@@ -56,24 +56,24 @@ export function formatWhatsAppNumber(phone: string): string {
 export function generateSessionReportWhatsAppUrl(params: SessionReportParams): string {
   const cleanPhone = formatWhatsAppNumber(params.parentPhone);
 
-  const starRating = (score: number) => '⭐'.repeat(Math.max(1, Math.min(5, score)));
+  const starRating = (score: number) => 'â­'.repeat(Math.max(1, Math.min(5, score)));
 
   const message = [
     `Assalamu'alaikum / Selamat Pagi/Sore ${params.parentName},`,
     '',
     `Berikut laporan berkala sesi belajar Bright Future house-to-house:`,
-    `🧑‍🎓 *Siswa:* ${params.studentName}`,
-    `👩‍🏫 *Tutor:* ${params.tutorName}`,
-    `🗓️ *Waktu:* ${params.dateStr} (Durasi: ${params.durationMinutes} Menit Tatap Muka Murni)`,
-    `📖 *Materi Pokok:* ${params.topic}`,
+    `ðŸ§‘â€ðŸŽ“ *Siswa:* ${params.studentName}`,
+    `ðŸ‘©â€ðŸ« *Tutor:* ${params.tutorName}`,
+    `ðŸ—“ï¸ *Waktu:* ${params.dateStr} (Durasi: ${params.durationMinutes} Menit Tatap Muka Murni)`,
+    `ðŸ“– *Materi Pokok:* ${params.topic}`,
     '',
     `*Evaluasi 4 Pilar Karakter Meja Belajar:*`,
-    `• Fokus & Konsentrasi: ${starRating(params.affectiveScores.fokus)} (${params.affectiveScores.fokus}/5)`,
-    `• Daya Juang Soal Latihan: ${starRating(params.affectiveScores.dayaJuang)} (${params.affectiveScores.dayaJuang}/5)`,
-    `• Kerapian Catatan/LKPD: ${starRating(params.affectiveScores.kerapian)} (${params.affectiveScores.kerapian}/5)`,
-    `• Adab & Sikap Belajar: ${starRating(params.affectiveScores.adab)} (${params.affectiveScores.adab}/5)`,
+    `â€¢ Fokus & Konsentrasi: ${starRating(params.affectiveScores.fokus)} (${params.affectiveScores.fokus}/5)`,
+    `â€¢ Daya Juang Soal Latihan: ${starRating(params.affectiveScores.dayaJuang)} (${params.affectiveScores.dayaJuang}/5)`,
+    `â€¢ Kerapian Catatan/LKPD: ${starRating(params.affectiveScores.kerapian)} (${params.affectiveScores.kerapian}/5)`,
+    `â€¢ Adab & Sikap Belajar: ${starRating(params.affectiveScores.adab)} (${params.affectiveScores.adab}/5)`,
     '',
-    `📝 *Catatan Tutor:*`,
+    `ðŸ“ *Catatan Tutor:*`,
     `"${params.tutorNotes}"`,
     '',
     `Terima kasih atas kepercayaan Ayah/Bunda mendampingi ananda belajar bersama Bright Future Magelang.`,
@@ -91,23 +91,23 @@ export function generateInvoiceWhatsAppUrl(params: InvoiceReportParams): string 
 
   const discountLine =
     params.discountAmount > 0
-      ? `• Diskon Saudara Kandung 15%: -${formatRupiah(params.discountAmount)}\n`
+      ? `â€¢ Diskon Saudara Kandung 15%: -${formatRupiah(params.discountAmount)}\n`
       : '';
 
   const message = [
     `Yth. ${params.parentName},`,
     '',
     `Kami sampaikan invoice tagihan bimbingan belajar Bright Future:`,
-    `📄 *No. Invoice:* ${params.invoiceNumber}`,
-    `👶 *Siswa:* ${studentsText}`,
-    `🎯 *Total Sesi:* ${params.totalSessions} sesi bimbingan`,
-    `💵 *Subtotal:* ${formatRupiah(params.subtotal)}`,
+    `ðŸ“„ *No. Invoice:* ${params.invoiceNumber}`,
+    `ðŸ‘¶ *Siswa:* ${studentsText}`,
+    `ðŸŽ¯ *Total Sesi:* ${params.totalSessions} sesi bimbingan`,
+    `ðŸ’µ *Subtotal:* ${formatRupiah(params.subtotal)}`,
     discountLine +
-    `⭐ *Total Tagihan:* *${formatRupiah(params.grandTotal)}*`,
-    `⏰ *Batas Pembayaran:* ${params.dueDateStr}`,
+    `â­ *Total Tagihan:* *${formatRupiah(params.grandTotal)}*`,
+    `â° *Batas Pembayaran:* ${params.dueDateStr}`,
     '',
-    `Pembayaran dapat dilakukan melalui portal orang tua (Midtrans Snap: QRIS, Transfer VA BCA/Mandiri/BNI).`,
-    `Terima kasih atas kerja samanya. 🙏`,
+    `Pembayaran dapat dilakukan via Midtrans Snap (QRIS/VA) atau Transfer Manual Bank Jateng 123456789 a.n Monica Yuliana.`,
+    `Terima kasih atas kerja samanya. ðŸ™`,
   ].join('\n');
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;

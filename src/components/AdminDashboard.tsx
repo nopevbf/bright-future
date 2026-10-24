@@ -1005,26 +1005,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (inv.packageType === 'non_paket') {
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
-        `📄 *No. Invoice:* ${inv.inv}\n` +
-        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
-        `📚 *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
-        `🗓️ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
-        `📅 *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
+        `ðŸ“„ *No. Invoice:* ${inv.inv}\n` +
+        `ðŸ‘¤ *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `ðŸ“š *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
+        `ðŸ—“ï¸ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
+        `ðŸ“… *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
         `Tanggal: ${inv.meetingDatesRaw || inv.meetingDates?.join(', ') || '-'}\n` +
-        `💰 *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
-        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
-        `💳 *Kanal Bayar:* ${inv.channel}\n` +
-        `📌 *Status:* ${inv.status}\n\n` +
+        `ðŸ’° *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
+        `ðŸ’µ *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `ðŸ’³ *Kanal Bayar:* ${inv.channel}\n` +
+        `ðŸ“Œ *Status:* ${inv.status}\n\n` +
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Bukti pembayaran otomatis terverifikasi di sistem kami. Terima kasih!`;
     } else {
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
-        `📄 *No. Invoice:* ${inv.inv}\n` +
-        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
-        `📚 *Paket:* ${inv.package}\n` +
-        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
-        `💳 *Kanal Bayar:* ${inv.channel}\n` +
-        `📌 *Status:* ${inv.status}\n\n` +
+        `ðŸ“„ *No. Invoice:* ${inv.inv}\n` +
+        `ðŸ‘¤ *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `ðŸ“š *Paket:* ${inv.package}\n` +
+        `ðŸ’µ *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `ðŸ’³ *Kanal Bayar:* ${inv.channel}\n` +
+        `ðŸ“Œ *Status:* ${inv.status}\n\n` +
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Terima kasih!`;
     }
 
@@ -1720,7 +1720,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ebe8e2] text-[#6B675F] text-xs font-semibold mb-2">
                       <span className="w-2 h-2 rounded-full bg-[#6F8F76] animate-pulse"></span>
                       <span className="uppercase tracking-wider text-[#284230]">
-                         Live Operational Hub • Kab. Magelang
+                         Live Operational Hub â€¢ Kab. Magelang
                       </span>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2A2823] tracking-tight">
@@ -1890,7 +1890,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-[#284230] animate-pulse"></span>
                         <span className="text-[10px] uppercase tracking-wider font-bold text-[#284230]">
-                          Geofence GPS Radar • Live 70-Mnt
+                          Geofence GPS Radar â€¢ Live 70-Mnt
                         </span>
                       </div>
                       <h2 className="text-lg font-bold text-[#2A2823] mt-0.5">
@@ -2011,7 +2011,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <p className="text-xs text-[#2A2823] font-semibold truncate">
                           Ibu Deasy (Wali Naufal - SD Kelas 2)
                         </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi • Rp 280.000</p>
+                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi â€¢ Rp 280.000</p>
                       </div>
                       <div className="flex flex-col items-end shrink-0">
                         <span className="px-2.5 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -2032,7 +2032,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <p className="text-xs text-[#2A2823] font-semibold truncate">
                           Bpk. Hendra Gunawan (Wali Michelle)
                         </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi • Rp 280.000</p>
+                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi â€¢ Rp 280.000</p>
                       </div>
                       <div className="flex flex-col items-end shrink-0">
                         <span className="px-2.5 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -2053,7 +2053,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <p className="text-xs text-[#2A2823] font-semibold truncate">
                           Ibu Farida (Wali Siswa Kelas 5 SD Krincing)
                         </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi SD UMUM • Rp 280.000</p>
+                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi SD UMUM â€¢ Rp 280.000</p>
                       </div>
                       <div className="flex flex-col items-end shrink-0 gap-1">
                         <span className="px-2 py-0.5 rounded-full bg-[#FAF7F1] text-[#2A2823] text-[10px] font-bold border border-[#2A2823]/10">
@@ -2153,7 +2153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   {reg.studentName}
                                 </span>
                                 <span className="text-[11px] text-[#6B675F]">
-                                  {reg.level.toUpperCase()} • Wali: {reg.parentName}
+                                  {reg.level.toUpperCase()} â€¢ Wali: {reg.parentName}
                                 </span>
                                 <span className="text-[10px] text-[#6B675F] block truncate max-w-[200px]">
                                   {reg.homeAddress}
@@ -2180,7 +2180,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </button>
                               ) : (
                                 <span className="flex-1 py-1 text-center text-[#284230] text-[11px] font-bold">
-                                  ✓ Akun Aktif
+                                  âœ“ Akun Aktif
                                 </span>
                               )}
                               <button
@@ -2508,13 +2508,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#284230] bg-[#c8ebce] px-2.5 py-0.5 rounded-full">
-                        {item.id} • {item.duration}
+                        {item.id} â€¢ {item.duration}
                       </span>
                       <span className="text-xs font-semibold text-[#6B675F]">{item.time}</span>
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-[#2A2823]">{item.studentName}</h3>
-                      <p className="text-xs text-[#6B675F]">{item.level} — {item.subject}</p>
+                      <p className="text-xs text-[#6B675F]">{item.level} â€” {item.subject}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8 text-xs space-y-1">
                       <div className="flex items-center gap-1.5 text-[#2A2823] font-semibold">
@@ -2858,7 +2858,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     </span>
                                   </div>
                                   <div className="font-semibold text-xs text-[#2A2823]">{inv.package}</div>
-                                  <div className="text-[10px] text-[#6B675F]">8 Sesi Terjadwal • House-to-House</div>
+                                  <div className="text-[10px] text-[#6B675F]">8 Sesi Terjadwal â€¢ House-to-House</div>
                                 </div>
                               )}
                             </td>
@@ -2872,7 +2872,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </div>
                               {inv.packageType === 'non_paket' && (
                                 <span className="text-[10px] text-[#6B675F] block mt-0.5">
-                                  ({inv.totalMeetings || inv.meetingDates?.length || 0} × Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')})
+                                  ({inv.totalMeetings || inv.meetingDates?.length || 0} Ã— Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')})
                                 </span>
                               )}
                             </td>
@@ -3105,7 +3105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="flex items-center gap-2 text-[#2A2823]">
               <span className="material-symbols-outlined text-[#3F5A46] text-[18px]">security</span>
               <span>
-                Bright Future Learning Center • Sistem Multi-Role Operasional ({roleLabel}: {activeAdminName})
+                Bright Future Learning Center â€¢ Sistem Multi-Role Operasional ({roleLabel}: {activeAdminName})
               </span>
             </div>
             <div className="flex items-center gap-4 text-[11px] font-semibold">
@@ -3498,7 +3498,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="text-[11px] text-emerald-800 font-medium flex items-center gap-1">
                       <span className="material-symbols-outlined text-[15px] text-emerald-700">calculate</span>
                       <span>
-                        Rumus: {parseMeetingDates(newInvoiceMeetingDates).length} Pertemuan × Rp {(newInvoiceCostPerMeeting || 0).toLocaleString('id-ID')} = <strong>Rp {newInvoiceAmount.toLocaleString('id-ID')}</strong>
+                        Rumus: {parseMeetingDates(newInvoiceMeetingDates).length} Pertemuan Ã— Rp {(newInvoiceCostPerMeeting || 0).toLocaleString('id-ID')} = <strong>Rp {newInvoiceAmount.toLocaleString('id-ID')}</strong>
                       </span>
                     </div>
                   </div>
@@ -3531,7 +3531,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <option value="BCA Virtual Account (Midtrans)">BCA Virtual Account (Midtrans)</option>
                   <option value="Mandiri Virtual Account (Midtrans)">Mandiri Virtual Account (Midtrans)</option>
                   <option value="QRIS Gopay / ShopeePay (Midtrans)">QRIS Gopay / ShopeePay (Midtrans)</option>
-                  <option value="Transfer Manual Rekening BCA">Transfer Manual Rekening BCA</option>
+                  <option value="Transfer Manual Bank Jateng (123456789 a.n Monica Yuliana)">Transfer Manual Bank Jateng (123456789 a.n Monica Yuliana)</option>
                 </select>
               </div>
             </div>
@@ -3568,7 +3568,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div>
                   <h3 className="font-extrabold text-base text-[#284230]">Bright Future Learning Center</h3>
                   <p className="text-[11px] text-[#6B675F]">Lembaga Bimbingan Belajar Privat House-to-House</p>
-                  <p className="text-[10px] text-[#6B675F]">Kabupaten Magelang, Jawa Tengah • WA: 0851-7323-0198</p>
+                  <p className="text-[10px] text-[#6B675F]">Kabupaten Magelang, Jawa Tengah â€¢ WA: 0851-7323-0198</p>
                 </div>
               </div>
               <button

@@ -164,10 +164,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="space-y-3 text-xs text-[#2A2823]">
               <div className="p-3 bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-1">
                 <p className="font-bold text-[#3F5A46]">Konfirmasi Kehadiran Sesi 70 Menit:</p>
-                <p>• Siswa: <strong>{currentChildName}</strong></p>
-                <p>• Tutor: <strong>{displayTutorName}</strong></p>
-                <p>• Materi: IPAS Bab 4: Rotasi Bumi &amp; Jam Matahari</p>
-                <p>• Lokasi: Meja Belajar Mertoyudan, Magelang</p>
+                <p>â€¢ Siswa: <strong>{currentChildName}</strong></p>
+                <p>â€¢ Tutor: <strong>{displayTutorName}</strong></p>
+                <p>â€¢ Materi: IPAS Bab 4: Rotasi Bumi &amp; Jam Matahari</p>
+                <p>â€¢ Lokasi: Meja Belajar Mertoyudan, Magelang</p>
               </div>
 
               <div>
@@ -220,7 +220,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <span className="material-symbols-outlined text-[#3F5A46] text-2xl">description</span>
                 <div>
                   <h3 className="text-base font-bold text-[#2A2823]">Catatan Rinci Sesi Belajar</h3>
-                  <p className="text-xs text-[#6B675F]">IPAS Bab 4: Rotasi Bumi • 70 Menit Tatap Muka</p>
+                  <p className="text-xs text-[#6B675F]">IPAS Bab 4: Rotasi Bumi â€¢ 70 Menit Tatap Muka</p>
                 </div>
               </div>
               <button onClick={() => setIsSessionDetailsOpen(false)} className="text-[#6B675F] hover:text-[#2A2823]">
@@ -232,20 +232,20 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="p-3.5 bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-2">
                 <h4 className="font-bold text-sm text-[#3F5A46]">Evaluasi Akademik &amp; Kuis:</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>• Skor Kuis Mandiri: <strong className="text-[#284230]">88/100</strong></div>
-                  <div>• Durasi Fokus: <strong>70 Menit (Penuh)</strong></div>
-                  <div>• Kemandirian Gawai: <strong>5.0 / 5.0 ★</strong></div>
-                  <div>• Eksperimen Miniatur: <strong>Tuntas Sempurna</strong></div>
+                  <div>â€¢ Skor Kuis Mandiri: <strong className="text-[#284230]">88/100</strong></div>
+                  <div>â€¢ Durasi Fokus: <strong>70 Menit (Penuh)</strong></div>
+                  <div>â€¢ Kemandirian Gawai: <strong>5.0 / 5.0 â˜…</strong></div>
+                  <div>â€¢ Eksperimen Miniatur: <strong>Tuntas Sempurna</strong></div>
                 </div>
               </div>
 
               <div className="p-3.5 bg-[#F1ECE1]/80 rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-1.5">
                 <h4 className="font-bold text-sm text-[#C1683F]">Catatan Afektif Tutor:</h4>
                 <p className="italic text-[#1c1c18]">
-                  “Rayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.”
+                  â€œRayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.â€
                 </p>
                 <span className="text-[11px] text-[#6B675F] block font-semibold pt-1">
-                  — Kak Anindya Laksmi, S.Pd. (Tutor Resmi Bright Future)
+                  â€” Kak Anindya Laksmi, S.Pd. (Tutor Resmi Bright Future)
                 </span>
               </div>
             </div>
@@ -268,7 +268,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="max-w-md w-full rounded-3xl bg-white p-6 shadow-2xl border border-[rgba(42,40,35,0.1)] text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-[#c8ebce] text-[#284230] flex items-center justify-center mx-auto text-3xl font-bold shadow-md">
-              ✓
+              âœ“
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#284230]">Pembayaran SPP Berhasil!</h3>
@@ -463,7 +463,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="flex items-center gap-2 pl-1">
               <div className="hidden lg:flex flex-col text-right">
                 <span className="text-xs font-bold text-[#1c1c18]">{parentName}</span>
-                <span className="text-[10px] text-[#6B675F]">Wali Murid • {parentPhone}</span>
+                <span className="text-[10px] text-[#6B675F]">Wali Murid â€¢ {parentPhone}</span>
               </div>
               <div className="w-8 h-8 rounded-full bg-[#284230] text-white flex items-center justify-center font-bold text-xs ring-2 ring-[#6F8F76]/30">
                 RD
@@ -591,7 +591,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <div className="text-3xl font-extrabold text-[#1c1c18]">
                   91.2<span className="text-lg font-normal text-[#6B675F]"> / 100</span>
                 </div>
-                <p className="text-xs text-[#47654f] font-bold mt-0.5">Grade A • Sangat Baik</p>
+                <p className="text-xs text-[#47654f] font-bold mt-0.5">Grade A â€¢ Sangat Baik</p>
               </div>
               <div className="pt-2 border-t border-[rgba(42,40,35,0.06)] flex items-center gap-1 text-[11px] text-[#6B675F] font-semibold">
                 <span className="material-symbols-outlined text-[15px] text-[#C1683F]">star</span>
@@ -639,9 +639,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[11px] font-bold">
                     <span className="w-2 h-2 rounded-full bg-[#47654f] animate-pulse"></span>
-                    Sesi Berlangsung (13:30 – 14:40 WIB)
+                    Sesi Berlangsung (13:30 â€“ 14:40 WIB)
                   </span>
-                  <span className="text-[#6B675F] text-xs font-semibold">• Meja Belajar Mertoyudan</span>
+                  <span className="text-[#6B675F] text-xs font-semibold">â€¢ Meja Belajar Mertoyudan</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#284230]">
                   IPAS: Praktikum Rotasi Bumi &amp; Jam Matahari
@@ -662,7 +662,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <span className="material-symbols-outlined text-[13px]">verified</span> Tutor Resmi
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#6B675F]">Tutor Terakreditasi Bright Future • Rating 4.98 (84 Sesi)</p>
+                    <p className="text-[11px] text-[#6B675F]">Tutor Terakreditasi Bright Future â€¢ Rating 4.98 (84 Sesi)</p>
                   </div>
                   <a
                     className="ml-auto sm:ml-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FAF7F1] hover:bg-[#F1ECE1] text-[#1c1c18] text-xs font-bold border border-[rgba(42,40,35,0.12)] transition-colors cursor-pointer"
@@ -703,7 +703,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="material-symbols-outlined text-[16px]">
                       {parafConfirmed ? 'check_circle' : 'draw'}
                     </span>
-                    <span>{parafConfirmed ? 'Paraf Digital Terkonfirmasi ✓' : 'Beri Paraf Kehadiran Digital'}</span>
+                    <span>{parafConfirmed ? 'Paraf Digital Terkonfirmasi âœ“' : 'Beri Paraf Kehadiran Digital'}</span>
                   </button>
                   <button
                     type="button"
@@ -745,7 +745,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">
                           Bahasa Inggris: Daily Activity
                         </h4>
-                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB • Kak Anindya Laksmi</p>
+                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB â€¢ Kak Anindya Laksmi</p>
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -764,7 +764,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">
                           Matematika: Pecahan Desimal &amp; Persen
                         </h4>
-                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB • Kak Anindya Laksmi</p>
+                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB â€¢ Kak Anindya Laksmi</p>
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -817,10 +817,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <span className="material-symbols-outlined text-[20px] text-[#C1683F] mt-0.5">format_quote</span>
                   <div className="space-y-1">
                     <p className="text-xs text-[#1c1c18] italic leading-relaxed">
-                      “Rayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.”
+                      â€œRayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.â€
                     </p>
                     <span className="text-[11px] text-[#6B675F] font-bold block">
-                      — Kak Anindya Laksmi, S.Pd. (Tutor Pembimbing)
+                      â€” Kak Anindya Laksmi, S.Pd. (Tutor Pembimbing)
                     </span>
                   </div>
                 </div>
@@ -848,7 +848,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <div>
                       <span className="text-[10px] font-mono text-[#6B675F]">INV-2026-09-088</span>
                       <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">Paket 8 Sesi Rayhan Kusuma</h4>
-                      <p className="text-[11px] text-[#6B675F]">Periode: 1 – 31 Okt 2026</p>
+                      <p className="text-[11px] text-[#6B675F]">Periode: 1 â€“ 31 Okt 2026</p>
                     </div>
                     <span className="text-lg font-extrabold text-[#C1683F]">
                       {invoicePaid ? 'LUNAS' : 'Rp 280.000'}
@@ -869,11 +869,32 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     type="button"
                     disabled={invoicePaid}
                     onClick={() => handlePayInvoice(280000, 'INV-2026-09-088', 'Paket 8 Sesi SD UMUM (Rayhan)')}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#C1683F] text-white text-xs font-bold hover:bg-[#A85530] disabled:opacity-50 transition-opacity shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#0091FF] text-white text-xs font-bold hover:bg-[#007AE6] disabled:opacity-50 transition-opacity shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[17px]">lock</span>
-                    <span>{invoicePaid ? 'Tagihan Sudah Dibayar' : 'Bayar Sekarang via Midtrans'}</span>
+                    <span>{invoicePaid ? 'Tagihan Sudah Dibayar' : 'Bayar Sekarang via Midtrans Snap'}</span>
                   </button>
+
+                  {/* Info Transfer Manual Bank Jateng */}
+                  {!invoicePaid && (
+                    <div className="p-2.5 rounded-xl bg-[#FAF4ED] border border-amber-200 text-[10.5px] space-y-1">
+                      <div className="flex items-center justify-between text-amber-900 font-bold">
+                        <span>Opsi Transfer Manual:</span>
+                        <span>Bank Jateng</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[#2A2823]">
+                        <span>No. Rekening:</span>
+                        <span className="font-mono font-bold select-all">123456789</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[#2A2823]">
+                        <span>Atas Nama:</span>
+                        <span className="font-semibold">Monica Yuliana</span>
+                      </div>
+                      <p className="text-[9.5px] text-[#6B675F] pt-0.5 border-t border-amber-200/50">
+                        Kirimkan struk transfer ke WA Hotline Admin untuk konfirmasi manual.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -922,10 +943,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           <footer className="pt-6 border-t border-[rgba(42,40,35,0.08)] flex flex-col sm:flex-row items-center justify-between gap-3 text-[#6B675F] text-[11px]">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px] text-[#3F5A46]">security</span>
-              <span>Bright Future Cabang Magelang Kota &amp; Mertoyudan — Transparansi Penuh Pendidikan Tatap Muka Rumah.</span>
+              <span>Bright Future Cabang Magelang Kota &amp; Mertoyudan â€” Transparansi Penuh Pendidikan Tatap Muka Rumah.</span>
             </div>
             <div className="text-right">
-              <span>Standar Mutu 70 Menit • Pouch Anti-Gadget</span>
+              <span>Standar Mutu 70 Menit â€¢ Pouch Anti-Gadget</span>
             </div>
           </footer>
         </main>

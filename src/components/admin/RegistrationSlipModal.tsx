@@ -77,7 +77,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                   Bimbel Privat Terakreditasi Kab. Magelang (House-to-House)
                 </p>
                 <p className="text-[10px] text-[#6B675F]">
-                  Secang • Muntilan • Mertoyudan • Mungkid • Borobudur | WA: 0851-7323-0198
+                  Secang â€¢ Muntilan â€¢ Mertoyudan â€¢ Mungkid â€¢ Borobudur | WA: 0851-7323-0198
                 </p>
               </div>
             </div>
@@ -159,6 +159,16 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                     : 'Fleksibel'}
                 </span>
               </div>
+              <div>
+                <span className="text-[10px] text-[#6B675F] uppercase font-bold block">
+                  Metode Pembayaran Terpilih
+                </span>
+                <span className="font-bold text-xs text-[#284230] block">
+                  {registration.paymentMethod === 'manual_transfer'
+                    ? 'Transfer Manual (Bank Jateng 123456789 a.n Monica Yuliana)'
+                    : 'Midtrans Gateway (QRIS / Virtual Account)'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -179,7 +189,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                       Paket 8 Sesi Bulanan (Tatap Muka House-to-House)
                     </span>
                     <span className="text-[10px] text-[#6B675F]">
-                      Tutor Guru Privat Terakreditasi • Modul &amp; LKPD Fisik Gratis
+                      Tutor Guru Privat Terakreditasi â€¢ Modul &amp; LKPD Fisik Gratis
                     </span>
                   </td>
                   <td className="py-2.5 px-4 text-center font-semibold text-[#6B675F]">
@@ -209,6 +219,13 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* Payment Account Notice */}
+          <div className="p-3 bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] rounded-xl text-[10px] space-y-0.5 text-[#6B675F]">
+            <p className="font-bold text-[#284230]">INSTRUKSI REKENING &amp; GATEWAY RESMI:</p>
+            <p>â€¢ <strong>Transfer Manual:</strong> Bank Jateng No. Rekening <strong className="text-[#2A2823] font-mono">123456789</strong> a.n. <strong>Monica Yuliana</strong></p>
+            <p>â€¢ <strong>Midtrans (Real-time):</strong> QRIS (GoPay/ShopeePay), Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas)</p>
           </div>
 
           {/* Verification Badge & Signatures */}

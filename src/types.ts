@@ -56,6 +56,7 @@ export interface RegistrationFormData {
   selectedSchedule: string[];
   specialNotes?: string;
   hasSiblingDiscount?: boolean;
+  paymentMethod?: 'midtrans' | 'manual_transfer';
 }
 
 export interface SubmittedRegistration extends RegistrationFormData {
@@ -63,6 +64,7 @@ export interface SubmittedRegistration extends RegistrationFormData {
   invoiceNumber: string;
   totalAmount: number;
   submittedAt: string;
+  paymentStatus?: 'pending' | 'paid' | 'verified';
 }
 
 export interface TutorRegistrationData {
@@ -76,4 +78,3 @@ export interface TutorRegistrationData {
 }
 
 export type { ManagedStudent } from './components/admin/studentData';
-

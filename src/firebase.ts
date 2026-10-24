@@ -105,6 +105,7 @@ export interface FirestoreRegistrationDoc {
   totalAmount: number;
   appliedDiscount: number;
   invoiceNumber: string;
+  paymentMethod?: 'midtrans' | 'manual_transfer';
   paymentStatus: 'pending' | 'paid' | 'verified';
   createdAt: string;
   assignedTutor?: string;
@@ -151,63 +152,63 @@ export const DEFAULT_PORTAL_CREDENTIALS: Record<string, PortalCredentialDoc> = {
     password: 'Tutor@2026',
     role: 'tutor',
     name: 'Kak Anindya, S.Pd.',
-    summary: 'Tutor Tematik SD-SMP • 4 Sesi Visit Hari Ini (Magelang & Mertoyudan) • Terhubung Cloud Firestore',
+    summary: 'Tutor Tematik SD-SMP â€¢ 4 Sesi Visit Hari Ini (Magelang & Mertoyudan) â€¢ Terhubung Cloud Firestore',
   },
   tutor_anindya: {
     identifier: 'anindya.tutor@brightfuture.id',
     password: 'Tutor@2026',
     role: 'tutor',
     name: 'Kak Anindya, S.Pd.',
-    summary: 'Tutor Tematik SD-SMP • 4 Sesi Visit Hari Ini (Magelang & Mertoyudan) • Terhubung Cloud Firestore',
+    summary: 'Tutor Tematik SD-SMP â€¢ 4 Sesi Visit Hari Ini (Magelang & Mertoyudan) â€¢ Terhubung Cloud Firestore',
   },
   tutor_monica: {
     identifier: 'monica.tutor@brightfuture.id',
     password: 'Tutor@2026',
     role: 'tutor',
     name: 'Kak Monica Yuliana, S.Pd.',
-    summary: 'Pengajar Senior Matematika & IPA • Terhubung Cloud Firestore',
+    summary: 'Pengajar Senior Matematika & IPA â€¢ Terhubung Cloud Firestore',
   },
   siswa: {
     identifier: 'BF-2026-09-8812',
     password: 'Siswa@2026',
     role: 'siswa',
     name: 'Rayhan Kusuma',
-    summary: 'Akun Siswa: Rayhan Kusuma • SD Kelas 5 (SD Mertoyudan 1) • Tingkat: Penjelajah Sains • 1.420 XP • Terhubung Cloud Firestore',
+    summary: 'Akun Siswa: Rayhan Kusuma â€¢ SD Kelas 5 (SD Mertoyudan 1) â€¢ Tingkat: Penjelajah Sains â€¢ 1.420 XP â€¢ Terhubung Cloud Firestore',
   },
   siswa_rayhan: {
     identifier: 'BF-2026-09-8812',
     password: 'Siswa@2026',
     role: 'siswa',
     name: 'Rayhan Kusuma',
-    summary: 'Akun Siswa: Rayhan Kusuma • SD Kelas 5 (SD Mertoyudan 1) • Tingkat: Penjelajah Sains • 1.420 XP • Terhubung Cloud Firestore',
+    summary: 'Akun Siswa: Rayhan Kusuma â€¢ SD Kelas 5 (SD Mertoyudan 1) â€¢ Tingkat: Penjelajah Sains â€¢ 1.420 XP â€¢ Terhubung Cloud Firestore',
   },
   siswa_kevin: {
     identifier: 'BF-2026-09-8492',
     password: 'Siswa@2026',
     role: 'siswa',
     name: 'Kevin Pratama',
-    summary: 'Akun Siswa: Kevin Pratama • Kelas 4 SD • Poin Rajin Belajar: 120 XP • Terhubung Cloud Firestore',
+    summary: 'Akun Siswa: Kevin Pratama â€¢ Kelas 4 SD â€¢ Poin Rajin Belajar: 120 XP â€¢ Terhubung Cloud Firestore',
   },
   orang_tua: {
     identifier: '081298765432',
     password: 'Wali@2026',
     role: 'orang_tua',
     name: 'Bunda Ratna Dewi (Wali Rayhan & Kayla)',
-    summary: 'Wali Murid: Bunda Ratna Dewi • Siswa: Rayhan Kusuma (SD Kelas 5) & Kayla (SD Kelas 2) • Status SPP: 1 Menunggu Bayar • Terhubung Cloud Firestore',
+    summary: 'Wali Murid: Bunda Ratna Dewi â€¢ Siswa: Rayhan Kusuma (SD Kelas 5) & Kayla (SD Kelas 2) â€¢ Status SPP: 1 Menunggu Bayar â€¢ Terhubung Cloud Firestore',
   },
   orang_tua_ratna: {
     identifier: '081298765432',
     password: 'Wali@2026',
     role: 'orang_tua',
     name: 'Bunda Ratna Dewi (Wali Rayhan & Kayla)',
-    summary: 'Wali Murid: Bunda Ratna Dewi • Siswa: Rayhan Kusuma (SD Kelas 5) & Kayla (SD Kelas 2) • Status SPP: 1 Menunggu Bayar • Terhubung Cloud Firestore',
+    summary: 'Wali Murid: Bunda Ratna Dewi â€¢ Siswa: Rayhan Kusuma (SD Kelas 5) & Kayla (SD Kelas 2) â€¢ Status SPP: 1 Menunggu Bayar â€¢ Terhubung Cloud Firestore',
   },
   orang_tua_deasy: {
     identifier: '085173230198',
     password: 'Wali@2026',
     role: 'orang_tua',
     name: 'Ibu Deasy (Wali Kevin Pratama)',
-    summary: 'Wali Murid: Ibu Deasy • Status SPP: LUNAS • Jadwal Selanjutnya: Rabu 16:00',
+    summary: 'Wali Murid: Ibu Deasy â€¢ Status SPP: LUNAS â€¢ Jadwal Selanjutnya: Rabu 16:00',
   },
 };
 
@@ -359,7 +360,7 @@ export async function verifyPortalCredentialsFromFirestore(
           identifier: adminRes.admin.email,
           name: adminRes.admin.name,
           role: 'admin',
-          summary: 'Super Admin: Akses Master Operasional • Cloud Firestore Terhubung',
+          summary: 'Super Admin: Akses Master Operasional â€¢ Cloud Firestore Terhubung',
           source: 'firestore_credentials',
         },
       };
@@ -441,7 +442,7 @@ export async function verifyPortalCredentialsFromFirestore(
                 identifier: tutorData.whatsapp,
                 name: tutorData.fullName,
                 role: 'tutor',
-                summary: `Tutor Terverifikasi Resmi • ${tutorData.education} • Mapel: ${tutorData.subjects} • Kec. ${tutorData.district}`,
+                summary: `Tutor Terverifikasi Resmi â€¢ ${tutorData.education} â€¢ Mapel: ${tutorData.subjects} â€¢ Kec. ${tutorData.district}`,
                 source: 'firestore_credentials',
               },
             };
@@ -467,7 +468,7 @@ export async function verifyPortalCredentialsFromFirestore(
                 identifier: regData.studentId,
                 name: regData.studentName,
                 role: 'siswa',
-                summary: `Akun Siswa Terverifikasi: ${regData.studentName} • Jenjang: ${regData.level.toUpperCase()} • Status: ${regData.paymentStatus.toUpperCase()}`,
+                summary: `Akun Siswa Terverifikasi: ${regData.studentName} â€¢ Jenjang: ${regData.level.toUpperCase()} â€¢ Status: ${regData.paymentStatus.toUpperCase()}`,
                 source: 'firestore_registrations',
               },
             };
@@ -496,7 +497,7 @@ export async function verifyPortalCredentialsFromFirestore(
                   identifier: regData.whatsapp,
                   name: `${regData.parentName} (Wali ${regData.studentName})`,
                   role: 'orang_tua',
-                  summary: `Wali Murid Terverifikasi: ${regData.parentName} • Siswa: ${regData.studentName} (${regData.level.toUpperCase()}) • Status Tagihan: ${regData.paymentStatus.toUpperCase()}`,
+                  summary: `Wali Murid Terverifikasi: ${regData.parentName} â€¢ Siswa: ${regData.studentName} (${regData.level.toUpperCase()}) â€¢ Status Tagihan: ${regData.paymentStatus.toUpperCase()}`,
                   source: 'firestore_registrations',
                 },
               };
@@ -685,7 +686,7 @@ export async function createOrUpdateStudentAccountInFirestore(
     password: pwd,
     role: 'siswa',
     name: reg.studentName,
-    summary: `Siswa Terverifikasi • Jenjang: ${(reg.level || 'SD').toUpperCase()} • WA: ${reg.whatsapp}`,
+    summary: `Siswa Terverifikasi â€¢ Jenjang: ${(reg.level || 'SD').toUpperCase()} â€¢ WA: ${reg.whatsapp}`,
     studentId: reg.studentId,
     whatsapp: reg.whatsapp,
     isVerified: true,
@@ -699,7 +700,7 @@ export async function createOrUpdateStudentAccountInFirestore(
     password: pwd,
     role: 'orang_tua',
     name: `${reg.parentName} (Wali ${reg.studentName})`,
-    summary: `Wali Murid Terverifikasi • Siswa: ${reg.studentName} (${reg.studentId})`,
+    summary: `Wali Murid Terverifikasi â€¢ Siswa: ${reg.studentName} (${reg.studentId})`,
     studentId: reg.studentId,
     whatsapp: reg.whatsapp,
     isVerified: true,
@@ -735,7 +736,7 @@ export async function createOrUpdateTutorAccountInFirestore(
     password: pwd,
     role: 'tutor',
     name: tutor.fullName,
-    summary: `Tutor Terverifikasi Resmi • ${tutor.education} • Mapel: ${tutor.subjects} • Domisili: Kec. ${tutor.district}`,
+    summary: `Tutor Terverifikasi Resmi â€¢ ${tutor.education} â€¢ Mapel: ${tutor.subjects} â€¢ Domisili: Kec. ${tutor.district}`,
     tutorId: tutor.id,
     whatsapp: tutor.whatsapp,
     isVerified: true,
@@ -990,9 +991,41 @@ export async function saveRegistrationToFirestore(registration: SubmittedRegistr
       totalAmount: registration.totalAmount,
       appliedDiscount: registration.hasSiblingDiscount ? 10 : 0,
       invoiceNumber: registration.invoiceNumber,
+      paymentMethod: registration.paymentMethod || 'midtrans',
       paymentStatus: 'pending',
       createdAt: new Date().toISOString(),
     });
+
+    // Auto-create corresponding invoice record in Firestore
+    try {
+      const invRef = doc(db, 'invoices', registration.invoiceNumber);
+      await setDoc(
+        invRef,
+        {
+          inv: registration.invoiceNumber,
+          parent: registration.parentName,
+          studentName: registration.studentName,
+          packageType: 'paket',
+          package: `Paket ${registration.level?.toUpperCase() || 'SD'} (8 Sesi)`,
+          channel:
+            registration.paymentMethod === 'manual_transfer'
+              ? 'Transfer Bank Jateng (123456789 a.n. Monica Yuliana)'
+              : 'Midtrans QRIS / Virtual Account',
+          amount: registration.totalAmount,
+          status: 'PENDING',
+          date: new Date().toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }),
+          whatsapp: registration.whatsapp,
+          createdAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (invErr) {
+      console.warn('Could not auto-create invoice doc in Firestore:', invErr);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, docPath);
   }

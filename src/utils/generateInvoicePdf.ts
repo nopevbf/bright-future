@@ -23,7 +23,7 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(200, 235, 206);
-  doc.text('Lembaga Bimbingan Belajar Privat House-to-House • Kab. Magelang', 15, 23);
+  doc.text('Lembaga Bimbingan Belajar Privat House-to-House â€¢ Kab. Magelang', 15, 23);
   doc.text('Kec. Secang, Mungkid, Muntilan & Sekitarnya | WhatsApp: 0851-7323-0198', 15, 29);
 
   // INVOICE Title on right side of banner
@@ -172,7 +172,7 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(107, 103, 95);
-    doc.text('Paket Belajar Reguler Bulanan • House-to-House (70 Menit)', 20, yPos + 13);
+    doc.text('Paket Belajar Reguler Bulanan â€¢ House-to-House (70 Menit)', 20, yPos + 13);
 
     // Sesi
     doc.setFont('helvetica', 'bold');
@@ -209,24 +209,25 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
 
   yPos += 22;
 
-  // Payment instructions / Midtrans notice
+  // Payment instructions / Midtrans & Bank Jateng notice
   doc.setFillColor(245, 242, 235);
-  doc.roundedRect(15, yPos, pageWidth - 30, 26, 2, 2, 'F');
+  doc.roundedRect(15, yPos, pageWidth - 30, 32, 2, 2, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(40, 66, 48);
-  doc.text('INSTRUKSI PEMBAYARAN RESMI (MIDTRANS / TRANSFER):', 20, yPos + 7);
+  doc.text('INSTRUKSI PEMBAYARAN RESMI (MIDTRANS / TRANSFER MANUAL):', 20, yPos + 7);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(80, 77, 70);
-  doc.text('1. Pembayaran dapat diselesaikan melalui Midtrans Snap (QRIS Gopay/ShopeePay, BCA VA, Mandiri VA).', 20, yPos + 13);
-  doc.text('2. Konfirmasi bukti bayar otomatis terverifikasi ke sistem Operational Hub Bright Future.', 20, yPos + 18);
-  doc.text('3. Jika memerlukan bantuan atau jadwal penyesuaian, hubungi Head Admin via WA di 0851-7323-0198.', 20, yPos + 23);
+  doc.text('1. Midtrans (Real-time): QRIS Gopay/ShopeePay, Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas).', 20, yPos + 13);
+  doc.text('2. Transfer Manual: Bank Jateng No. Rekening 123456789 a.n. Monica Yuliana.', 20, yPos + 18);
+  doc.text('3. Kirim konfirmasi bukti bayar melalui WhatsApp Hotline Admin di 0851-7323-0198.', 20, yPos + 23);
+  doc.text('4. Bukti pembayaran resmi ini sah dan tercatat di Cloud Firestore Bright Future.', 20, yPos + 28);
 
   // Footer signoff
-  yPos += 35;
+  yPos += 40;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(107, 103, 95);
