@@ -164,10 +164,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="space-y-3 text-xs text-[#2A2823]">
               <div className="p-3 bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-1">
                 <p className="font-bold text-[#3F5A46]">Konfirmasi Kehadiran Sesi 70 Menit:</p>
-                <p>â€¢ Siswa: <strong>{currentChildName}</strong></p>
-                <p>â€¢ Tutor: <strong>{displayTutorName}</strong></p>
-                <p>â€¢ Materi: IPAS Bab 4: Rotasi Bumi &amp; Jam Matahari</p>
-                <p>â€¢ Lokasi: Meja Belajar Mertoyudan, Magelang</p>
+                <p>• Siswa: <strong>{currentChildName}</strong></p>
+                <p>• Tutor: <strong>{displayTutorName}</strong></p>
+                <p>• Materi: IPAS Bab 4: Rotasi Bumi &amp; Jam Matahari</p>
+                <p>• Lokasi: Meja Belajar Mertoyudan, Magelang</p>
               </div>
 
               <div>
@@ -220,7 +220,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <span className="material-symbols-outlined text-[#3F5A46] text-2xl">description</span>
                 <div>
                   <h3 className="text-base font-bold text-[#2A2823]">Catatan Rinci Sesi Belajar</h3>
-                  <p className="text-xs text-[#6B675F]">IPAS Bab 4: Rotasi Bumi â€¢ 70 Menit Tatap Muka</p>
+                  <p className="text-xs text-[#6B675F]">IPAS Bab 4: Rotasi Bumi • 70 Menit Tatap Muka</p>
                 </div>
               </div>
               <button onClick={() => setIsSessionDetailsOpen(false)} className="text-[#6B675F] hover:text-[#2A2823]">
@@ -232,10 +232,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="p-3.5 bg-[#FAF7F1] rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-2">
                 <h4 className="font-bold text-sm text-[#3F5A46]">Evaluasi Akademik &amp; Kuis:</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>â€¢ Skor Kuis Mandiri: <strong className="text-[#284230]">88/100</strong></div>
-                  <div>â€¢ Durasi Fokus: <strong>70 Menit (Penuh)</strong></div>
-                  <div>â€¢ Kemandirian Gawai: <strong>5.0 / 5.0 â˜…</strong></div>
-                  <div>â€¢ Eksperimen Miniatur: <strong>Tuntas Sempurna</strong></div>
+                  <div>• Skor Kuis Mandiri: <strong className="text-[#284230]">88/100</strong></div>
+                  <div>• Durasi Fokus: <strong>70 Menit (Penuh)</strong></div>
+                  <div>• Kemandirian Gawai: <strong>5.0 / 5.0 â˜…</strong></div>
+                  <div>• Eksperimen Miniatur: <strong>Tuntas Sempurna</strong></div>
                 </div>
               </div>
 
@@ -463,7 +463,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             <div className="flex items-center gap-2 pl-1">
               <div className="hidden lg:flex flex-col text-right">
                 <span className="text-xs font-bold text-[#1c1c18]">{parentName}</span>
-                <span className="text-[10px] text-[#6B675F]">Wali Murid â€¢ {parentPhone}</span>
+                <span className="text-[10px] text-[#6B675F]">Wali Murid • {parentPhone}</span>
               </div>
               <div className="w-8 h-8 rounded-full bg-[#284230] text-white flex items-center justify-center font-bold text-xs ring-2 ring-[#6F8F76]/30">
                 RD
@@ -591,7 +591,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <div className="text-3xl font-extrabold text-[#1c1c18]">
                   91.2<span className="text-lg font-normal text-[#6B675F]"> / 100</span>
                 </div>
-                <p className="text-xs text-[#47654f] font-bold mt-0.5">Grade A â€¢ Sangat Baik</p>
+                <p className="text-xs text-[#47654f] font-bold mt-0.5">Grade A • Sangat Baik</p>
               </div>
               <div className="pt-2 border-t border-[rgba(42,40,35,0.06)] flex items-center gap-1 text-[11px] text-[#6B675F] font-semibold">
                 <span className="material-symbols-outlined text-[15px] text-[#C1683F]">star</span>
@@ -641,7 +641,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="w-2 h-2 rounded-full bg-[#47654f] animate-pulse"></span>
                     Sesi Berlangsung (13:30 â€“ 14:40 WIB)
                   </span>
-                  <span className="text-[#6B675F] text-xs font-semibold">â€¢ Meja Belajar Mertoyudan</span>
+                  <span className="text-[#6B675F] text-xs font-semibold">• Meja Belajar Mertoyudan</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#284230]">
                   IPAS: Praktikum Rotasi Bumi &amp; Jam Matahari
@@ -662,7 +662,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <span className="material-symbols-outlined text-[13px]">verified</span> Tutor Resmi
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#6B675F]">Tutor Terakreditasi Bright Future â€¢ Rating 4.98 (84 Sesi)</p>
+                    <p className="text-[11px] text-[#6B675F]">Tutor Terakreditasi Bright Future • Rating 4.98 (84 Sesi)</p>
                   </div>
                   <a
                     className="ml-auto sm:ml-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FAF7F1] hover:bg-[#F1ECE1] text-[#1c1c18] text-xs font-bold border border-[rgba(42,40,35,0.12)] transition-colors cursor-pointer"
@@ -745,7 +745,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">
                           Bahasa Inggris: Daily Activity
                         </h4>
-                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB â€¢ Kak Anindya Laksmi</p>
+                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB • Kak Anindya Laksmi</p>
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -764,7 +764,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">
                           Matematika: Pecahan Desimal &amp; Persen
                         </h4>
-                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB â€¢ Kak Anindya Laksmi</p>
+                        <p className="text-[11px] text-[#6B675F]">15:30 - 16:40 WIB • Kak Anindya Laksmi</p>
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
@@ -946,7 +946,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <span>Bright Future Cabang Magelang Kota &amp; Mertoyudan â€” Transparansi Penuh Pendidikan Tatap Muka Rumah.</span>
             </div>
             <div className="text-right">
-              <span>Standar Mutu 70 Menit â€¢ Pouch Anti-Gadget</span>
+              <span>Standar Mutu 70 Menit • Pouch Anti-Gadget</span>
             </div>
           </footer>
         </main>

@@ -77,7 +77,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                   Bimbel Privat Terakreditasi Kab. Magelang (House-to-House)
                 </p>
                 <p className="text-[10px] text-[#6B675F]">
-                  Secang â€¢ Muntilan â€¢ Mertoyudan â€¢ Mungkid â€¢ Borobudur | WA: 0851-7323-0198
+                  Secang • Muntilan • Mertoyudan • Mungkid • Borobudur | WA: 0851-7323-0198
                 </p>
               </div>
             </div>
@@ -189,7 +189,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                       Paket 8 Sesi Bulanan (Tatap Muka House-to-House)
                     </span>
                     <span className="text-[10px] text-[#6B675F]">
-                      Tutor Guru Privat Terakreditasi â€¢ Modul &amp; LKPD Fisik Gratis
+                      Tutor Guru Privat Terakreditasi • Modul &amp; LKPD Fisik Gratis
                     </span>
                   </td>
                   <td className="py-2.5 px-4 text-center font-semibold text-[#6B675F]">

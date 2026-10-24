@@ -68,10 +68,10 @@ export function generateSessionReportWhatsAppUrl(params: SessionReportParams): s
     `ðŸ“– *Materi Pokok:* ${params.topic}`,
     '',
     `*Evaluasi 4 Pilar Karakter Meja Belajar:*`,
-    `â€¢ Fokus & Konsentrasi: ${starRating(params.affectiveScores.fokus)} (${params.affectiveScores.fokus}/5)`,
-    `â€¢ Daya Juang Soal Latihan: ${starRating(params.affectiveScores.dayaJuang)} (${params.affectiveScores.dayaJuang}/5)`,
-    `â€¢ Kerapian Catatan/LKPD: ${starRating(params.affectiveScores.kerapian)} (${params.affectiveScores.kerapian}/5)`,
-    `â€¢ Adab & Sikap Belajar: ${starRating(params.affectiveScores.adab)} (${params.affectiveScores.adab}/5)`,
+    `• Fokus & Konsentrasi: ${starRating(params.affectiveScores.fokus)} (${params.affectiveScores.fokus}/5)`,
+    `• Daya Juang Soal Latihan: ${starRating(params.affectiveScores.dayaJuang)} (${params.affectiveScores.dayaJuang}/5)`,
+    `• Kerapian Catatan/LKPD: ${starRating(params.affectiveScores.kerapian)} (${params.affectiveScores.kerapian}/5)`,
+    `• Adab & Sikap Belajar: ${starRating(params.affectiveScores.adab)} (${params.affectiveScores.adab}/5)`,
     '',
     `ðŸ“ *Catatan Tutor:*`,
     `"${params.tutorNotes}"`,
@@ -91,7 +91,7 @@ export function generateInvoiceWhatsAppUrl(params: InvoiceReportParams): string 
 
   const discountLine =
     params.discountAmount > 0
-      ? `â€¢ Diskon Saudara Kandung 15%: -${formatRupiah(params.discountAmount)}\n`
+      ? `• Diskon Saudara Kandung 15%: -${formatRupiah(params.discountAmount)}\n`
       : '';
 
   const message = [

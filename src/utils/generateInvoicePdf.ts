@@ -23,7 +23,7 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(200, 235, 206);
-  doc.text('Lembaga Bimbingan Belajar Privat House-to-House â€¢ Kab. Magelang', 15, 23);
+  doc.text('Lembaga Bimbingan Belajar Privat House-to-House • Kab. Magelang', 15, 23);
   doc.text('Kec. Secang, Mungkid, Muntilan & Sekitarnya | WhatsApp: 0851-7323-0198', 15, 29);
 
   // INVOICE Title on right side of banner
@@ -172,7 +172,7 @@ export const generateAndDownloadInvoicePdf = (invoice: AdminInvoiceItem) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(107, 103, 95);
-    doc.text('Paket Belajar Reguler Bulanan â€¢ House-to-House (70 Menit)', 20, yPos + 13);
+    doc.text('Paket Belajar Reguler Bulanan • House-to-House (70 Menit)', 20, yPos + 13);
 
     // Sesi
     doc.setFont('helvetica', 'bold');
