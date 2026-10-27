@@ -115,7 +115,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     }
   }, [activeMethods, activeMethod]);
 
-  const feeCalculation = calculateMidtransFee(submission?.totalAmount || 0, settings);
+  const feeCalculation = calculateMidtransFee(submission?.totalAmount || 0, settings, activeMethod);
 
   // Sync state changes to sessionStorage for persistence across modal open/close
   useEffect(() => {

@@ -7,6 +7,10 @@ import {
   MidtransSettingsConfig,
 } from '../../utils/midtransSettings';
 import {
+  saveMidtransSettingsToFirestore,
+  subscribeToMidtransSettings,
+} from '../../firebase';
+import {
   CreditCard,
   Building,
   QrCode,
@@ -24,13 +28,23 @@ export const MidtransSettingsSubTab: React.FC = () => {
   const [settings, setSettings] = useState<MidtransSettingsConfig>(() => getMidtransSettings());
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
-  // Sync if external settings changed
+  // Sync if external settings changed (local or Firestore real-time)
   useEffect(() => {
     const handleUpdate = () => {
       setSettings(getMidtransSettings());
     };
     window.addEventListener('bf_midtrans_settings_updated', handleUpdate);
-    return () => window.removeEventListener('bf_midtrans_settings_updated', handleUpdate);
+
+    const unsubFirestore = subscribeToMidtransSettings((data) => {
+      setSettings(data);
+    });
+
+    return () => {
+      window.removeEventListener('bf_midtrans_settings_updated', handleUpdate);
+      if (typeof unsubFirestore === 'function') {
+        unsubFirestore();
+      }
+    };
   }, []);
 
   const handleToggleMethod = (methodId: string) => {
@@ -69,23 +83,55 @@ export const MidtransSettingsSubTab: React.FC = () => {
       feeAmount: 4000,
       isCustomerFee: true,
       enabledMethods: ['qris', 'bca_va', 'bri_va', 'mandiri_va', 'bni_va'],
+      customMethodFees: {},
     }));
   };
 
+  const handleSetCustomMethodFee = (methodId: string, feeType: 'flat' | 'percentage', feeAmount: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      customMethodFees: {
+        ...(prev.customMethodFees || {}),
+        [methodId]: {
+          feeType,
+          feeAmount: Math.max(0, feeAmount),
+        },
+      },
+    }));
+  };
+
+  const handleRemoveCustomMethodFee = (methodId: string) => {
+    setSettings((prev) => {
+      const nextCustom = { ...(prev.customMethodFees || {}) };
+      delete nextCustom[methodId];
+      return {
+        ...prev,
+        customMethodFees: nextCustom,
+      };
+    });
+  };
+
+  const [simMethodId, setSimMethodId] = useState<string>('universal');
+
   const handleSave = () => {
-    saveMidtransSettings({
+    const payload: MidtransSettingsConfig = {
       ...settings,
+      customMethodFees: settings.customMethodFees || {},
       updatedAt: new Date().toISOString(),
       updatedBy: 'Admin Operasional',
+    };
+    saveMidtransSettings(payload);
+    saveMidtransSettingsToFirestore(payload).catch((err) => {
+      console.warn('Gagal menyimpan ke Firestore (menggunakan cache lokal):', err);
     });
-    setSavedNotice('Pengaturan Berhasil Disimpan! Perubahan otomatis diterapkan ke modal checkout dan invoice.');
+    setSavedNotice('Pengaturan Berhasil Disimpan ke Cloud Firestore & Sinkron Real-time!');
     setTimeout(() => {
       setSavedNotice(null);
     }, 3500);
   };
 
-  // Preview simulasi fee pada SPP Rp 280.000
-  const sampleFee = calculateMidtransFee(280000, settings);
+  // Preview simulasi fee pada SPP Rp 280.000 (mendukung pemilihan metode pembayaran simulasi)
+  const sampleFee = calculateMidtransFee(280000, settings, simMethodId === 'universal' ? undefined : simMethodId);
 
   const getMethodIcon = (iconType: string) => {
     switch (iconType) {
@@ -112,6 +158,10 @@ export const MidtransSettingsSubTab: React.FC = () => {
             <span className="text-xs text-[#284230] font-semibold flex items-center gap-1.5 bg-[#FAF7F1] px-2.5 py-0.5 rounded-full border border-[rgba(42,40,35,0.10)]">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Midtrans Direct Core API &amp; Snap</span>
+            </span>
+            <span className="text-[11px] text-[#3F5A46] font-medium flex items-center gap-1 bg-[#EAF2ED] px-2.5 py-0.5 rounded-full border border-[#3F5A46]/20">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#3F5A46]" />
+              <span>Cloud Firestore Synced</span>
             </span>
           </div>
           <h2 className="text-2xl font-bold text-[#1c1c18]">
@@ -265,16 +315,44 @@ export const MidtransSettingsSubTab: React.FC = () => {
         {/* Right Column: Live Simulation Card */}
         <div className="lg:col-span-5">
           <div className="p-5 sm:p-6 rounded-3xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.10)] shadow-xs space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#C1683F]" />
-              <h4 className="font-bold text-xs uppercase tracking-wider text-[#3F5A46]">
-                Simulasi Tagihan &amp; Transparansi Fee
-              </h4>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#C1683F]" />
+                <h4 className="font-bold text-xs uppercase tracking-wider text-[#3F5A46]">
+                  Simulasi Tagihan &amp; Transparansi Fee
+                </h4>
+              </div>
             </div>
 
             <p className="text-[11px] text-[#6B675F] leading-relaxed">
               Berikut adalah contoh tampilan rincian yang akan dilihat orang tua saat checkout di modal Midtrans dan dokumen invoice:
             </p>
+
+            {/* Selector Metode Simulasi */}
+            <div>
+              <label htmlFor="sim-method-select" className="block text-[11px] font-bold text-[#2A2823] mb-1">
+                Pilih Metode untuk Simulasi:
+              </label>
+              <select
+                id="sim-method-select"
+                value={simMethodId}
+                onChange={(e) => setSimMethodId(e.target.value)}
+                className="w-full text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-[#2A2823] focus:outline-none focus:ring-1 focus:ring-[#3F5A46]"
+              >
+                <option value="universal">Tarif Universal ({settings.feeType === 'flat' ? `Rp ${settings.feeAmount.toLocaleString('id-ID')}` : `${settings.feeAmount}%`})</option>
+                {OFFICIAL_MIDTRANS_METHODS.filter((m) => settings.enabledMethods.includes(m.id)).map((m) => {
+                  const custom = settings.customMethodFees?.[m.id];
+                  const feeLabel = custom
+                    ? (custom.feeType === 'flat' ? `Rp ${custom.feeAmount.toLocaleString('id-ID')}` : `${custom.feeAmount}%`)
+                    : 'Universal';
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {m.name} - ({custom ? `Khusus: ${feeLabel}` : `Default: ${feeLabel}`})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
             <div className="p-4 bg-white rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-2.5 text-xs">
               <div className="flex justify-between">
@@ -338,6 +416,7 @@ export const MidtransSettingsSubTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {OFFICIAL_MIDTRANS_METHODS.map((method) => {
             const isEnabled = settings.enabledMethods.includes(method.id);
+            const customFee = settings.customMethodFees?.[method.id];
             return (
               <div
                 key={method.id}
@@ -387,6 +466,111 @@ export const MidtransSettingsSubTab: React.FC = () => {
                   <p className="text-[10.5px] text-[#6B675F] leading-relaxed line-clamp-2">
                     {method.description}
                   </p>
+
+                  {/* Pengaturan Biaya Layanan Khusus Per Metode */}
+                  {isEnabled && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-3 pt-2.5 border-t border-[rgba(42,40,35,0.08)] space-y-2 text-left"
+                    >
+                      {customFee ? (
+                        <div className="space-y-1.5 p-2 rounded-xl bg-amber-50/70 border border-amber-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-amber-900 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                              <span>Fee Khusus Aktif</span>
+                            </span>
+                            <button
+                              type="button"
+                              data-testid={`reset-fee-${method.id}`}
+                              onClick={() => handleRemoveCustomMethodFee(method.id)}
+                              className="text-[10px] font-bold text-[#C1683F] hover:underline cursor-pointer"
+                            >
+                              Reset ke Universal
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* Switch Flat vs % */}
+                            <div className="inline-flex rounded-lg border border-amber-300 bg-white p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleSetCustomMethodFee(method.id, 'flat', customFee.feeAmount)}
+                                className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold cursor-pointer ${
+                                  customFee.feeType === 'flat' ? 'bg-[#3F5A46] text-white' : 'text-gray-600'
+                                }`}
+                              >
+                                Rp
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetCustomMethodFee(method.id, 'percentage', customFee.feeAmount)}
+                                className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold cursor-pointer ${
+                                  customFee.feeType === 'percentage' ? 'bg-[#3F5A46] text-white' : 'text-gray-600'
+                                }`}
+                              >
+                                %
+                              </button>
+                            </div>
+
+                            {/* Input Nilai Fee Khusus */}
+                            <div className="relative flex-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step={customFee.feeType === 'flat' ? '500' : '0.1'}
+                                value={customFee.feeAmount}
+                                data-testid={`input-custom-fee-${method.id}`}
+                                onChange={(e) =>
+                                  handleSetCustomMethodFee(
+                                    method.id,
+                                    customFee.feeType,
+                                    Number(e.target.value) || 0
+                                  )
+                                }
+                                className="w-full px-2 py-1 text-[11px] font-bold rounded-lg border border-amber-300 bg-white text-[#2A2823] focus:outline-none focus:ring-1 focus:ring-[#3F5A46]"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="text-[9.5px] text-amber-800 font-medium">
+                            Simulasi SPP Rp 280k: Fee{' '}
+                            <strong>
+                              {customFee.feeType === 'flat'
+                                ? `Rp ${Math.round(customFee.feeAmount).toLocaleString('id-ID')}`
+                                : `Rp ${Math.round((280000 * customFee.feeAmount) / 100).toLocaleString('id-ID')} (${customFee.feeAmount}%)`}
+                            </strong>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                          <span className="text-[10px] text-[#6B675F]">
+                            Biaya:{' '}
+                            <strong className="text-[#2A2823]">
+                              {settings.feeType === 'flat'
+                                ? `Rp ${settings.feeAmount.toLocaleString('id-ID')}`
+                                : `${settings.feeAmount}%`}{' '}
+                              (Universal)
+                            </strong>
+                          </span>
+                          <button
+                            type="button"
+                            data-testid={`btn-custom-fee-${method.id}`}
+                            onClick={() => {
+                              const defaultType =
+                                method.category === 'qris' || method.category === 'ewallet' ? 'percentage' : 'flat';
+                              const defaultAmount =
+                                method.id === 'qris' ? 0.7 : method.category === 'cstore' ? 5000 : settings.feeAmount;
+                              handleSetCustomMethodFee(method.id, defaultType, defaultAmount);
+                            }}
+                            className="px-2 py-0.5 rounded-md bg-[#EAF2ED] text-[#284230] text-[10px] font-bold border border-[#3F5A46]/20 hover:bg-[#d8e6db] transition-colors cursor-pointer"
+                          >
+                            + Atur Khusus
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 mt-2 border-t border-[rgba(42,40,35,0.06)] flex items-center justify-between text-[10px]">

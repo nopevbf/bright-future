@@ -33,6 +33,7 @@ import {
 import {
   subscribeToMaintenanceStatus,
   saveMaintenanceStatusToFirestore,
+  subscribeToMidtransSettings,
 } from './firebase';
 import { AuthTransitionOverlay } from './components/AuthTransitionOverlay';
 import {
@@ -120,11 +121,18 @@ export default function App() {
       setMaintenanceTargetTime(data.targetTimestamp || 0);
     });
 
+    const unsubscribeMidtrans = subscribeToMidtransSettings(() => {
+      // Global reactive event has been dispatched by firebase helper
+    });
+
     return () => {
       window.removeEventListener('bf_maintenance_status_changed', handleMaintenanceChange);
       window.removeEventListener('storage', handleMaintenanceChange);
       if (typeof unsubscribe === 'function') {
         unsubscribe();
+      }
+      if (typeof unsubscribeMidtrans === 'function') {
+        unsubscribeMidtrans();
       }
     };
   }, []);

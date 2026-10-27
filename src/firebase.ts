@@ -28,6 +28,10 @@ import firebaseConfig from '../firebase-applet-config.json';
 import { SubmittedRegistration, TutorRegistrationData } from './types';
 import { ManagedStudent } from './components/admin/studentData';
 import { MAINTENANCE_STORAGE_KEY, MAINTENANCE_TARGET_KEY } from './utils/maintenanceManager';
+import {
+  MidtransSettingsConfig,
+  STORAGE_KEY_MIDTRANS_SETTINGS,
+} from './utils/midtransSettings';
 
 export enum OperationType {
   CREATE = 'create',
@@ -2035,6 +2039,86 @@ export function subscribeToMaintenanceStatus(
     return () => {};
   }
 }
+
+export async function saveMidtransSettingsToFirestore(
+  settings: MidtransSettingsConfig
+): Promise<void> {
+  const docPath = 'system_settings/midtrans';
+  const payload: MidtransSettingsConfig = {
+    feeType: settings.feeType,
+    feeAmount: settings.feeAmount,
+    isCustomerFee: settings.isCustomerFee,
+    enabledMethods: settings.enabledMethods,
+    customMethodFees: settings.customMethodFees || {},
+    updatedAt: settings.updatedAt || new Date().toISOString(),
+    updatedBy: settings.updatedBy || 'admin',
+  };
+
+  try {
+    const docRef = doc(db, 'system_settings', 'midtrans');
+    await setDoc(docRef, payload, { merge: true });
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(STORAGE_KEY_MIDTRANS_SETTINGS, JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('bf_midtrans_settings_updated', { detail: payload }));
+    }
+  } catch (error) {
+    console.warn(`Firestore save error for ${docPath}:`, error);
+    // Graceful fallback to localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(STORAGE_KEY_MIDTRANS_SETTINGS, JSON.stringify(payload));
+      window.dispatchEvent(new CustomEvent('bf_midtrans_settings_updated', { detail: payload }));
+    }
+  }
+}
+
+export async function fetchMidtransSettingsFromFirestore(): Promise<MidtransSettingsConfig | null> {
+  try {
+    const docRef = doc(db, 'system_settings', 'midtrans');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as MidtransSettingsConfig;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(STORAGE_KEY_MIDTRANS_SETTINGS, JSON.stringify(data));
+        window.dispatchEvent(new CustomEvent('bf_midtrans_settings_updated', { detail: data }));
+      }
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Could not fetch midtrans settings from Firestore:', error);
+    return null;
+  }
+}
+
+export function subscribeToMidtransSettings(
+  onUpdate: (data: MidtransSettingsConfig) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const docRef = doc(db, 'system_settings', 'midtrans');
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as MidtransSettingsConfig;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(STORAGE_KEY_MIDTRANS_SETTINGS, JSON.stringify(data));
+            window.dispatchEvent(new CustomEvent('bf_midtrans_settings_updated', { detail: data }));
+          }
+          onUpdate(data);
+        }
+      },
+      (error) => {
+        console.warn('subscribeToMidtransSettings error:', error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToMidtransSettings listener:', err);
+    return () => {};
+  }
+}
+
 
 
 

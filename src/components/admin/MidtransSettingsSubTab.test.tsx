@@ -49,4 +49,42 @@ describe('MidtransSettingsSubTab Component (SQA-ISTQB & TDD)', () => {
 
     expect(screen.getByText(/Pengaturan Berhasil Disimpan/i)).toBeInTheDocument();
   });
+
+  it('TC-ADM-MSET-004: clicking + Atur Khusus configures custom per-method fee and persists it', () => {
+    render(<MidtransSettingsSubTab />);
+
+    // Click + Atur Khusus for QRIS
+    const qrisBtn = screen.getByTestId('btn-custom-fee-qris');
+    fireEvent.click(qrisBtn);
+
+    // Verify custom fee badge appears
+    expect(screen.getByText(/Fee Khusus Aktif/i)).toBeInTheDocument();
+
+    // Change custom fee value
+    const customInput = screen.getByTestId('input-custom-fee-qris');
+    fireEvent.change(customInput, { target: { value: '0.8' } });
+
+    // Click Simpan
+    const saveBtn = screen.getByRole('button', { name: /Simpan Pengaturan/i });
+    fireEvent.click(saveBtn);
+
+    expect(screen.getByText(/Pengaturan Berhasil Disimpan/i)).toBeInTheDocument();
+  });
+
+  it('TC-ADM-MSET-005: clicking Reset ke Universal restores method to default universal fee', () => {
+    render(<MidtransSettingsSubTab />);
+
+    // Open custom fee for QRIS
+    const qrisBtn = screen.getByTestId('btn-custom-fee-qris');
+    fireEvent.click(qrisBtn);
+    expect(screen.getByText(/Fee Khusus Aktif/i)).toBeInTheDocument();
+
+    // Click Reset ke Universal
+    const resetBtn = screen.getByTestId('reset-fee-qris');
+    fireEvent.click(resetBtn);
+
+    // Verify custom fee badge is gone and + Atur Khusus is back
+    expect(screen.queryByText(/Fee Khusus Aktif/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('btn-custom-fee-qris')).toBeInTheDocument();
+  });
 });

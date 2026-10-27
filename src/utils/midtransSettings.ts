@@ -10,11 +10,17 @@ export interface MidtransPaymentMethodConfig {
   iconType: 'qrcode' | 'building' | 'creditcard' | 'store';
 }
 
+export interface MethodFeeConfig {
+  feeType: 'flat' | 'percentage';
+  feeAmount: number;
+}
+
 export interface MidtransSettingsConfig {
   feeType: 'flat' | 'percentage';
   feeAmount: number;
   isCustomerFee: boolean;
   enabledMethods: string[];
+  customMethodFees?: Record<string, MethodFeeConfig>;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -139,6 +145,7 @@ export const DEFAULT_MIDTRANS_SETTINGS: MidtransSettingsConfig = {
   feeAmount: 4000,
   isCustomerFee: true,
   enabledMethods: ['qris', 'bca_va', 'bri_va', 'mandiri_va', 'bni_va'],
+  customMethodFees: {},
 };
 
 /**
@@ -157,6 +164,9 @@ export function getMidtransSettings(): MidtransSettingsConfig {
       enabledMethods: Array.isArray(parsed.enabledMethods) && parsed.enabledMethods.length > 0
         ? parsed.enabledMethods
         : [...DEFAULT_MIDTRANS_SETTINGS.enabledMethods],
+      customMethodFees: parsed.customMethodFees && typeof parsed.customMethodFees === 'object'
+        ? parsed.customMethodFees
+        : {},
       updatedAt: parsed.updatedAt,
       updatedBy: parsed.updatedBy,
     };
@@ -179,11 +189,12 @@ export function saveMidtransSettings(settings: MidtransSettingsConfig): void {
 }
 
 /**
- * Menghitung biaya layanan Midtrans (Flat atau Persentase) berdasarkan nominal dasar.
+ * Menghitung biaya layanan Midtrans (Flat atau Persentase) berdasarkan nominal dasar dan metode (opsional).
  */
 export function calculateMidtransFee(
   baseAmount: number,
-  settings: MidtransSettingsConfig = getMidtransSettings()
+  settings: MidtransSettingsConfig = getMidtransSettings(),
+  methodId?: string
 ): CalculatedMidtransFee {
   const safeBase = Math.max(0, Math.round(baseAmount || 0));
 
@@ -197,11 +208,16 @@ export function calculateMidtransFee(
     };
   }
 
+  // Cek apakah ada biaya kustom per metode pembayaran
+  const customConfig = methodId && settings.customMethodFees ? settings.customMethodFees[methodId] : undefined;
+  const effectiveFeeType = customConfig ? customConfig.feeType : settings.feeType;
+  const effectiveFeeAmount = customConfig ? Math.max(0, customConfig.feeAmount) : settings.feeAmount;
+
   let feeAmount = 0;
-  if (settings.feeType === 'percentage') {
-    feeAmount = Math.round((safeBase * settings.feeAmount) / 100);
+  if (effectiveFeeType === 'percentage') {
+    feeAmount = Math.round((safeBase * effectiveFeeAmount) / 100);
   } else {
-    feeAmount = Math.round(settings.feeAmount);
+    feeAmount = Math.round(effectiveFeeAmount);
   }
 
   const grandTotal = safeBase + feeAmount;

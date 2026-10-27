@@ -8,6 +8,11 @@ import {
   getActivePaymentMethods,
   MidtransSettingsConfig,
 } from './midtransSettings';
+import {
+  saveMidtransSettingsToFirestore,
+  fetchMidtransSettingsFromFirestore,
+  subscribeToMidtransSettings,
+} from '../firebase';
 
 describe('Midtrans Settings & Fee Calculation (SQA-ISTQB & TDD)', () => {
   beforeEach(() => {
@@ -111,6 +116,56 @@ describe('Midtrans Settings & Fee Calculation (SQA-ISTQB & TDD)', () => {
       expect(resultNeg.feeAmount).toBe(0);
       expect(resultNeg.grandTotal).toBe(0);
     });
+
+    it('TC-MSET-PER-001: calculates custom per-method fee when configured, while others use universal fee', () => {
+      const settings: MidtransSettingsConfig = {
+        feeType: 'flat',
+        feeAmount: 4000, // Universal: Rp 4.000
+        isCustomerFee: true,
+        enabledMethods: ['qris', 'bca_va', 'indomaret'],
+        customMethodFees: {
+          qris: { feeType: 'percentage', feeAmount: 0.7 }, // QRIS: 0.7%
+          indomaret: { feeType: 'flat', feeAmount: 5000 },  // Indomaret: Rp 5.000
+        },
+      };
+
+      // 1. QRIS: 280.000 * 0.7% = 1.960
+      const qrisFee = calculateMidtransFee(280000, settings, 'qris');
+      expect(qrisFee.feeAmount).toBe(1960);
+      expect(qrisFee.grandTotal).toBe(281960);
+      expect(qrisFee.formattedFee).toBe('Rp 1.960');
+
+      // 2. Indomaret: flat 5000
+      const indomaretFee = calculateMidtransFee(280000, settings, 'indomaret');
+      expect(indomaretFee.feeAmount).toBe(5000);
+      expect(indomaretFee.grandTotal).toBe(285000);
+
+      // 3. BCA VA: fallback to universal Rp 4.000
+      const bcaFee = calculateMidtransFee(280000, settings, 'bca_va');
+      expect(bcaFee.feeAmount).toBe(4000);
+      expect(bcaFee.grandTotal).toBe(284000);
+
+      // 4. No methodId provided: fallback to universal Rp 4.000
+      const defaultFee = calculateMidtransFee(280000, settings);
+      expect(defaultFee.feeAmount).toBe(4000);
+    });
+
+    it('TC-MSET-PER-002: custom per-method fee returns 0 when isCustomerFee is false', () => {
+      const settings: MidtransSettingsConfig = {
+        feeType: 'flat',
+        feeAmount: 4000,
+        isCustomerFee: false, // Absorbed by bimbel
+        enabledMethods: ['qris', 'indomaret'],
+        customMethodFees: {
+          qris: { feeType: 'percentage', feeAmount: 0.7 },
+          indomaret: { feeType: 'flat', feeAmount: 5000 },
+        },
+      };
+
+      const qrisFee = calculateMidtransFee(280000, settings, 'qris');
+      expect(qrisFee.feeAmount).toBe(0);
+      expect(qrisFee.grandTotal).toBe(280000);
+    });
   });
 
   describe('Active Methods Filter & Storage Persistence', () => {
@@ -146,6 +201,39 @@ describe('Midtrans Settings & Fee Calculation (SQA-ISTQB & TDD)', () => {
       const active = getActivePaymentMethods(settings);
       expect(active.length).toBe(2);
       expect(active.map((a) => a.id)).toEqual(['qris', 'bri_va']);
+    });
+  });
+
+  describe('Firestore Midtrans Synchronization (ISTQB Integration Tests)', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('TC-MSET-FS-001: saveMidtransSettingsToFirestore persists settings and updates localStorage cache', async () => {
+      const customConfig: MidtransSettingsConfig = {
+        feeType: 'percentage',
+        feeAmount: 2.0,
+        isCustomerFee: true,
+        enabledMethods: ['qris', 'gopay', 'bca_va'],
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'Admin Test',
+      };
+
+      await saveMidtransSettingsToFirestore(customConfig);
+
+      const local = getMidtransSettings();
+      expect(local.feeType).toBe('percentage');
+      expect(local.feeAmount).toBe(2.0);
+      expect(local.enabledMethods).toEqual(['qris', 'gopay', 'bca_va']);
+      expect(local.updatedBy).toBe('Admin Test');
+    });
+
+    it('TC-MSET-FS-002: subscribeToMidtransSettings attaches real-time listener safely', () => {
+      const callback = vi.fn();
+      const unsubscribe = subscribeToMidtransSettings(callback);
+
+      expect(typeof unsubscribe).toBe('function');
+      unsubscribe();
     });
   });
 });
