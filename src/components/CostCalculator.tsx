@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, CheckCircle2, Sparkles, ArrowRight, X } from 'lucide-react';
+import { Calculator, ArrowRight, X } from 'lucide-react';
 import { EducationalLevel } from '../types';
+import { calculateDynamicTutoringFee, LEVEL_PRICING } from '../utils/pricing';
 
 interface CostCalculatorProps {
   onApplyPlan?: (level: EducationalLevel, sessionsPerWeek: number, hasSiblingDiscount: boolean) => void;
   isModal?: boolean;
   onClose?: () => void;
 }
-
-const LEVEL_PRICING: Record<EducationalLevel, number> = {
-  tk: 35000,
-  sd: 35000,
-  smp: 45000,
-  sma: 55000,
-};
 
 export const CostCalculator: React.FC<CostCalculatorProps> = ({
   onApplyPlan,
@@ -24,11 +18,17 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
   const [sessionsPerWeek, setSessionsPerWeek] = useState<number>(2);
   const [hasSiblingDiscount, setHasSiblingDiscount] = useState<boolean>(false);
 
-  const pricePerSession = LEVEL_PRICING[level];
-  const sessionsPerMonth = sessionsPerWeek * 4;
-  const rawTotal = sessionsPerMonth * pricePerSession;
-  const discountAmount = hasSiblingDiscount ? Math.round(rawTotal * 0.1) : 0;
-  const finalTotal = rawTotal - discountAmount;
+  const dynamicFee = calculateDynamicTutoringFee({
+    level,
+    sessionsPerWeek,
+    hasSiblingDiscount,
+  });
+
+  const pricePerSession = dynamicFee.sessionRate || LEVEL_PRICING[level] || 35000;
+  const sessionsPerMonth = dynamicFee.sessionsPerMonth;
+  const rawTotal = dynamicFee.subtotal;
+  const discountAmount = dynamicFee.discountAmount;
+  const finalTotal = dynamicFee.grandTotal;
 
   // Close on Escape key press
   useEffect(() => {
@@ -248,25 +248,23 @@ export const CostCalculator: React.FC<CostCalculatorProps> = ({
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="kalkulator">
-      <div className="liquid-glass rounded-[24px] sm:rounded-[28px] p-5 sm:p-8 border border-white/90 shadow-glass">
-        <div className="flex items-center justify-between pb-4 mb-6 border-b border-[rgba(42,40,35,0.08)]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#EAF2ED] text-[#3F5A46] flex items-center justify-center shrink-0">
-              <Calculator className="w-5 h-5 text-[#3F5A46]" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-[#2A2823] font-display">
-                Kalkulator Simulasi Biaya Les Privat
-              </h3>
-              <p className="text-xs text-[#6B675F]">
-                Mulai Rp 35.000 / sesi 70 menit • Transparan tanpa biaya tersembunyi
-              </p>
-            </div>
+      <div className="rounded-[28px] sm:rounded-[32px] bg-white/70 border border-white/90 p-5 sm:p-8 md:p-10 shadow-xs relative overflow-hidden backdrop-blur-xs">
+        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF2ED] text-[#3F5A46] text-xs font-bold mb-3 border border-[#3F5A46]/20">
+            <Calculator className="w-3.5 h-3.5" />
+            <span>Kalkulator Transparan &amp; Fleksibel</span>
           </div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#2A2823] font-display tracking-tight">
+            Hitung Estimasi Biaya Les Privat Sesuai Kebutuhan
+          </h2>
+          <p className="text-[#6B675F] text-xs sm:text-sm mt-2 leading-relaxed">
+            Sesuaikan jenjang sekolah dan frekuensi kedatangan tutor setiap minggu ke rumah Anda.
+            Tanpa biaya registrasi, tanpa biaya transportasi tambahan di Magelang.
+          </p>
         </div>
+
         {calculatorBody}
       </div>
     </section>
   );
 };
-

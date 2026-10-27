@@ -7,6 +7,10 @@ import {
   checkStudentWhatsappDuplicate,
 } from '../utils/whatsappValidation';
 import {
+  parseSessionsPerWeek,
+  calculateDynamicTutoringFee,
+} from '../utils/pricing';
+import {
   Send,
   CheckCircle2,
   Copy,
@@ -25,12 +29,24 @@ import {
 interface RegistrationFormProps {
   initialLevel?: EducationalLevel | '';
   initialNotes?: string;
+  initialSessionsPerWeek?: number;
+  initialHasSiblingDiscount?: boolean;
   onOpenMidtransDemo: (submission: SubmittedRegistration) => void;
+}
+
+function getScheduleForSessionsCount(sessions: number): string[] {
+  if (sessions <= 1) return ['sabtu'];
+  if (sessions === 2) return ['senin-rabu'];
+  if (sessions === 3) return ['senin', 'rabu', 'jumat'];
+  if (sessions === 4) return ['senin', 'selasa', 'kamis', 'jumat'];
+  return ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
 }
 
 export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   initialLevel = '',
   initialNotes = '',
+  initialSessionsPerWeek,
+  initialHasSiblingDiscount,
   onOpenMidtransDemo,
 }) => {
   const [formData, setFormData] = useState<RegistrationFormData>({
@@ -40,9 +56,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     whatsapp: '',
     homeAddress: '',
     addressNotes: '',
-    selectedSchedule: ['senin-rabu'],
+    selectedSchedule: initialSessionsPerWeek
+      ? getScheduleForSessionsCount(initialSessionsPerWeek)
+      : ['senin-rabu'],
     specialNotes: initialNotes || '',
-    hasSiblingDiscount: false,
+    hasSiblingDiscount: Boolean(initialHasSiblingDiscount),
     paymentMethod: 'midtrans',
   });
 
@@ -79,6 +97,31 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setFormData((prev) => ({ ...prev, specialNotes: initialNotes }));
     }
   }, [initialNotes]);
+
+  React.useEffect(() => {
+    if (initialSessionsPerWeek !== undefined) {
+      setFormData((prev) => ({
+        ...prev,
+        selectedSchedule: getScheduleForSessionsCount(initialSessionsPerWeek),
+      }));
+    }
+  }, [initialSessionsPerWeek]);
+
+  React.useEffect(() => {
+    if (initialHasSiblingDiscount !== undefined) {
+      setFormData((prev) => ({
+        ...prev,
+        hasSiblingDiscount: Boolean(initialHasSiblingDiscount),
+      }));
+    }
+  }, [initialHasSiblingDiscount]);
+
+  const sessionsPerWeek = parseSessionsPerWeek(formData.selectedSchedule);
+  const dynamicFee = calculateDynamicTutoringFee({
+    level: formData.level,
+    sessionsPerWeek,
+    hasSiblingDiscount: formData.hasSiblingDiscount,
+  });
 
   const handleWhatsappChange = async (val: string) => {
     const rawVal = val;
@@ -144,32 +187,45 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   const handleScheduleToggle = (scheduleId: string) => {
     setFormData((prev) => {
-      const exists = prev.selectedSchedule.includes(scheduleId);
+      let current = [...prev.selectedSchedule];
+
+      const dayPairs: Record<string, string[]> = {
+        'senin-rabu': ['senin', 'rabu'],
+        'selasa-kamis': ['selasa', 'kamis'],
+        'jumat-sabtu': ['jumat', 'sabtu'],
+        'weekend': ['sabtu', 'minggu'],
+      };
+
+      const parentPair = Object.keys(dayPairs).find(
+        (pairKey) => current.includes(pairKey) && dayPairs[pairKey].includes(scheduleId)
+      );
+
+      if (parentPair) {
+        current = current.filter((s) => s !== parentPair);
+        const unpacked = dayPairs[parentPair];
+        for (const d of unpacked) {
+          if (!current.includes(d)) current.push(d);
+        }
+      }
+
+      const exists = current.includes(scheduleId);
       if (exists) {
-        if (prev.selectedSchedule.length === 1) return prev;
+        if (current.length === 1) return prev;
         return {
           ...prev,
-          selectedSchedule: prev.selectedSchedule.filter((s) => s !== scheduleId),
+          selectedSchedule: current.filter((s) => s !== scheduleId),
         };
       } else {
         return {
           ...prev,
-          selectedSchedule: [...prev.selectedSchedule, scheduleId],
+          selectedSchedule: [...current, scheduleId],
         };
       }
     });
   };
 
   const calculateTotal = (): number => {
-    let rate = 35000;
-    if (formData.level === 'smp') rate = 45000;
-    if (formData.level === 'sma') rate = 55000;
-
-    const baseAmount = rate * 8;
-    if (formData.hasSiblingDiscount) {
-      return baseAmount * 0.9;
-    }
-    return baseAmount;
+    return dynamicFee.grandTotal;
   };
 
   const isFormValid = Boolean(
@@ -249,10 +305,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     if (!submittedData) return;
     const paymentText =
       submittedData.paymentMethod === 'manual_transfer'
-        ? 'Transfer Manual Bank Jateng (3014266266 a.n Monica Yuliana)'
-        : 'Midtrans Snap (QRIS, VA BCA, Mandiri, BNI, BRI, GoPay)';
+        ? 'Transfer Manual Bank Jateng (Rekening 3014266266 a.n Monica Yuliana)'
+        : 'Midtrans Snap Real-time Gateway';
 
-    const text = `*BUKTI PENDAFTARAN BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${paymentText}\nStatus: Menunggu Pembayaran / Verifikasi Admin`;
+    const text = `*BUKTI PENDAFTARAN SISWA BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName}\nJenjang: ${submittedData.level.toUpperCase()}\nOrang Tua/Wali: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Rumah: ${submittedData.homeAddress}\nJadwal Les: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTotal SPP Bulanan: Rp ${submittedData.totalAmount.toLocaleString('id-ID')} (${dynamicFee.sessionsPerMonth} Sesi)\nMetode Bayar: ${paymentText}\nStatus: Menunggu Verifikasi Admin\nWaktu Daftar: ${submittedData.submittedAt}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -261,32 +317,31 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const handleCopyRekening = () => {
     navigator.clipboard.writeText('3014266266');
     setCopiedRekening(true);
-    setTimeout(() => setCopiedRekening(false), 2500);
+    setTimeout(() => setCopiedRekening(false), 2000);
   };
 
   return (
-    <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-14 scroll-mt-28" id="form-daftar">
-      <div className="liquid-glass rounded-[28px] p-6 sm:p-10 border border-white/90 shadow-glass relative overflow-hidden">
-        {/* Background Decorative Element */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#6F8F76]/10 rounded-full blur-2xl pointer-events-none" />
-
-        {/* Section Header */}
-        <div className="text-center max-w-xl mx-auto mb-8">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EFC9AE]/50 text-[#C1683F] text-xs font-bold uppercase mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#C1683F]" />
-            <span>Pendaftaran Periode Baru 2026</span>
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="daftar">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF2ED] text-[#3F5A46] text-xs font-bold mb-3 border border-[#3F5A46]/20">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Formulir Penerimaan Siswa Baru House-to-House</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2A2823] font-display">
             Formulir Pendaftaran Siswa Baru
           </h2>
           <p className="text-[#6B675F] text-xs sm:text-sm mt-1 leading-relaxed">
-            Lengkapi data di bawah untuk penjadwalan kunjungan perdana & evaluasi diagnostik gratis
-            di rumah Anda. ID Siswa dan invoice dibuat otomatis.
+            Daftarkan putra-putri Anda untuk bimbingan belajar privat ke rumah di seluruh Magelang.
+            Tutor terbaik kami siap datang ke rumah Anda.
           </p>
         </div>
 
         {!submittedData ? (
-          <form onSubmit={handleSubmit} className="space-y-5" id="registration-form">
+          <form
+            onSubmit={handleSubmit}
+            className="p-5 sm:p-7 rounded-[24px] bg-white border border-[rgba(42,40,35,0.08)] shadow-sm space-y-4"
+          >
             {/* Row 1: Student Name & Level */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -306,25 +361,25 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-[#6F8F76]" />
-                  <span>Jenjang Pendidikan</span>
+                  <Sparkles className="w-3.5 h-3.5 text-[#6F8F76]" />
+                  <span>Jenjang Pendidikan Sekolah</span>
                 </label>
                 <select
                   value={formData.level}
                   onChange={(e) =>
                     setFormData({ ...formData, level: e.target.value as EducationalLevel })
                   }
-                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46] cursor-pointer"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[rgba(42,40,35,0.14)] bg-white text-sm text-[#2A2823] focus:outline-none focus:ring-2 focus:ring-[#3F5A46]"
                 >
-                  <option value="tk">PAUD / TK (Calistung Ceria • 70 Mnt)</option>
-                  <option value="sd">SD / MI (Tematik, Matematika, IPA • 70 Mnt)</option>
-                  <option value="smp">SMP / MTs (Matematika, IPA, B. Inggris • 70 Mnt)</option>
-                  <option value="sma">SMA / SMK / UTBK (Saintek/Soshum/SNBT • 70 Mnt)</option>
+                  <option value="tk">TK / PAUD (Rp 35.000 / sesi 70 menit)</option>
+                  <option value="sd">SD Kelas 1-6 (Rp 35.000 / sesi 70 menit)</option>
+                  <option value="smp">SMP Kelas 7-9 (Rp 45.000 / sesi 70 menit)</option>
+                  <option value="sma">SMA / SMK Kelas 10-12 (Rp 55.000 / sesi 70 menit)</option>
                 </select>
               </div>
             </div>
 
-            {/* Row 2: Parent Name & WhatsApp Phone */}
+            {/* Row 2: Parent Name & WhatsApp */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
@@ -348,13 +403,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     <span>Nomor WhatsApp Aktif</span>
                   </span>
                   {whatsappStatus.isChecking && (
-                    <span className="text-[10px] text-[#6B675F] flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Mengecek...
+                    <span className="text-[10px] text-[#6F8F76] flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Memeriksa...
                     </span>
                   )}
                   {whatsappStatus.isAvailable && (
-                    <span className="text-[10px] text-[#3F5A46] font-bold">
-                      ✓ Nomor Tersedia
+                    <span className="text-[10px] text-emerald-600 flex items-center gap-0.5 font-bold">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Nomor Tersedia
                     </span>
                   )}
                 </label>
@@ -363,19 +420,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   required
                   value={formData.whatsapp}
                   onChange={(e) => handleWhatsappChange(e.target.value)}
-                  placeholder="081234567890"
+                  placeholder="081234567890 (Wajib WhatsApp Aktif)"
                   className={`w-full px-4 py-2.5 rounded-xl border text-sm text-[#2A2823] placeholder-[#6B675F]/50 focus:outline-none focus:ring-2 ${
                     whatsappStatus.isDuplicate
-                      ? 'border-red-500 bg-red-50/50 focus:ring-red-500'
+                      ? 'border-red-400 bg-red-50/40 focus:ring-red-500'
                       : whatsappStatus.isAvailable
-                      ? 'border-[#3F5A46] bg-[#EAF2ED]/30 focus:ring-[#3F5A46]'
+                      ? 'border-emerald-400 bg-emerald-50/30 focus:ring-emerald-600'
                       : 'border-[rgba(42,40,35,0.14)] bg-white focus:ring-[#3F5A46]'
                   }`}
                 />
                 {whatsappStatus.errorMessage && (
                   <p
-                    className={`text-[11px] mt-1 ${
-                      whatsappStatus.isDuplicate ? 'text-red-600 font-semibold' : 'text-[#C1683F]'
+                    className={`text-[10.5px] mt-1 ${
+                      whatsappStatus.isDuplicate ? 'text-red-600 font-semibold' : 'text-amber-700'
                     }`}
                   >
                     {whatsappStatus.errorMessage}
@@ -407,9 +464,47 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <Calendar className="w-3.5 h-3.5 text-[#6F8F76]" />
                   <span>Pilihan Hari Belajar (Bisa Lebih dari 1)</span>
                 </span>
-                <span className="text-[10px] text-[#6B675F]">Pilih minimal 1 sesi</span>
+                <span className="text-[10px] text-[#6B675F] font-semibold">
+                  {sessionsPerWeek > 0
+                    ? `${sessionsPerWeek} Sesi / Mgg (${dynamicFee.sessionsPerMonth} Sesi / Bln)`
+                    : 'Pilih minimal 1 sesi'}
+                </span>
               </label>
 
+              {/* Quick Frequency Presets */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
+                {[
+                  { count: 1, label: '1 Sesi / Mgg', sub: '4 Sesi / Bln', days: ['sabtu'] },
+                  { count: 2, label: '2 Sesi / Mgg', sub: '8 Sesi (Standar)', days: ['senin-rabu'] },
+                  { count: 3, label: '3 Sesi / Mgg', sub: '12 Sesi / Bln', days: ['senin', 'rabu', 'jumat'] },
+                  { count: 4, label: '4 Sesi / Mgg', sub: '16 Sesi Intensif', days: ['senin', 'selasa', 'kamis', 'jumat'] },
+                ].map((preset) => {
+                  const isActive = sessionsPerWeek === preset.count;
+                  return (
+                    <button
+                      key={preset.count}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, selectedSchedule: preset.days })}
+                      className={`min-h-[46px] py-2 px-2 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                        isActive
+                          ? 'bg-[#C1683F] border-[#C1683F] text-white shadow-xs ring-2 ring-[#C1683F]/20'
+                          : 'bg-[#FAF7F1] border-[rgba(42,40,35,0.08)] text-[#2A2823] hover:bg-white'
+                      }`}
+                    >
+                      <span className="text-xs font-bold leading-tight">{preset.label}</span>
+                      <span
+                        className={`text-[9.5px] leading-tight mt-0.5 ${
+                          isActive ? 'text-white/85' : 'text-[#6B675F]'
+                        }`}
+                      >
+                        {preset.sub}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Main Schedule Slot Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 {[
                   { id: 'senin-rabu', label: 'Senin - Rabu', sub: 'Sore (15:30 WIB)' },
@@ -437,6 +532,78 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   );
                 })}
               </div>
+
+              {/* Flexible Individual Days Selection */}
+              <div className="mt-2.5 pt-2 border-t border-[rgba(42,40,35,0.06)]">
+                <div className="text-[10.5px] font-semibold text-[#6B675F] mb-1.5 flex items-center justify-between">
+                  <span>Atau Pilih Hari Tertentu (Bisa Dipilih Lebih dari 1 Hari):</span>
+                  <span className="text-[10px] font-bold text-[#3F5A46]">
+                    {sessionsPerWeek} Hari / Sesi Terpilih
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'senin', label: 'Senin' },
+                    { id: 'selasa', label: 'Selasa' },
+                    { id: 'rabu', label: 'Rabu' },
+                    { id: 'kamis', label: 'Kamis' },
+                    { id: 'jumat', label: 'Jumat' },
+                    { id: 'sabtu', label: 'Sabtu' },
+                    { id: 'minggu', label: 'Minggu' },
+                  ].map((day) => {
+                    const isSelected =
+                      formData.selectedSchedule.includes(day.id) ||
+                      (formData.selectedSchedule.includes('senin-rabu') &&
+                        (day.id === 'senin' || day.id === 'rabu')) ||
+                      (formData.selectedSchedule.includes('selasa-kamis') &&
+                        (day.id === 'selasa' || day.id === 'kamis')) ||
+                      (formData.selectedSchedule.includes('jumat-sabtu') &&
+                        (day.id === 'jumat' || day.id === 'sabtu')) ||
+                      (formData.selectedSchedule.includes('weekend') &&
+                        (day.id === 'sabtu' || day.id === 'minggu'));
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => handleScheduleToggle(day.id)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#3F5A46] text-white shadow-xs'
+                            : 'bg-white border border-[rgba(42,40,35,0.12)] text-[#2A2823] hover:bg-[#FAF7F1]'
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Checkbox Diskon Saudara Kandung 10% */}
+            <div>
+              <label
+                htmlFor="form-sibling-discount"
+                className="p-3 rounded-xl bg-white border border-[rgba(42,40,35,0.08)] flex items-center justify-between gap-3 cursor-pointer hover:bg-white/90 transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <input
+                    id="form-sibling-discount"
+                    type="checkbox"
+                    checked={Boolean(formData.hasSiblingDiscount)}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hasSiblingDiscount: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded text-[#3F5A46] focus:ring-[#3F5A46] cursor-pointer shrink-0 accent-[#3F5A46]"
+                  />
+                  <span className="text-xs text-[#2A2823] font-medium leading-snug">
+                    Punya 2 anak / saudara yang les bersamaan?
+                  </span>
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-bold text-[#C1683F] bg-[#EFC9AE]/50 px-2 py-0.5 rounded-full shrink-0">
+                  Hemat 10%
+                </span>
+              </label>
             </div>
 
             {/* Row 5: Notes */}
@@ -582,27 +749,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <div className="p-3.5 rounded-xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-[#3F5A46] uppercase tracking-wide">
-                    Estimasi Paket 8 Sesi:
+                    Estimasi Paket {dynamicFee.sessionsPerMonth} Sesi:
                   </span>
                   <span className="text-[#6B675F]">
-                    {formData.level === 'tk' || formData.level === 'sd'
-                      ? 'Tarif Rp 35.000 / sesi'
-                      : formData.level === 'smp'
-                      ? 'Tarif Rp 45.000 / sesi'
-                      : 'Tarif Rp 55.000 / sesi'}
+                    Tarif Rp {dynamicFee.sessionRate.toLocaleString('id-ID')} / sesi ({dynamicFee.sessionsPerWeek} Sesi / Mgg)
                   </span>
                 </div>
-                <div className="font-bold text-[#2A2823]">
-                  SPP Bulanan:{' '}
+                <div className="font-bold text-[#2A2823] flex items-center gap-1.5">
+                  {formData.hasSiblingDiscount && dynamicFee.discountAmount > 0 && (
+                    <span className="text-[11px] text-[#6B675F] line-through">
+                      Rp {dynamicFee.subtotal.toLocaleString('id-ID')}
+                    </span>
+                  )}
+                  <span>SPP Bulanan:</span>
                   <span className="text-[#C1683F] font-extrabold text-sm">
-                    Rp{' '}
-                    {(
-                      formData.level === 'tk' || formData.level === 'sd'
-                        ? 35000 * 8
-                        : formData.level === 'smp'
-                        ? 45000 * 8
-                        : 55000 * 8
-                    ).toLocaleString('id-ID')}
+                    Rp {dynamicFee.grandTotal.toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
@@ -680,7 +841,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 <div>
                   <div className="text-[10px] text-[#6B675F] font-bold uppercase">Program Belajar</div>
                   <div className="font-bold text-[#2A2823] text-sm mt-0.5 uppercase">
-                    {submittedData.level} (70 Mnt/Sesi)
+                    {submittedData.level} ({dynamicFee.sessionsPerMonth} Sesi/Bln)
                   </div>
                 </div>
 
@@ -699,7 +860,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
                 <div>
                   <span className="font-semibold text-[#2A2823]">Jadwal Terpilih:</span>{' '}
-                  {submittedData.selectedSchedule.join(', ')} • Wali: {submittedData.parentName} (
+                  {submittedData.selectedSchedule.join(', ')} ({dynamicFee.sessionsPerWeek} Sesi / Mgg) • Wali: {submittedData.parentName} (
                   {submittedData.whatsapp})
                 </div>
                 <div className="mt-1">
@@ -824,7 +985,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
               <a
                 href={`https://wa.me/6285173230198?text=${encodeURIComponent(
-                  `*KONFIRMASI PENDAFTARAN SISWA BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')}\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${submittedData.paymentMethod === 'manual_transfer' ? 'Transfer Bank Jateng (3014266266 a.n Monica Yuliana)' : 'Midtrans Snap Gateway'}\nStatus: Menunggu Konfirmasi Admin`
+                  `*KONFIRMASI PENDAFTARAN SISWA BRIGHT FUTURE*\nNo. Siswa: ${submittedData.studentId}\nNama Siswa: ${submittedData.studentName} (${submittedData.level.toUpperCase()})\nOrang Tua: ${submittedData.parentName}\nWhatsApp: ${submittedData.whatsapp}\nAlamat Kunjungan: ${submittedData.homeAddress}\nJadwal Pilihan: ${submittedData.selectedSchedule.join(', ')} (${dynamicFee.sessionsPerWeek} Sesi/Mgg • ${dynamicFee.sessionsPerMonth} Sesi/Bln)\nNo. Invoice: ${submittedData.invoiceNumber}\nTagihan SPP: Rp ${submittedData.totalAmount.toLocaleString('id-ID')}\nMetode Pembayaran: ${submittedData.paymentMethod === 'manual_transfer' ? 'Transfer Bank Jateng (3014266266 a.n Monica Yuliana)' : 'Midtrans Snap Gateway'}\nStatus: Menunggu Konfirmasi Admin`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -209,3 +209,85 @@ describe('RegistrationForm Payment Method Selection (ISTQB & TDD)', () => {
     expect(screen.getByRole('button', { name: /Kirim Pendaftaran/i })).toBeInTheDocument();
   });
 });
+
+describe('Dynamic Schedule & Fee Synchronization (SQA-ISTQB & TDD)', () => {
+  it('TC-REG-SCH-001: adjusts price when in 1 week it is LESS than 2 sessions (1 session/week = 4 sessions/month)', async () => {
+    render(
+      <RegistrationForm
+        initialLevel="sd"
+        onOpenMidtransDemo={vi.fn()}
+      />
+    );
+
+    // Click 1 Sesi / Mgg preset button
+    const singleSessionBtn = screen.getByRole('button', { name: /1 Sesi \/ Mgg/i });
+    fireEvent.click(singleSessionBtn);
+
+    // Live fee preview should show Estimasi Paket 4 Sesi and Rp 140.000 (35k * 4)
+    expect(screen.getByText(/Estimasi Paket 4 Sesi/i)).toBeInTheDocument();
+    expect(screen.getByText(/140\.000/)).toBeInTheDocument();
+  });
+
+  it('TC-REG-SCH-002: adjusts price for standard 2 sessions/week (8 sessions/month)', async () => {
+    render(
+      <RegistrationForm
+        initialLevel="sd"
+        onOpenMidtransDemo={vi.fn()}
+      />
+    );
+
+    const standardSessionBtn = screen.getByRole('button', { name: /2 Sesi \/ Mgg/i });
+    fireEvent.click(standardSessionBtn);
+
+    // Live fee preview should show Estimasi Paket 8 Sesi and Rp 280.000 (35k * 8)
+    expect(screen.getByText(/Estimasi Paket 8 Sesi/i)).toBeInTheDocument();
+    expect(screen.getByText(/280\.000/)).toBeInTheDocument();
+  });
+
+  it('TC-REG-SCH-003: adjusts price when in 1 week it is MORE than 2 sessions (e.g. 3 sessions = 12 sessions/month)', async () => {
+    render(
+      <RegistrationForm
+        initialLevel="smp"
+        onOpenMidtransDemo={vi.fn()}
+      />
+    );
+
+    const tripleSessionBtn = screen.getByRole('button', { name: /3 Sesi \/ Mgg/i });
+    fireEvent.click(tripleSessionBtn);
+
+    // Live fee preview for SMP (45k * 12) = Rp 540.000
+    expect(screen.getByText(/Estimasi Paket 12 Sesi/i)).toBeInTheDocument();
+    expect(screen.getByText(/540\.000/)).toBeInTheDocument();
+  });
+
+  it('TC-REG-SCH-004: toggles sibling discount (10%) dynamically in the form', async () => {
+    render(
+      <RegistrationForm
+        initialLevel="sd"
+        onOpenMidtransDemo={vi.fn()}
+      />
+    );
+
+    // By default 2 sessions (8 sessions @ 35k = 280.000)
+    const discountCheckbox = screen.getByLabelText(/Punya 2 anak \/ saudara yang les bersamaan/i);
+    fireEvent.click(discountCheckbox);
+
+    // Discount 10% of 280.000 = 28.000, Total = 252.000
+    expect(screen.getByText(/252\.000/)).toBeInTheDocument();
+  });
+
+  it('TC-CALC-SYNC-001: accepts initialSessionsPerWeek and initialHasSiblingDiscount from calculator plan', async () => {
+    render(
+      <RegistrationForm
+        initialLevel="sma"
+        initialSessionsPerWeek={3}
+        initialHasSiblingDiscount={true}
+        onOpenMidtransDemo={vi.fn()}
+      />
+    );
+
+    // SMA (55k) * 12 sessions = 660.000 - 10% (66.000) = 594.000
+    expect(screen.getByText(/Estimasi Paket 12 Sesi/i)).toBeInTheDocument();
+    expect(screen.getByText(/594\.000/)).toBeInTheDocument();
+  });
+});

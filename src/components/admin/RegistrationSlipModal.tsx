@@ -1,5 +1,6 @@
 import React from 'react';
 import { FirestoreRegistrationDoc } from '../../firebase';
+import { parseSessionsPerWeek } from '../../utils/pricing';
 
 interface RegistrationSlipModalProps {
   registration: FirestoreRegistrationDoc | null;
@@ -15,6 +16,8 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
   if (!registration) return null;
 
   const isVerified = registration.paymentStatus === 'verified';
+  const sessionsPerWeek = parseSessionsPerWeek(registration.selectedSchedule || []);
+  const monthlySessions = sessionsPerWeek > 0 ? sessionsPerWeek * 4 : 8;
   const formattedDate = registration.createdAt
     ? new Date(registration.createdAt).toLocaleDateString('id-ID', {
         day: 'numeric',
@@ -186,7 +189,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
                 <tr>
                   <td className="py-2.5 px-4">
                     <span className="font-bold text-[#2A2823] block">
-                      Paket 8 Sesi Bulanan (Tatap Muka House-to-House)
+                      Paket {monthlySessions} Sesi Bulanan (Tatap Muka House-to-House)
                     </span>
                     <span className="text-[10px] text-[#6B675F]">
                       Tutor Guru Privat Terakreditasi • Modul &amp; LKPD Fisik Gratis

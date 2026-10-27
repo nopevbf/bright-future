@@ -62,6 +62,8 @@ export default function App() {
   const [isTutorRegisterOpen, setIsTutorRegisterOpen] = useState<boolean>(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState<boolean>(false);
   const [selectedLevel, setSelectedLevel] = useState<EducationalLevel | ''>('sd');
+  const [selectedSessionsPerWeek, setSelectedSessionsPerWeek] = useState<number | undefined>(undefined);
+  const [selectedSiblingDiscount, setSelectedSiblingDiscount] = useState<boolean | undefined>(undefined);
   const [tutorNotes, setTutorNotes] = useState<string>('');
   const [activeMidtransSubmission, setActiveMidtransSubmission] =
     useState<SubmittedRegistration | null>(null);
@@ -275,10 +277,12 @@ export default function App() {
 
   const handleApplyCalculatedPlan = (
     level: EducationalLevel,
-    _sessions: number,
-    _discount: boolean
+    sessions: number,
+    discount: boolean
   ) => {
     setSelectedLevel(level);
+    setSelectedSessionsPerWeek(sessions);
+    setSelectedSiblingDiscount(discount);
     scrollToRegistration();
   };
 
@@ -424,6 +428,8 @@ export default function App() {
         <RegistrationForm
           initialLevel={selectedLevel}
           initialNotes={tutorNotes}
+          initialSessionsPerWeek={selectedSessionsPerWeek}
+          initialHasSiblingDiscount={selectedSiblingDiscount}
           onOpenMidtransDemo={(sub) => setActiveMidtransSubmission(sub)}
         />
       </main>
