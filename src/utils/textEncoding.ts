@@ -49,7 +49,29 @@ const MOJIBAKE_REPLACEMENTS: ReadonlyArray<[pattern: RegExp, replacement: string
   [/\u00f0\u0178\u017d\u00af/g, '🎯'],
   [/\u00f0\u0178\u2122\u008f/g, '🙏'],
 
-  // 5. Right double quote mojibake trailing patterns
+  // 5. Multiplication & Latin-1 Accents (Corrupted 2-byte sequences)
+  [/Ã—/g, '×'],
+  [/\u00c3\u2014/g, '×'],
+  [/Ã©/g, 'é'],
+  [/Ã¨/g, 'è'],
+  [/Ã¡/g, 'á'],
+  [/Ã /g, 'à'],
+  [/Ã³/g, 'ó'],
+  [/Ãº/g, 'ú'],
+  [/Ã±/g, 'ñ'],
+  [/Ã§/g, 'ç'],
+  [/Ã®/g, 'î'],
+  [/Ã´/g, 'ô'],
+  [/Ã»/g, 'û'],
+  [/Ã¢/g, 'â'],
+  [/Ã«/g, 'ë'],
+  [/Ã¯/g, 'ï'],
+  [/Ã¶/g, 'ö'],
+  [/Ã¼/g, 'ü'],
+  [/Ã¤/g, 'ä'],
+  [/ÃŸ/g, 'ß'],
+
+  // 6. Right double quote mojibake trailing patterns
   [/\u00e2\u20ac\u009d/g, '”'],
   [/â€ /g, '”'],
   [/â€\s*$/g, '”'],

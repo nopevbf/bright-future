@@ -2965,7 +2965,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </div>
                               {inv.packageType === 'non_paket' && (
                                 <span className="text-[10px] text-[#6B675F] block mt-0.5">
-                                  ({inv.totalMeetings || inv.meetingDates?.length || 0} Ã— Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')})
+                                  ({inv.totalMeetings || inv.meetingDates?.length || 0} × Rp {(inv.costPerMeeting || 35000).toLocaleString('id-ID')})
                                 </span>
                               )}
                             </td>

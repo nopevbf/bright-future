@@ -5,7 +5,7 @@ import { cleanMojibake } from '../utils/textEncoding';
 
 describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characters)', () => {
   describe('cleanMojibake Utility', () => {
-    it('TC-ENC-001: should fix quotation marks â€œ and â€ / â€ into proper typography', () => {
+    it('TC-ENC-001: should fix quotation marks â€œ and â€  / â€ into proper typography', () => {
       const input = 'â€œRayhan sangat antusias membuktikan bayangan tongkat.â€ ';
       const result = cleanMojibake(input);
       expect(result).toBe('“Rayhan sangat antusias membuktikan bayangan tongkat.”');
@@ -29,6 +29,12 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
       // @ts-expect-error testing invalid type tolerance
       expect(cleanMojibake(undefined)).toBe('');
     });
+
+    it('TC-ENC-006: should fix multiplication sign mojibake Ã— into × and Latin-1 accented mojibake', () => {
+      const input = '(4 Ã— Rp 35.000) dan cafÃ©';
+      const result = cleanMojibake(input);
+      expect(result).toBe('(4 × Rp 35.000) dan café');
+    });
   });
 
   describe('Source Files Sanity Check', () => {
@@ -44,7 +50,7 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
 
     const corruptedPatterns = [
       'â€œ', // Left double quotation mark
-      'â€', // Right double quotation mark
+      'â€ ', // Right double quotation mark
       'â€”', // Em dash
       'â€“', // En dash
       'âœ“', // Check mark
@@ -53,6 +59,8 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
       'ðŸ',  // Corrupted UTF-8 4-byte emoji prefix
       'â­ ', // Corrupted star emoji
       'â °', // Corrupted clock emoji
+      'Ã—',  // Corrupted multiplication sign (×)
+      'Ã',   // Corrupted Latin-1 / UTF-8 two-byte prefix
     ];
 
     it('TC-ENC-005: should not contain any corrupted mojibake patterns in target source files', () => {
