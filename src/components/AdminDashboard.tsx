@@ -48,6 +48,7 @@ import { TutorVerificationSubTab } from './admin/TutorVerificationSubTab';
 import { TutorManagementSubTab, BASE_ACTIVE_TUTORS } from './admin/TutorManagementSubTab';
 import { TutorApplicantDetailModal } from './admin/TutorApplicantDetailModal';
 import { TutorDispatchModal } from './admin/TutorDispatchModal';
+import { saveAuthSession } from '../utils/sessionToken';
 import { DispatchableStudent, DispatchableTutor } from '../utils/tutorDispatch';
 import {
   ManagedStudent,
@@ -2458,10 +2459,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <a
                     href="#siswa"
                     onClick={() => {
-                      sessionStorage.setItem('bf_siswa_session', 'true');
-                      sessionStorage.removeItem('bf_admin_session');
-                      sessionStorage.removeItem('bf_tutor_session');
-                      sessionStorage.removeItem('bf_orang_tua_session');
+                      saveAuthSession('siswa', {
+                        name: 'Rayhan Kusuma (Simulasi Admin)',
+                        identifier: 'BF-2026-09-8812',
+                      });
                       window.location.hash = '#siswa';
                       window.location.reload();
                     }}
@@ -2474,10 +2475,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <a
                     href="#orangtua"
                     onClick={() => {
-                      sessionStorage.setItem('bf_orang_tua_session', 'true');
-                      sessionStorage.removeItem('bf_admin_session');
-                      sessionStorage.removeItem('bf_tutor_session');
-                      sessionStorage.removeItem('bf_siswa_session');
+                      saveAuthSession('orang_tua', {
+                        name: 'Bunda Ratna Dewi (Simulasi Admin)',
+                        identifier: '081298765432',
+                      });
                       window.location.hash = '#orangtua';
                       window.location.reload();
                     }}
@@ -2612,8 +2613,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <a
                   href="#tutor"
                   onClick={() => {
-                    sessionStorage.setItem('bf_tutor_session', 'true');
-                    sessionStorage.removeItem('bf_admin_session');
+                    saveAuthSession('tutor', {
+                      name: 'Kak Anindya, S.Pd. (Simulasi Admin)',
+                      identifier: 'anindya.tutor@brightfuture.id',
+                    });
                     window.location.hash = '#tutor';
                     window.location.reload();
                   }}
