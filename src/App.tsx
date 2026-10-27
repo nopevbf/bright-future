@@ -351,20 +351,6 @@ export default function App() {
         }}
         parentName={currentParentName}
         parentPhone={currentParentPhone}
-        onOpenMidtransPayment={(invoice) => {
-          setActiveMidtransSubmission({
-            studentId: currentStudentId || 'BF-2026-09-8812',
-            invoiceNumber: invoice.inv,
-            studentName: invoice.studentName,
-            parentName: currentParentName,
-            level: 'sd',
-            whatsapp: currentParentPhone.replace(/[^0-9]/g, '') || '081298765432',
-            homeAddress: 'Jl. Mayor Unus No. 15, Mertoyudan, Kab. Magelang',
-            selectedSchedule: ['Kamis 13:30', 'Sabtu 15:30'],
-            totalAmount: invoice.amount,
-            submittedAt: new Date().toISOString(),
-          });
-        }}
       />
     );
   }

@@ -1,18 +1,146 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   db,
   doc,
   setDoc,
   subscribeToTutorAssignments,
   subscribeToManagedStudents,
+  subscribeToRegistrations,
   getLocalTutorAssignments,
   getLocalManagedStudents,
   subscribeToInvoices,
   updateInvoiceStatusInFirestore,
   FirestoreInvoiceDoc,
+  FirestoreRegistrationDoc,
 } from '../firebase';
+import { ManagedStudent } from './admin/studentData';
 import { resolveTutorForStudent, AssignedTutorSummary } from '../utils/tutorPairingResolver';
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
+import { MidtransDemoModal } from './MidtransDemoModal';
+import { EducationalLevel } from '../types';
+
+export interface ParentChildInfo {
+  id: string;
+  studentName: string;
+  level: string;
+  grade: string;
+  schoolOrigin: string;
+  packageSessions: number;
+  completedSessions: number;
+  status: string;
+  notes?: string;
+  tutorName?: string;
+  subjects?: string[];
+  address?: string;
+}
+
+export const DEFAULT_PARENT_CHILDREN: ParentChildInfo[] = [
+  {
+    id: 'BF-2026-09-8812',
+    studentName: 'Rayhan Kusuma',
+    level: 'SD UMUM',
+    grade: 'Kelas 5 SD',
+    schoolOrigin: 'SD Mertoyudan 1',
+    packageSessions: 8,
+    completedSessions: 6,
+    status: 'aktif',
+    notes: 'Sangat antusias pada modul rotasi bumi & perkalian pecahan.',
+    tutorName: 'Kak Anindya, S.Pd.',
+    subjects: ['IPAS', 'Matematika', 'B. Inggris'],
+    address: 'Jl. Mayor Unus No. 15, Mertoyudan, Kab. Magelang',
+  },
+  {
+    id: 'BF-2026-09-8813',
+    studentName: 'Kayla Kusuma',
+    level: 'Calistung',
+    grade: 'Kelas 2 SD',
+    schoolOrigin: 'SD Mertoyudan 1',
+    packageSessions: 8,
+    completedSessions: 4,
+    status: 'aktif',
+    notes: 'Fokus melancarkan membaca suku kata dan dikte kalimat sederhana.',
+    tutorName: 'Kak Sarah Melati, S.Pd.',
+    subjects: ['Calistung', 'Membaca', 'Berhitung'],
+    address: 'Jl. Mayor Unus No. 15, Mertoyudan, Kab. Magelang',
+  },
+];
+
+export function resolveChildrenForParent(
+  parentName: string,
+  parentPhone: string,
+  managedStudents: ManagedStudent[],
+  registrations: FirestoreRegistrationDoc[] = []
+): ParentChildInfo[] {
+  const cleanPhone = (parentPhone || '').replace(/[^0-9]/g, '');
+  const cleanParentName = (parentName || '').trim().toLowerCase();
+
+  const isMatch = (wa: string = '', pName: string = '') => {
+    const waDigits = (wa || '').replace(/[^0-9]/g, '');
+    const phoneMatches =
+      cleanPhone.length >= 6 &&
+      waDigits.length >= 6 &&
+      (waDigits === cleanPhone || waDigits.endsWith(cleanPhone) || cleanPhone.endsWith(waDigits));
+
+    const nameMatches =
+      cleanParentName.length >= 3 &&
+      pName &&
+      (pName.toLowerCase().includes(cleanParentName) || cleanParentName.includes(pName.toLowerCase()));
+
+    return phoneMatches || nameMatches;
+  };
+
+  const matched: ParentChildInfo[] = [];
+  const seenIds = new Set<string>();
+
+  for (const s of managedStudents) {
+    if (isMatch(s.whatsapp, s.parentName)) {
+      if (!seenIds.has(s.id)) {
+        seenIds.add(s.id);
+        matched.push({
+          id: s.id,
+          studentName: s.studentName,
+          level: s.level || 'SD UMUM',
+          grade: s.grade || 'SD',
+          schoolOrigin: s.schoolOrigin || 'SD di Kab. Magelang',
+          packageSessions: s.packageSessions || 8,
+          completedSessions: s.completedSessions || 0,
+          status: s.status || 'aktif',
+          notes: s.notes,
+          tutorName: s.tutorName,
+          subjects: s.subjects,
+          address: s.address,
+        });
+      }
+    }
+  }
+
+  for (const r of registrations) {
+    if (isMatch(r.whatsapp, r.parentName)) {
+      const regId = r.studentId || r.id;
+      if (!seenIds.has(regId)) {
+        seenIds.add(regId);
+        matched.push({
+          id: regId,
+          studentName: r.studentName,
+          level: (r.level || 'sd').toUpperCase(),
+          grade: `Kelas ${(r.level || 'SD').toUpperCase()}`,
+          schoolOrigin: 'Siswa Baru Terdaftar',
+          packageSessions: 8,
+          completedSessions: 0,
+          status: r.paymentStatus === 'paid' ? 'aktif' : 'perlu_perpanjang',
+          notes: `Pendaftaran Terverifikasi • Status Bayar: ${r.paymentStatus}`,
+          address: r.homeAddress,
+        });
+      }
+    }
+  }
+
+  if (matched.length > 0) {
+    return matched;
+  }
+
+  return DEFAULT_PARENT_CHILDREN;
+}
 
 interface ParentDashboardProps {
   onLogout: () => void;
@@ -45,7 +173,6 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabType>('beranda-ringkasan');
-  const [selectedChild, setSelectedChild] = useState<'rayhan' | 'kayla'>('rayhan');
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   // Digital Signature Paraf Modal
@@ -61,10 +188,50 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const [invoicePaid, setInvoicePaid] = useState<boolean>(false);
   const [isPaymentSuccessModalOpen, setIsPaymentSuccessModalOpen] = useState<boolean>(false);
 
-  const currentChildName = selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma';
+  // Dynamic Children Resolution from System Data (managed_students & registrations)
+  const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(() => getLocalManagedStudents());
+  const [registrations, setRegistrations] = useState<FirestoreRegistrationDoc[]>([]);
+
+  // Modal Midtrans Snap Payment In-Situ
+  const [activeMidtransInvoice, setActiveMidtransInvoice] = useState<FirestoreInvoiceDoc | null>(null);
+
+  useEffect(() => {
+    const unsubManaged = subscribeToManagedStudents((data) => {
+      setManagedStudents(data || []);
+    });
+    const unsubRegs = subscribeToRegistrations((data) => {
+      setRegistrations(data || []);
+    });
+    return () => {
+      if (typeof unsubManaged === 'function') unsubManaged();
+      if (typeof unsubRegs === 'function') unsubRegs();
+    };
+  }, []);
+
+  const availableChildren = useMemo(() => {
+    return resolveChildrenForParent(parentName, parentPhone, managedStudents, registrations);
+  }, [parentName, parentPhone, managedStudents, registrations]);
+
+  const [selectedChildId, setSelectedChildId] = useState<string>(
+    () => availableChildren[0]?.id || 'BF-2026-09-8812'
+  );
+
+  useEffect(() => {
+    if (availableChildren.length > 0 && !availableChildren.some((c) => c.id === selectedChildId)) {
+      setSelectedChildId(availableChildren[0].id);
+    }
+  }, [availableChildren, selectedChildId]);
+
+  const currentChild =
+    availableChildren.find((c) => c.id === selectedChildId) ||
+    availableChildren[0] ||
+    DEFAULT_PARENT_CHILDREN[0];
+
+  const currentChildName = currentChild.studentName;
+
   const [assignedTutor, setAssignedTutor] = useState<AssignedTutorSummary | null>(() => {
     return resolveTutorForStudent(
-      selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma',
+      currentChildName,
       getLocalManagedStudents(),
       getLocalTutorAssignments()
     );
@@ -116,13 +283,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
 
   // Default fallback invoice template
   const defaultChildInvoice: FirestoreInvoiceDoc = {
-    inv: selectedChild === 'rayhan' ? 'INV-2026-09-088' : 'INV-2026-09-089',
+    inv: `INV-2026-${currentChild.id.slice(-4) || '088'}`,
     parent: parentName,
     studentName: currentChildName,
     packageType: 'paket',
-    package: selectedChild === 'rayhan' ? 'Paket 8 Sesi SD UMUM (Rayhan)' : 'Paket 8 Sesi Calistung (Kayla)',
+    package: `Paket 8 Sesi ${currentChild.level} (${currentChild.studentName.split(' ')[0]})`,
     channel: 'Midtrans QRIS / Virtual Account',
-    amount: selectedChild === 'rayhan' ? 280000 : 238000,
+    amount: currentChild.level.toLowerCase().includes('calistung') ? 238000 : 280000,
     status: invoicePaid ? 'LUNAS' : 'PENDING',
     date: 'Oktober 2026',
     whatsapp: parentPhone,
@@ -159,7 +326,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     };
   }, [currentChildName]);
 
-  const displayTutorName = assignedTutor?.tutorName || 'Kak Anindya Laksmi, S.Pd.';
+  const displayTutorName = currentChild.tutorName || assignedTutor?.tutorName || 'Kak Anindya Laksmi, S.Pd.';
   const tutorWaNumber = (assignedTutor?.tutorPhone || '081298765432').replace(/[^0-9]/g, '');
   const tutorInitials = displayTutorName.replace('Kak ', '').slice(0, 2).toUpperCase() || 'KA';
 
@@ -186,6 +353,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   };
 
   const handlePayInvoice = async (amount: number, invNumber: string, packageName: string) => {
+    // Tampilkan modal Midtrans Snap simulator langsung di dalam Portal Orang Tua
+    setActiveMidtransInvoice({
+      ...activeInvoice,
+      inv: invNumber,
+      amount,
+      package: packageName,
+      studentName: currentChildName,
+    });
+
     if (onOpenMidtransPayment) {
       onOpenMidtransPayment({
         inv: invNumber,
@@ -193,19 +369,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         amount,
         package: packageName,
       });
-      return;
     }
-
-    // Default inline simulation: update status in Cloud Firestore
-    try {
-      await updateInvoiceStatusInFirestore(invNumber, 'LUNAS');
-    } catch (err) {
-      console.warn('Could not update invoice in Firestore:', err);
-    }
-    setInvoicePaid(true);
-    setIsPaymentSuccessModalOpen(true);
-    setFeedbackToast(`Pembayaran tagihan ${invNumber} via Midtrans Snap berhasil diverifikasi!`);
-    setTimeout(() => setFeedbackToast(null), 4000);
   };
 
   const handleDownloadPdf = (inv: FirestoreInvoiceDoc) => {
@@ -530,20 +694,28 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
 
             {/* Child Selector in Header */}
             <div
-              onClick={() => setSelectedChild(selectedChild === 'rayhan' ? 'kayla' : 'rayhan')}
+              onClick={() => {
+                if (availableChildren.length > 1) {
+                  const currentIndex = availableChildren.findIndex((c) => c.id === currentChild.id);
+                  const nextIndex = (currentIndex + 1) % availableChildren.length;
+                  setSelectedChildId(availableChildren[nextIndex].id);
+                }
+              }}
               className="relative flex items-center bg-[#f6f3ed] hover:bg-[#f0eee8] rounded-xl px-3 py-1.5 cursor-pointer transition-colors border border-[rgba(42,40,35,0.08)]"
               title="Klik untuk ganti profil anak"
             >
               <span className="material-symbols-outlined text-[18px] text-[#3F5A46] mr-1.5">school</span>
               <div className="flex flex-col text-left">
                 <span className="text-[11px] text-[#1c1c18] font-bold">
-                  {selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma'}
+                  {currentChild.studentName}
                 </span>
                 <span className="text-[9.5px] text-[#6B675F] leading-none">
-                  {selectedChild === 'rayhan' ? 'Kelas 5 SD' : 'Kelas 2 SD'}
+                  {currentChild.grade || currentChild.level}
                 </span>
               </div>
-              <span className="material-symbols-outlined text-[16px] text-[#6B675F] ml-1">swap_horiz</span>
+              {availableChildren.length > 1 && (
+                <span className="material-symbols-outlined text-[16px] text-[#6B675F] ml-1">swap_horiz</span>
+              )}
             </div>
 
             {/* Pay Button Header CTA */}
@@ -590,7 +762,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   Halo, {parentName}
                 </h1>
                 <p className="text-xs sm:text-sm text-[#6B675F]">
-                  Pantau perkembangan dan jadwal belajar tatap muka Rayhan &amp; Kayla secara transparan.
+                  Pantau perkembangan dan jadwal belajar tatap muka {currentChildName} secara transparan.
                 </p>
               </div>
 
@@ -628,31 +800,25 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="flex items-center gap-2.5">
                 <span className="text-xs text-[#6B675F] font-semibold">Pilih Profil Anak:</span>
                 <div className="inline-flex items-center p-1 rounded-2xl bg-[#f0eee8] border border-[rgba(42,40,35,0.08)]">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChild('rayhan')}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      selectedChild === 'rayhan'
-                        ? 'bg-[#284230] text-white shadow-xs'
-                        : 'text-[#6B675F] hover:text-[#1c1c18]'
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-[#EFC9AE]"></span>
-                    <span>Rayhan Kusuma</span>
-                    <span className="text-[10px] opacity-80 font-normal">(Kelas 5 SD)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChild('kayla')}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      selectedChild === 'kayla'
-                        ? 'bg-[#284230] text-white shadow-xs'
-                        : 'text-[#6B675F] hover:text-[#1c1c18]'
-                    }`}
-                  >
-                    <span>Kayla Kusuma</span>
-                    <span className="text-[10px] opacity-80 font-normal">(Kelas 2 SD)</span>
-                  </button>
+                  {availableChildren.map((child) => {
+                    const isSelected = child.id === currentChild.id;
+                    return (
+                      <button
+                        key={child.id}
+                        type="button"
+                        onClick={() => setSelectedChildId(child.id)}
+                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#284230] text-white shadow-xs'
+                            : 'text-[#6B675F] hover:text-[#1c1c18]'
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#EFC9AE]' : 'bg-[#6B675F]'}`}></span>
+                        <span>{child.studentName}</span>
+                        <span className="text-[10px] opacity-80 font-normal">({child.grade || child.level})</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -701,7 +867,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     {childInvoices.length > 0 ? childInvoices.length : 1} Tagihan
                   </span>
                   <span className="text-[10px] text-[#3F5A46] font-bold mt-1 block">
-                    {currentChildName} ({selectedChild === 'rayhan' ? 'Kelas 5 SD' : 'Kelas 2 SD'})
+                    {currentChildName} ({currentChild.grade || currentChild.level})
                   </span>
                 </div>
                 <div className="p-5 rounded-2xl bg-white border border-[rgba(42,40,35,0.10)] shadow-xs">
@@ -1247,6 +1413,33 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           </footer>
         </main>
       </div>
+
+      {/* Midtrans Snap Interactive Simulator Demo Modal inside Parent Dashboard */}
+      {activeMidtransInvoice && (
+        <MidtransDemoModal
+          submission={{
+            studentId: currentChild.id || 'BF-2026-09-8812',
+            invoiceNumber: activeMidtransInvoice.inv,
+            studentName: activeMidtransInvoice.studentName || currentChildName,
+            parentName: parentName,
+            level: (currentChild.level.toLowerCase().includes('smp')
+              ? 'smp'
+              : currentChild.level.toLowerCase().includes('sma')
+              ? 'sma'
+              : currentChild.level.toLowerCase().includes('calistung')
+              ? 'calistung'
+              : 'sd') as EducationalLevel,
+            whatsapp: (parentPhone || '081298765432').replace(/[^0-9]/g, ''),
+            homeAddress: currentChild.address || 'Kabupaten Magelang',
+            selectedSchedule: ['Senin 15:30', 'Kamis 15:30'],
+            totalAmount: activeMidtransInvoice.amount || 280000,
+            submittedAt: new Date().toISOString(),
+          }}
+          onClose={() => {
+            setActiveMidtransInvoice(null);
+          }}
+        />
+      )}
     </div>
   );
 };

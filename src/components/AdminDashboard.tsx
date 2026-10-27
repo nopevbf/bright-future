@@ -1830,7 +1830,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </p>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-3xl font-extrabold text-[#2A2823]">
-                        {104 + firestoreRegistrations.length}
+                        {managedStudents.length + firestoreRegistrations.length}
                       </span>
                       <span className="text-xs text-[#6B675F]">Siswa Aktif</span>
                     </div>
@@ -1858,16 +1858,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </p>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-2xl font-extrabold text-[#3F5A46]">
-                        Rp 29.120.000
+                        Rp {invoices
+                          .filter((i) => calculateInvoiceDynamicStatus(i).isPaid)
+                          .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0)
+                          .toLocaleString('id-ID')}
                       </span>
                     </div>
-                    <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#6B675F]">
-                      <span>Target Rp 35.000.000</span>
-                      <span className="font-bold text-[#3F5A46]">83.2%</span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-[#ebe8e2] mt-1 overflow-hidden">
-                      <div className="h-full bg-[#6F8F76] rounded-full" style={{ width: '83.2%' }}></div>
-                    </div>
+                    {(() => {
+                      const totalPaid = invoices
+                        .filter((i) => calculateInvoiceDynamicStatus(i).isPaid)
+                        .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0);
+                      const target = 35000000;
+                      const pct = Math.min(100, Math.round((totalPaid / target) * 100));
+                      return (
+                        <>
+                          <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#6B675F]">
+                            <span>Target Rp {target.toLocaleString('id-ID')}</span>
+                            <span className="font-bold text-[#3F5A46]">{pct}%</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-[#ebe8e2] mt-1 overflow-hidden">
+                            <div className="h-full bg-[#6F8F76] rounded-full" style={{ width: `${pct}%` }}></div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1877,9 +1891,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="w-10 h-10 rounded-xl bg-[#EFC9AE]/70 flex items-center justify-center text-[#6b2702]">
                       <span className="material-symbols-outlined text-[22px]">receipt_long</span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[10px] font-bold">
-                      3 Terlambat
-                    </span>
+                    {(() => {
+                      const overdueCount = invoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length;
+                      return (
+                        <span className="px-2 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[10px] font-bold">
+                          {overdueCount} Terlambat
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="mt-3">
                     <p className="text-[11px] text-[#6B675F] uppercase tracking-wider font-bold">
@@ -1887,11 +1906,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </p>
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-2xl font-extrabold text-[#6b2702]">
-                        Rp 4.200.000
+                        Rp {invoices
+                          .filter((i) => !calculateInvoiceDynamicStatus(i).isPaid)
+                          .reduce((sum, curr) => sum + (Number(curr.amount) || 0), 0)
+                          .toLocaleString('id-ID')}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#2A2823]/10 text-xs">
-                      <span className="text-[#6B675F]">12 Invoice Menunggu</span>
+                      <span className="text-[#6B675F]">
+                        {invoices.filter((i) => !calculateInvoiceDynamicStatus(i).isPaid).length} Invoice Menunggu
+                      </span>
                       <button
                         onClick={() =>
                           window.open(
@@ -1923,13 +1947,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       Kunjungan Rumah Hari Ini
                     </p>
                     <div className="flex items-baseline gap-2 mt-1">
-                      <span className="text-3xl font-extrabold text-[#2A2823]">16</span>
+                      <span className="text-3xl font-extrabold text-[#2A2823]">{INITIAL_SCHEDULES.length}</span>
                       <span className="text-xs text-[#6B675F]">Sesi 70 Menit</span>
                     </div>
                     <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#2A2823]/10 text-[11px] font-semibold">
-                      <span className="text-[#284230]">11 Selesai</span>
-                      <span className="text-[#C1683F]">3 On-Duty</span>
-                      <span className="text-[#6B675F]">2 Sore</span>
+                      <span className="text-[#284230]">
+                        {INITIAL_SCHEDULES.filter((s) => s.status === 'selesai').length} Selesai
+                      </span>
+                      <span className="text-[#C1683F]">
+                        {INITIAL_SCHEDULES.filter((s) => s.status === 'berlangsung' || s.status === 'otw').length} On-Duty
+                      </span>
+                      <span className="text-[#6B675F]">
+                        {INITIAL_SCHEDULES.filter((s) => s.status === 'terkonfirmasi').length} Terjadwal
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2054,79 +2084,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   {/* Transaction Feed */}
                   <div className="space-y-3">
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#2A2823]/8 shadow-xs flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#2A2823]">INV-2026-09-088</span>
-                          <span className="px-1.5 py-0.5 rounded bg-[#c8ebce] text-[#284230] text-[10px] font-semibold">
-                            QRIS Gopay
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#2A2823] font-semibold truncate">
-                          Ibu Deasy (Wali Naufal - SD Kelas 2)
-                        </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi • Rp 280.000</p>
+                    {invoices.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/8 text-center text-xs text-[#6B675F]">
+                        Belum ada riwayat tagihan &amp; transaksi.
                       </div>
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className="px-2.5 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
-                          LUNAS
-                        </span>
-                        <span className="text-[10px] text-[#6B675F] mt-1">Auto-sync 13:42</span>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#2A2823]/8 shadow-xs flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#2A2823]">INV-2026-09-089</span>
-                          <span className="px-1.5 py-0.5 rounded bg-[#f0eee8] text-[#2A2823] text-[10px] font-semibold">
-                            BCA Virtual Account
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#2A2823] font-semibold truncate">
-                          Bpk. Hendra Gunawan (Wali Michelle)
-                        </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi • Rp 280.000</p>
-                      </div>
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className="px-2.5 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold">
-                          LUNAS
-                        </span>
-                        <span className="text-[10px] text-[#6B675F] mt-1">Auto-sync 11:15</span>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#2A2823]/8 shadow-xs flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#6b2702]">INV-2026-09-092</span>
-                          <span className="px-1.5 py-0.5 rounded bg-[#EFC9AE] text-[#6b2702] text-[10px] font-semibold">
-                            Jatuh Tempo Hari Ini
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#2A2823] font-semibold truncate">
-                          Ibu Farida (Wali Siswa Kelas 5 SD Krincing)
-                        </p>
-                        <p className="text-[11px] text-[#6B675F]">Paket 8 Sesi SD UMUM • Rp 280.000</p>
-                      </div>
-                      <div className="flex flex-col items-end shrink-0 gap-1">
-                        <span className="px-2 py-0.5 rounded-full bg-[#FAF7F1] text-[#2A2823] text-[10px] font-bold border border-[#2A2823]/10">
-                          Belum Bayar
-                        </span>
-                        <button
-                          onClick={() =>
-                            window.open(
-                              'https://wa.me/6285173230198?text=Halo%20Ibu%20Farida%2C%20pengingat%20tagihan%20SPP%20Bright%20Future%20INV-2026-09-092.',
-                              '_blank'
-                            )
-                          }
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#C1683F] text-white text-[10px] font-bold shadow-xs hover:opacity-90 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">chat</span>
-                          <span>Ingatkan WA</span>
-                        </button>
-                      </div>
-                    </div>
+                    ) : (
+                      invoices.slice(0, 4).map((inv) => {
+                        const statusInfo = calculateInvoiceDynamicStatus(inv);
+                        const cleanWa = (inv.whatsapp || '').replace(/[^0-9]/g, '');
+                        return (
+                          <div
+                            key={inv.inv}
+                            className="p-3.5 rounded-2xl bg-white border border-[#2A2823]/8 shadow-xs flex items-center justify-between gap-3"
+                          >
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-[#2A2823]">{inv.inv}</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                    statusInfo.isPaid
+                                      ? 'bg-[#c8ebce] text-[#284230]'
+                                      : statusInfo.isOverdue
+                                      ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                      : 'bg-[#f0eee8] text-[#2A2823]'
+                                  }`}
+                                >
+                                  {inv.channel || 'Midtrans Snap'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#2A2823] font-semibold truncate">
+                                {inv.parent ? `${inv.parent} (Wali ${inv.studentName})` : inv.studentName}
+                              </p>
+                              <p className="text-[11px] text-[#6B675F]">
+                                {inv.package} • Rp {(inv.amount || 0).toLocaleString('id-ID')}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end shrink-0 gap-1">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  statusInfo.isPaid
+                                    ? 'bg-[#c8ebce] text-[#284230]'
+                                    : statusInfo.isOverdue
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                }`}
+                              >
+                                {statusInfo.displayStatus}
+                              </span>
+                              {!statusInfo.isPaid && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    window.open(
+                                      `https://wa.me/${cleanWa || '6285173230198'}?text=${encodeURIComponent(
+                                        `Halo Bapak/Ibu ${inv.parent || 'Wali Murid'}, ini pengingat tagihan SPP bimbel Bright Future dengan nomor invoice ${inv.inv} sebesar Rp ${(inv.amount || 0).toLocaleString('id-ID')}. Terima kasih.`
+                                      )}`,
+                                      '_blank'
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#C1683F] text-white text-[10px] font-bold shadow-xs hover:opacity-90 cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">chat</span>
+                                  <span>Ingatkan WA</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
 
                   {/* Ekspor bar */}
