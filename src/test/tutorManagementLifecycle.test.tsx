@@ -7,6 +7,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TutorManagementSubTab, ActiveTutorItem } from '../components/admin/TutorManagementSubTab';
+import { AdminDashboard } from '../components/AdminDashboard';
 import { FirestoreTutorRegistrationDoc, FirestoreTutorAssignmentDoc } from '../firebase';
 import { ManagedStudent } from '../types';
 
@@ -163,5 +164,39 @@ describe('TutorManagementSubTab Component Lifecycle (SQA-ISTQB & TDD)', () => {
       expect.objectContaining({ name: 'Kak Anindya, S.Pd.' }),
       true // unassignStudents confirmed
     );
+  });
+
+  it('TC-TUTOR-COUNT-001: Renders accurate dynamic count in Tutor Aktif & Terakreditasi tab badge', () => {
+    localStorage.setItem(
+      'bf_active_tutors_cache',
+      JSON.stringify([
+        {
+          id: 'T-1',
+          name: 'Kak Anindya, S.Pd.',
+          univ: 'UNY',
+          spec: 'SD',
+          district: 'Secang',
+        },
+        {
+          id: 'T-2',
+          name: 'Kak Dimas Arya, S.Si.',
+          univ: 'UGM',
+          spec: 'SMP',
+          district: 'Mertoyudan',
+        },
+      ])
+    );
+    localStorage.setItem('bf_tutor_registrations_cache', JSON.stringify([]));
+
+    render(<AdminDashboard onLogout={vi.fn()} onViewLanding={vi.fn()} />);
+
+    // Click on Data Tutor tab
+    fireEvent.click(screen.getByRole('button', { name: /Data Tutor/i }));
+
+    // The subtab button for "Tutor Aktif & Terakreditasi" should show 2, NOT 4 + 0 = 4!
+    const activeTutorTabBtn = screen.getByRole('button', {
+      name: /Tutor Aktif & Terakreditasi/i,
+    });
+    expect(activeTutorTabBtn).toHaveTextContent('2');
   });
 });

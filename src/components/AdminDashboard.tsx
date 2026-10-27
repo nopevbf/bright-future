@@ -1248,6 +1248,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pendingCount = firestoreRegistrations.filter((r) => !isRegistrationExpired(r) && !isRegVerified(r)).length;
   const pendingTutorCount = tutorRegistrations.filter((r) => r.status === 'pending_review').length;
   const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
+  const uniqueAcceptedApplicants = acceptedTutorApplicants.filter(
+    (app) => !activeTutors.some((t) => t.name.toLowerCase() === app.fullName.toLowerCase())
+  );
+  const totalActiveTutorsCount = activeTutors.length + uniqueAcceptedApplicants.length;
 
   const candidateDispatchTutors: DispatchableTutor[] = [
     ...activeTutors.map((t) => ({
@@ -1608,7 +1612,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {pendingTutorCount} Baru
                   </span>
                 ) : (
-                  <span className="text-[11px] text-[#6B675F] font-semibold">18</span>
+                  <span className="text-[11px] text-[#6B675F] font-semibold">{totalActiveTutorsCount}</span>
                 )
               )}
             </button>
@@ -2780,7 +2784,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           : 'bg-[#ebe8e2] text-[#284230]'
                       }`}
                     >
-                      {4 + acceptedTutorApplicants.length}
+                      {totalActiveTutorsCount}
                     </span>
                   </button>
 
