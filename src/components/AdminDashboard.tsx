@@ -1005,26 +1005,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (inv.packageType === 'non_paket') {
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
-        `ðŸ“„ *No. Invoice:* ${inv.inv}\n` +
-        `ðŸ‘¤ *Siswa:* ${inv.studentName || inv.parent}\n` +
-        `ðŸ“š *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
-        `ðŸ—“ï¸ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
-        `ðŸ“… *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
+        `📄 *No. Invoice:* ${inv.inv}\n` +
+        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `📚 *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
+        `🗓️ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
+        `📅 *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
         `Tanggal: ${inv.meetingDatesRaw || inv.meetingDates?.join(', ') || '-'}\n` +
-        `ðŸ’° *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
-        `ðŸ’µ *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
-        `ðŸ’³ *Kanal Bayar:* ${inv.channel}\n` +
-        `ðŸ“Œ *Status:* ${inv.status}\n\n` +
+        `💰 *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
+        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `💳 *Kanal Bayar:* ${inv.channel}\n` +
+        `📌 *Status:* ${inv.status}\n\n` +
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Bukti pembayaran otomatis terverifikasi di sistem kami. Terima kasih!`;
     } else {
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
-        `ðŸ“„ *No. Invoice:* ${inv.inv}\n` +
-        `ðŸ‘¤ *Siswa:* ${inv.studentName || inv.parent}\n` +
-        `ðŸ“š *Paket:* ${inv.package}\n` +
-        `ðŸ’µ *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
-        `ðŸ’³ *Kanal Bayar:* ${inv.channel}\n` +
-        `ðŸ“Œ *Status:* ${inv.status}\n\n` +
+        `📄 *No. Invoice:* ${inv.inv}\n` +
+        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `📚 *Paket:* ${inv.package}\n` +
+        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `💳 *Kanal Bayar:* ${inv.channel}\n` +
+        `📌 *Status:* ${inv.status}\n\n` +
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Terima kasih!`;
     }
 
@@ -2181,7 +2181,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </button>
                               ) : (
                                 <span className="flex-1 py-1 text-center text-[#284230] text-[11px] font-bold">
-                                  âœ“ Akun Aktif
+                                  ✓ Akun Aktif
                                 </span>
                               )}
                               <button
@@ -2515,7 +2515,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-[#2A2823]">{item.studentName}</h3>
-                      <p className="text-xs text-[#6B675F]">{item.level} â€” {item.subject}</p>
+                      <p className="text-xs text-[#6B675F]">{item.level} — {item.subject}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-[#FAF7F1] border border-[#2A2823]/8 text-xs space-y-1">
                       <div className="flex items-center gap-1.5 text-[#2A2823] font-semibold">

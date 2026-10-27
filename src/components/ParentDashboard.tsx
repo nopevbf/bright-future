@@ -234,7 +234,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>• Skor Kuis Mandiri: <strong className="text-[#284230]">88/100</strong></div>
                   <div>• Durasi Fokus: <strong>70 Menit (Penuh)</strong></div>
-                  <div>• Kemandirian Gawai: <strong>5.0 / 5.0 â˜…</strong></div>
+                  <div>• Kemandirian Gawai: <strong>5.0 / 5.0 ★</strong></div>
                   <div>• Eksperimen Miniatur: <strong>Tuntas Sempurna</strong></div>
                 </div>
               </div>
@@ -242,10 +242,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="p-3.5 bg-[#F1ECE1]/80 rounded-2xl border border-[rgba(42,40,35,0.08)] space-y-1.5">
                 <h4 className="font-bold text-sm text-[#C1683F]">Catatan Afektif Tutor:</h4>
                 <p className="italic text-[#1c1c18]">
-                  â€œRayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.â€
+                  “Rayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.”
                 </p>
                 <span className="text-[11px] text-[#6B675F] block font-semibold pt-1">
-                  â€” Kak Anindya Laksmi, S.Pd. (Tutor Resmi Bright Future)
+                  — Kak Anindya Laksmi, S.Pd. (Tutor Resmi Bright Future)
                 </span>
               </div>
             </div>
@@ -268,7 +268,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="max-w-md w-full rounded-3xl bg-white p-6 shadow-2xl border border-[rgba(42,40,35,0.1)] text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-[#c8ebce] text-[#284230] flex items-center justify-center mx-auto text-3xl font-bold shadow-md">
-              âœ“
+              ✓
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#284230]">Pembayaran SPP Berhasil!</h3>
@@ -639,7 +639,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#c8ebce] text-[#284230] text-[11px] font-bold">
                     <span className="w-2 h-2 rounded-full bg-[#47654f] animate-pulse"></span>
-                    Sesi Berlangsung (13:30 â€“ 14:40 WIB)
+                    Sesi Berlangsung (13:30 – 14:40 WIB)
                   </span>
                   <span className="text-[#6B675F] text-xs font-semibold">• Meja Belajar Mertoyudan</span>
                 </div>
@@ -703,7 +703,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="material-symbols-outlined text-[16px]">
                       {parafConfirmed ? 'check_circle' : 'draw'}
                     </span>
-                    <span>{parafConfirmed ? 'Paraf Digital Terkonfirmasi âœ“' : 'Beri Paraf Kehadiran Digital'}</span>
+                    <span>{parafConfirmed ? 'Paraf Digital Terkonfirmasi ✓' : 'Beri Paraf Kehadiran Digital'}</span>
                   </button>
                   <button
                     type="button"
@@ -817,10 +817,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <span className="material-symbols-outlined text-[20px] text-[#C1683F] mt-0.5">format_quote</span>
                   <div className="space-y-1">
                     <p className="text-xs text-[#1c1c18] italic leading-relaxed">
-                      â€œRayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.â€
+                      “Rayhan sangat antusias membuktikan pergeseran bayangan tongkat tadi. Pouch bebas gadget ditaati dengan tertib tanpa keluhan sama sekali. Daya tahan konsentrasi hitungan desimalnya melonjak sangat pesat.”
                     </p>
                     <span className="text-[11px] text-[#6B675F] font-bold block">
-                      â€” Kak Anindya Laksmi, S.Pd. (Tutor Pembimbing)
+                      — Kak Anindya Laksmi, S.Pd. (Tutor Pembimbing)
                     </span>
                   </div>
                 </div>
@@ -848,7 +848,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <div>
                       <span className="text-[10px] font-mono text-[#6B675F]">INV-2026-09-088</span>
                       <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">Paket 8 Sesi Rayhan Kusuma</h4>
-                      <p className="text-[11px] text-[#6B675F]">Periode: 1 â€“ 31 Okt 2026</p>
+                      <p className="text-[11px] text-[#6B675F]">Periode: 1 – 31 Okt 2026</p>
                     </div>
                     <span className="text-lg font-extrabold text-[#C1683F]">
                       {invoicePaid ? 'LUNAS' : 'Rp 280.000'}
@@ -943,7 +943,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           <footer className="pt-6 border-t border-[rgba(42,40,35,0.08)] flex flex-col sm:flex-row items-center justify-between gap-3 text-[#6B675F] text-[11px]">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px] text-[#3F5A46]">security</span>
-              <span>Bright Future Cabang Magelang Kota &amp; Mertoyudan â€” Transparansi Penuh Pendidikan Tatap Muka Rumah.</span>
+              <span>Bright Future Cabang Magelang Kota &amp; Mertoyudan — Transparansi Penuh Pendidikan Tatap Muka Rumah.</span>
             </div>
             <div className="text-right">
               <span>Standar Mutu 70 Menit • Pouch Anti-Gadget</span>
