@@ -51,7 +51,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   const [now, setNow] = useState<number>(Date.now());
 
   const invoiceNumber = submission?.invoiceNumber || '';
-  const isAutoRefreshing = useRef<boolean>(false);
+  const isFetchingRef = useRef<boolean>(false);
 
   // Live clock ticker every 1 second
   useEffect(() => {
@@ -84,12 +84,16 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     async (method: PaymentMethodType, forceRefresh = false) => {
       if (!submission) return;
 
+      // In-flight guard: prevent double request if fetch is already in progress
+      if (isFetchingRef.current) return;
+
       const existing = chargeRecords[method];
       // Use cached if valid and not expired
       if (!forceRefresh && existing && !existing.isExpired && existing.expiresAt > Date.now()) {
         return;
       }
 
+      isFetchingRef.current = true;
       setIsLoading(true);
       setErrorMsg(null);
       setStatusNotice(null);
@@ -140,18 +144,11 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
         setErrorMsg(err instanceof Error ? err.message : 'Gagal memuat kode pembayaran');
       } finally {
         setIsLoading(false);
-        isAutoRefreshing.current = false;
+        isFetchingRef.current = false;
       }
     },
     [chargeRecords, submission]
   );
-
-  // Initial fetch on mount or method change
-  useEffect(() => {
-    if (submission) {
-      fetchChargeDetails(activeMethod);
-    }
-  }, [activeMethod, fetchChargeDetails, submission]);
 
   // Current method charge record & countdown calculations
   const currentRecord = chargeRecords[activeMethod];
@@ -164,10 +161,9 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
 
   const isCurrentExpired = Boolean(currentRecord && remainingSeconds <= 0);
 
-  // Auto-invalidation and auto-regeneration when countdown expires
+  // Invalidation when countdown expires (User triggers refresh manually via button)
   useEffect(() => {
-    if (isCurrentExpired && !isAutoRefreshing.current && !isLoading && !isPaid) {
-      isAutoRefreshing.current = true;
+    if (isCurrentExpired && currentRecord && !currentRecord.isExpired) {
       setChargeRecords((prev) => {
         if (!prev[activeMethod]) return prev;
         return {
@@ -178,11 +174,8 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           },
         };
       });
-
-      // Auto-refresh a fresh 15-minute charge
-      fetchChargeDetails(activeMethod, true);
     }
-  }, [activeMethod, fetchChargeDetails, isCurrentExpired, isLoading, isPaid]);
+  }, [activeMethod, currentRecord, isCurrentExpired]);
 
   if (!submission) return null;
 
@@ -227,8 +220,17 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
         }
         onPaymentSuccess?.(submission.invoiceNumber);
       } else if (data.transactionStatus === 'expire') {
-        setStatusNotice('Transaksi sebelumnya telah kedaluwarsa. Sistem membuat kode pembayaran baru...');
-        fetchChargeDetails(activeMethod, true);
+        setStatusNotice('Transaksi sebelumnya telah kedaluwarsa di sistem Midtrans. Silakan tekan tombol "Buat Kode Pembayaran Baru" untuk memperbarui.');
+        setChargeRecords((prev) => {
+          if (!prev[activeMethod]) return prev;
+          return {
+            ...prev,
+            [activeMethod]: {
+              ...prev[activeMethod],
+              isExpired: true,
+            },
+          };
+        });
       } else {
         setStatusNotice('Pembayaran belum terdeteksi. Silakan selesaikan transaksi di m-Banking atau E-Wallet Anda, lalu klik Cek Status kembali.');
       }
@@ -308,21 +310,35 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                 </label>
 
                 {/* 15-Minute Countdown Timer Badge */}
-                <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
-                    isCurrentExpired
-                      ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
-                      : remainingSeconds < 180
-                      ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  }`}
-                  title="Batas waktu berlaku kode pembayaran"
-                >
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {isCurrentExpired ? 'Kedaluwarsa (Memperbarui...)' : `Sisa Waktu: ${countdownFormatted}`}
-                  </span>
-                </div>
+                {currentRecord && !isCurrentExpired ? (
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
+                      remainingSeconds < 180
+                        ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    }`}
+                    title="Batas waktu berlaku kode pembayaran"
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>Sisa Waktu: {countdownFormatted}</span>
+                  </div>
+                ) : isCurrentExpired ? (
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors bg-red-50 text-red-700 border-red-200 animate-pulse"
+                    title="Kode pembayaran telah kedaluwarsa"
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>Kedaluwarsa</span>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border border-gray-200 bg-gray-50 text-[#6B675F]"
+                    title="Kode pembayaran belum di-generate"
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0 text-[#6B675F]" />
+                    <span>Siap Ditampilkan</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -406,6 +422,79 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                   </p>
                   <p className="text-[10px] text-[#6B675F]">Mengambil kode pembayaran resmi 15 menit</p>
                 </div>
+              ) : errorMsg ? (
+                <div className="py-6 space-y-3">
+                  <p className="text-xs font-bold text-red-600">{errorMsg}</p>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => fetchChargeDetails(activeMethod, true)}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-xs font-bold text-[#2A2823] hover:bg-gray-50 flex items-center gap-1.5 mx-auto cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    <span>Coba Lagi</span>
+                  </button>
+                </div>
+              ) : !currentCharge ? (
+                /* Unrevealed State / Lazy Load On-Demand */
+                <div className="py-6 px-4 space-y-3.5 flex flex-col items-center justify-center max-w-sm mx-auto text-center animate-in fade-in">
+                  <div className="w-12 h-12 rounded-2xl bg-[#EAF2ED] text-[#3F5A46] flex items-center justify-center shadow-xs">
+                    {activeMethod === 'qris' && <QrCode className="w-6 h-6" />}
+                    {activeMethod === 'bca_va' && <Building className="w-6 h-6" />}
+                    {activeMethod === 'bri_va' && <Building className="w-6 h-6" />}
+                    {activeMethod === 'mandiri_va' && <CreditCard className="w-6 h-6" />}
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-[#2A2823]">
+                      {activeMethod === 'qris' && 'Pembayaran QRIS Midtrans'}
+                      {activeMethod === 'bca_va' && 'Virtual Account BCA'}
+                      {activeMethod === 'bri_va' && 'Virtual Account BRI (BRIVA)'}
+                      {activeMethod === 'mandiri_va' && 'Mandiri Bill Payment'}
+                    </h4>
+                    <p className="text-[10.5px] text-[#6B675F] mt-1 leading-relaxed">
+                      {activeMethod === 'qris' && 'Klik tombol di bawah untuk menampilkan kode QRIS resmi. Berlaku untuk GoPay, OVO, Dana, ShopeePay & m-Banking.'}
+                      {activeMethod === 'bca_va' && 'Klik tombol di bawah untuk mendapatkan Nomor Rekening Virtual Account BCA resmi.'}
+                      {activeMethod === 'bri_va' && 'Klik tombol di bawah untuk mendapatkan Nomor BRIVA resmi untuk pembayaran via BRImo / ATM.'}
+                      {activeMethod === 'mandiri_va' && 'Klik tombol di bawah untuk mendapatkan Kode Biller dan Bill Key Mandiri.'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => fetchChargeDetails(activeMethod)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {activeMethod === 'qris' && (
+                      <>
+                        <QrCode className="w-4 h-4" />
+                        <span>Tampilkan Kode QRIS</span>
+                      </>
+                    )}
+                    {activeMethod === 'bca_va' && (
+                      <>
+                        <Building className="w-4 h-4" />
+                        <span>Tampilkan Nomor BCA Virtual Account</span>
+                      </>
+                    )}
+                    {activeMethod === 'bri_va' && (
+                      <>
+                        <Building className="w-4 h-4" />
+                        <span>Tampilkan Nomor BRI Virtual Account</span>
+                      </>
+                    )}
+                    {activeMethod === 'mandiri_va' && (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        <span>Tampilkan Kode Pembayaran Mandiri</span>
+                      </>
+                    )}
+                  </button>
+                  <p className="text-[9.5px] text-[#6B675F]">
+                    Kode resmi berlaku 15 menit setelah tombol ditekan.
+                  </p>
+                </div>
               ) : isCurrentExpired ? (
                 /* Expired Invalidation Overlay: Blocks user from forcing old data */
                 <div className="py-6 space-y-3 flex flex-col items-center justify-center max-w-xs mx-auto">
@@ -420,23 +509,12 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                   </div>
                   <button
                     type="button"
+                    disabled={isLoading}
                     onClick={() => fetchChargeDetails(activeMethod, true)}
-                    className="px-3 py-1.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#2e4233] flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-3 py-1.5 rounded-xl bg-[#3F5A46] text-white text-xs font-bold hover:bg-[#2e4233] flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                     <span>Buat Kode Pembayaran Baru</span>
-                  </button>
-                </div>
-              ) : errorMsg ? (
-                <div className="py-6 space-y-3">
-                  <p className="text-xs font-bold text-red-600">{errorMsg}</p>
-                  <button
-                    type="button"
-                    onClick={() => fetchChargeDetails(activeMethod, true)}
-                    className="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-xs font-bold text-[#2A2823] hover:bg-gray-50 flex items-center gap-1.5 mx-auto cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Coba Lagi</span>
                   </button>
                 </div>
               ) : activeMethod === 'qris' ? (

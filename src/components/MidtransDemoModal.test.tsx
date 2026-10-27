@@ -83,7 +83,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     }) as any;
   });
 
-  it('MDT-MODAL-001: should render invoice number and total amount', async () => {
+  it('MDT-MODAL-001: should render invoice number and total amount without auto-fetching charge', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -94,6 +94,10 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     expect(screen.getByText(/INV-2026-001/i)).toBeInTheDocument();
     expect(screen.getByText(/350\.000/i)).toBeInTheDocument();
     expect(screen.getByText(/Rayhan Kusuma/i)).toBeInTheDocument();
+    // Verification: No automatic fetch call on initial render
+    expect(global.fetch).not.toHaveBeenCalled();
+    // Reveal button should be displayed
+    expect(screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i })).toBeInTheDocument();
   });
 
   it('MDT-MODAL-002: should render 4 direct payment options: QRIS, BCA VA, BRI VA, and Mandiri VA', async () => {
@@ -104,13 +108,31 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /qris/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /bca va/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /bri va/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /mandiri va/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^qris\b/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^bca va\b/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^bri va\b/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^mandiri va\b/i })).toBeInTheDocument();
   });
 
-  it('MDT-MODAL-003: switching to BCA VA requests charge and displays real VA number', async () => {
+  it('MDT-MODAL-003: revealing QRIS requests charge and displays QR code', async () => {
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    const revealBtn = screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i });
+    fireEvent.click(revealBtn);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const img = screen.getByAltText(/qris midtrans/i);
+      expect(img).toBeInTheDocument();
+    });
+  });
+
+  it('MDT-MODAL-004: switching to BCA VA does not auto-fetch until reveal button is clicked', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -121,13 +143,20 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     const bcaTab = screen.getByRole('button', { name: /bca va/i });
     fireEvent.click(bcaTab);
 
+    // Should NOT have fetched bca_va yet
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    const revealBtn = screen.getByRole('button', { name: /perlihatkan|tampilkan.*bca/i });
+    expect(revealBtn).toBeInTheDocument();
+    fireEvent.click(revealBtn);
+
     await waitFor(() => {
       expect(screen.getByText('7001281234567890')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /salin nomor va/i })).toBeInTheDocument();
     });
   });
 
-  it('MDT-MODAL-004: switching to BRI VA requests charge and displays real BRIVA number', async () => {
+  it('MDT-MODAL-005: switching to BRI VA and clicking reveal displays real BRIVA number', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -138,13 +167,18 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     const briTab = screen.getByRole('button', { name: /bri va/i });
     fireEvent.click(briTab);
 
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    const revealBtn = screen.getByRole('button', { name: /perlihatkan|tampilkan.*bri/i });
+    fireEvent.click(revealBtn);
+
     await waitFor(() => {
       expect(screen.getByText('8578000012345678')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /salin nomor va/i })).toBeInTheDocument();
     });
   });
 
-  it('MDT-MODAL-005: switching to Mandiri VA requests charge and displays biller code 70012 & bill key', async () => {
+  it('MDT-MODAL-006: switching to Mandiri VA and clicking reveal displays biller code 70012 & bill key', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -155,6 +189,11 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     const mandiriTab = screen.getByRole('button', { name: /mandiri va/i });
     fireEvent.click(mandiriTab);
 
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    const revealBtn = screen.getByRole('button', { name: /perlihatkan|tampilkan.*mandiri/i });
+    fireEvent.click(revealBtn);
+
     await waitFor(() => {
       expect(screen.getByText('70012')).toBeInTheDocument();
       expect(screen.getByText('990001234567')).toBeInTheDocument();
@@ -162,7 +201,35 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     });
   });
 
-  it('MDT-MODAL-006: should NOT render simulator external link or bypass simulation buttons', async () => {
+  it('MDT-MODAL-007: caching reuses previous charge when switching back and forth', async () => {
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    // 1. Reveal QRIS
+    fireEvent.click(screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    // 2. Switch to BCA VA and reveal
+    fireEvent.click(screen.getByRole('button', { name: /bca va/i }));
+    fireEvent.click(screen.getByRole('button', { name: /perlihatkan|tampilkan.*bca/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(screen.getByText('7001281234567890')).toBeInTheDocument();
+    });
+
+    // 3. Switch back to QRIS -> Should show immediately from cache without 3rd fetch
+    fireEvent.click(screen.getByRole('button', { name: /qris/i }));
+    expect(screen.getByAltText(/qris midtrans/i)).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('MDT-MODAL-008: should NOT render simulator external link or bypass simulation buttons', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -174,7 +241,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     expect(screen.queryByText(/Simulasi Bayar Lunas Sekarang/i)).not.toBeInTheDocument();
   });
 
-  it('MDT-MODAL-007: should render 15-minute countdown timer badge', async () => {
+  it('MDT-MODAL-009: countdown timer badge is only active after payment code is revealed', async () => {
     render(
       <MidtransDemoModal
         submission={dummySubmission}
@@ -182,12 +249,18 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
+    // Before revealing: Shows "Menunggu Konfirmasi" / "Siap Ditampilkan" instead of active countdown
+    expect(screen.getByText(/siap ditampilkan|menunggu/i)).toBeInTheDocument();
+
+    // After revealing:
+    fireEvent.click(screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i }));
     await waitFor(() => {
-      expect(screen.getByText(/14:|15:00/i)).toBeInTheDocument();
+      expect(screen.getByText(/sisa waktu:/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/14:|15:00/i).length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  it('MDT-MODAL-008: clicking Cek Status Pembayaran checks status and transitions to paid state when settlement', async () => {
+  it('MDT-MODAL-010: clicking Cek Status Pembayaran checks status and transitions to paid state when settlement', async () => {
     // Mock the status endpoint to return settlement
     const originalFetch = global.fetch;
     global.fetch = vi.fn().mockImplementation(async (url: string, opts: any) => {
@@ -218,5 +291,87 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     await waitFor(() => {
       expect(screen.getByText(/pembayaran sukses terverifikasi/i)).toBeInTheDocument();
     });
+  });
+
+  it('MDT-GUARD-001: rapid double-click on reveal button triggers fetch only once (in-flight guard)', async () => {
+    let resolveFirstFetch: (value: any) => void;
+    const delayedPromise = new Promise((resolve) => {
+      resolveFirstFetch = resolve;
+    });
+
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/midtrans/charge')) {
+        await delayedPromise;
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            paymentType: 'qris',
+            qrCodeUrl: 'https://api.sandbox.midtrans.com/v2/qris/mock-qr/qr-code',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    const revealBtn = screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i });
+    // Simulate rapid double click
+    fireEvent.click(revealBtn);
+    fireEvent.click(revealBtn);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    // Resolve the in-flight request
+    resolveFirstFetch!({ ok: true });
+    await waitFor(() => {
+      expect(screen.getByAltText(/qris midtrans/i)).toBeInTheDocument();
+    });
+  });
+
+  it('MDT-GUARD-002: when check payment status returns expire, it does NOT auto-charge to Midtrans', async () => {
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/midtrans/status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            isPaid: false,
+            invoiceStatus: 'TERLAMBAT',
+            transactionStatus: 'expire',
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ status: 'success' }),
+      };
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    const checkBtn = screen.getByRole('button', { name: /cek status pembayaran/i });
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/kedaluwarsa/i)).toBeInTheDocument();
+    });
+
+    // Verify charge endpoint was never called
+    const chargeCalls = (global.fetch as any).mock.calls.filter((call: any[]) =>
+      call[0].includes('/api/midtrans/charge')
+    );
+    expect(chargeCalls.length).toBe(0);
   });
 });

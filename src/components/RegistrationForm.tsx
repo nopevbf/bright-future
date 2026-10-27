@@ -19,6 +19,7 @@ import {
   Sparkles,
   Loader2,
   Building,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface RegistrationFormProps {
@@ -170,6 +171,19 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     }
     return baseAmount;
   };
+
+  const isFormValid = Boolean(
+    formData.studentName.trim() &&
+    formData.parentName.trim() &&
+    formData.whatsapp.trim() &&
+    cleanNumericOnly(formData.whatsapp).length >= 9 &&
+    !whatsappStatus.errorMessage &&
+    !whatsappStatus.isDuplicate &&
+    !whatsappStatus.isChecking &&
+    formData.homeAddress.trim() &&
+    formData.selectedSchedule.length > 0 &&
+    !isSaving
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -598,8 +612,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isSaving || whatsappStatus.isDuplicate || whatsappStatus.isChecking}
-                className="w-full py-4 rounded-xl bg-[#C1683F] hover:bg-[#A85530] text-white font-bold text-base shadow-glow transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={!isFormValid}
+                className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                  isFormValid
+                    ? 'bg-[#C1683F] hover:bg-[#A85530] text-white shadow-glow cursor-pointer active:scale-[0.99]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300 shadow-none'
+                }`}
               >
                 {isSaving ? (
                   <>
@@ -817,13 +835,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </a>
             </div>
 
-            <div className="text-center pt-2">
+            {/* Button Kembali ke Form Pendaftaran */}
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={() => setSubmittedData(null)}
-                className="text-xs text-[#6B675F] hover:text-[#3F5A46] font-semibold underline cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-[#FAF7F1] border-2 border-[#3F5A46] text-[#3F5A46] font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
-                Daftarkan Siswa Baru Lainnya
+                <ArrowLeft className="w-4 h-4" />
+                <span>Kembali ke Form Pendaftaran Siswa</span>
               </button>
             </div>
           </div>
