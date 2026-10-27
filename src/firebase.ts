@@ -1634,14 +1634,10 @@ export function subscribeToTutorRegistrations(
           const data = docSnap.data() as FirestoreTutorRegistrationDoc;
           results.push({ ...data, id: data.id || docSnap.id });
         });
-        if (results.length > 0) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
-          }
-          onUpdate(results);
-        } else {
-          onUpdate(getLocalTutorRegistrations());
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(results));
         }
+        onUpdate(results);
       },
       (error) => {
         console.warn('Realtime tutor registrations error (using local cache fallback):', error);
@@ -2106,6 +2102,38 @@ export async function deleteActiveTutorFromFirestore(tutorName: string): Promise
     await setDoc(docRef, { tutors: updated, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (error) {
     console.warn('Could not sync deleted active tutor to Firestore:', error);
+  }
+}
+
+export function subscribeToActiveTutors(
+  onUpdate: (tutors: ActiveTutorRecord[]) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const docRef = doc(db, 'system_settings', 'active_tutors');
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (Array.isArray(data?.tutors)) {
+            saveLocalActiveTutors(data.tutors);
+            onUpdate(data.tutors);
+            return;
+          }
+        }
+        onUpdate(getLocalActiveTutors());
+      },
+      (error) => {
+        console.warn('subscribeToActiveTutors error:', error);
+        if (onError) onError(error);
+        onUpdate(getLocalActiveTutors());
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToActiveTutors listener:', err);
+    onUpdate(getLocalActiveTutors());
+    return () => {};
   }
 }
 

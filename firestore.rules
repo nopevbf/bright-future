@@ -116,12 +116,22 @@ service cloud.firestore {
     }
 
     match /system_settings/{settingId} {
-      // Allows public reading of maintenance status & system settings
+      // Allows public reading of maintenance status, active tutors & system settings
       allow read: if true;
-      // Allows admin to create and update system settings
-      allow create, update: if isValidId(settingId);
-      allow delete: if false;
+      // Allows admin to create, update, and delete system settings
+      allow create, update, delete: if isValidId(settingId);
+    }
+
+    match /active_tutors/{tutorId} {
+      // Direct access support for active tutors collection
+      allow read: if true;
+      allow create, update, delete: if isValidId(tutorId);
+    }
+
+    match /tutors/{tutorId} {
+      // Support for direct tutor master records
+      allow read: if true;
+      allow create, update, delete: if isValidId(tutorId);
     }
   }
 }
-

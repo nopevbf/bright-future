@@ -46,6 +46,7 @@ import {
   fetchActiveTutorsFromFirestore,
   saveActiveTutorsToFirestore,
   deleteActiveTutorFromFirestore,
+  subscribeToActiveTutors,
 } from '../firebase';
 import { AccountManagementSubTab } from './admin/AccountManagementSubTab';
 import { MidtransSettingsSubTab } from './admin/MidtransSettingsSubTab';
@@ -667,17 +668,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     );
 
-    // Initial load for dynamic active tutors from Firestore
-    fetchActiveTutorsFromFirestore()
-      .then((data) => {
+    // Real-time live listener for dynamic active tutors from Firestore
+    const unsubscribeActiveTutors = subscribeToActiveTutors(
+      (tutors) => {
         if (!isMounted) return;
-        if (Array.isArray(data) && data.length > 0) {
-          setActiveTutors(data);
+        if (Array.isArray(tutors)) {
+          setActiveTutors(tutors);
         }
-      })
-      .catch((err) => {
-        console.warn('Error fetching active tutors from Firestore:', err);
-      });
+      },
+      (err) => {
+        console.warn('Real-time active tutors listener warning:', err);
+      }
+    );
 
     // Real-time live listener for Managed Students from Firestore
     const unsubscribeManaged = subscribeToManagedStudents(
@@ -721,6 +723,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
       if (typeof unsubscribeManaged === 'function') {
         unsubscribeManaged();
+      }
+      if (typeof unsubscribeActiveTutors === 'function') {
+        unsubscribeActiveTutors();
       }
     };
   }, []);
