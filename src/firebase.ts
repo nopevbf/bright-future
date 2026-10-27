@@ -1926,6 +1926,189 @@ export function subscribeToManagedStudents(
   }
 }
 
+export async function deleteManagedStudentFromFirestore(studentId: string): Promise<void> {
+  const docPath = `managed_students/${studentId}`;
+  try {
+    const docRef = doc(db, 'managed_students', studentId);
+    await deleteDoc(docRef);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalManagedStudents();
+      const updated = existing.filter((s) => s.id !== studentId);
+      localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(updated));
+    }
+    try {
+      await deleteTutorAssignmentFromFirestore(studentId);
+    } catch {}
+  } catch (error) {
+    console.warn(`Firestore delete error for ${docPath}:`, error);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalManagedStudents();
+      const updated = existing.filter((s) => s.id !== studentId);
+      localStorage.setItem(LOCAL_MANAGED_STUDENTS_KEY, JSON.stringify(updated));
+    }
+  }
+}
+
+export async function deleteTutorAssignmentFromFirestore(studentId: string): Promise<void> {
+  const docPath = `tutor_assignments/${studentId}`;
+  try {
+    const docRef = doc(db, 'tutor_assignments', studentId);
+    await deleteDoc(docRef);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalTutorAssignments();
+      const updated = existing.filter((a) => a.studentId !== studentId);
+      localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    }
+  } catch (error) {
+    console.warn(`Firestore delete error for ${docPath}:`, error);
+    if (typeof window !== 'undefined') {
+      const existing = getLocalTutorAssignments();
+      const updated = existing.filter((a) => a.studentId !== studentId);
+      localStorage.setItem(LOCAL_TUTOR_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    }
+  }
+}
+
+export async function deleteTutorRegistrationFromFirestore(id: string): Promise<void> {
+  const docPath = `tutor_registrations/${id}`;
+  try {
+    const docRef = doc(db, 'tutor_registrations', id);
+    await deleteDoc(docRef);
+    if (typeof window !== 'undefined') {
+      const list = getLocalTutorRegistrations();
+      const updated = list.filter((r) => r.id !== id);
+      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(updated));
+    }
+  } catch (error) {
+    console.warn(`Firestore delete error for ${docPath}:`, error);
+    if (typeof window !== 'undefined') {
+      const list = getLocalTutorRegistrations();
+      const updated = list.filter((r) => r.id !== id);
+      localStorage.setItem(LOCAL_TUTOR_REGS_KEY, JSON.stringify(updated));
+    }
+  }
+}
+
+export interface ActiveTutorRecord {
+  id?: string;
+  name: string;
+  univ: string;
+  spec: string;
+  load?: string;
+  status?: string;
+  rating?: number;
+  district?: string;
+  isNewAccepted?: boolean;
+}
+
+export const DEFAULT_ACTIVE_TUTORS: ActiveTutorRecord[] = [
+  {
+    name: 'Kak Anindya, S.Pd.',
+    univ: 'Pendidikan Matematika UNY (IPK 3.88)',
+    spec: 'SD UMUM & Olimpiade Sains SD',
+    load: '6 Siswa Aktif',
+    status: 'Tersedia Sore',
+    rating: 4.9,
+    district: 'Mertoyudan & Magelang Selatan',
+  },
+  {
+    name: 'Kak Dimas Arya, S.Si.',
+    univ: 'Fisika MIPA UGM (IPK 3.82)',
+    spec: 'SD UMUM Matematika & SMP Fisika',
+    load: '8 Siswa Aktif',
+    status: 'On-Duty',
+    rating: 4.8,
+    district: 'Magelang Tengah & Secang',
+  },
+  {
+    name: 'Kak Sarah Larasati, M.Pd.',
+    univ: 'Magister Bahasa & Sastra Indonesia UNS',
+    spec: 'SD UMUM Tematik & Literasi Membaca',
+    load: '5 Siswa Aktif',
+    status: 'Tersedia',
+    rating: 4.9,
+    district: 'Magelang Utara & Kramat',
+  },
+  {
+    name: 'Kak Siti Rahma, S.Pd.',
+    univ: 'PGSD Universitas Muhammadiyah Magelang',
+    spec: 'Calistung Fonik & SD Kelas Rendah',
+    load: '7 Siswa Aktif',
+    status: 'Tersedia',
+    rating: 4.7,
+    district: 'Mertoyudan & Borobudur',
+  },
+];
+
+export const LOCAL_ACTIVE_TUTORS_KEY = 'bf_active_tutors_cache';
+
+export function getLocalActiveTutors(): ActiveTutorRecord[] {
+  if (typeof window === 'undefined') return DEFAULT_ACTIVE_TUTORS;
+  try {
+    const raw = localStorage.getItem(LOCAL_ACTIVE_TUTORS_KEY);
+    if (raw === null) {
+      localStorage.setItem(LOCAL_ACTIVE_TUTORS_KEY, JSON.stringify(DEFAULT_ACTIVE_TUTORS));
+      return DEFAULT_ACTIVE_TUTORS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : DEFAULT_ACTIVE_TUTORS;
+  } catch {
+    return DEFAULT_ACTIVE_TUTORS;
+  }
+}
+
+export function saveLocalActiveTutors(tutors: ActiveTutorRecord[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_ACTIVE_TUTORS_KEY, JSON.stringify(tutors));
+  } catch (e) {
+    console.warn('Failed to save active tutors to local storage:', e);
+  }
+}
+
+export async function fetchActiveTutorsFromFirestore(): Promise<ActiveTutorRecord[]> {
+  try {
+    const colRef = collection(db, 'system_settings');
+    const docRef = doc(colRef, 'active_tutors');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data?.tutors)) {
+        saveLocalActiveTutors(data.tutors);
+        return data.tutors;
+      }
+    }
+    return getLocalActiveTutors();
+  } catch (error) {
+    console.warn('Could not fetch active tutors from Firestore, using local cache:', error);
+    return getLocalActiveTutors();
+  }
+}
+
+export async function saveActiveTutorsToFirestore(tutors: ActiveTutorRecord[]): Promise<void> {
+  saveLocalActiveTutors(tutors);
+  try {
+    const colRef = collection(db, 'system_settings');
+    const docRef = doc(colRef, 'active_tutors');
+    await setDoc(docRef, { tutors, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (error) {
+    console.warn('Could not sync active tutors to Firestore:', error);
+  }
+}
+
+export async function deleteActiveTutorFromFirestore(tutorName: string): Promise<void> {
+  const current = getLocalActiveTutors();
+  const updated = current.filter((t) => t.name.toLowerCase() !== tutorName.toLowerCase());
+  saveLocalActiveTutors(updated);
+  try {
+    const colRef = collection(db, 'system_settings');
+    const docRef = doc(colRef, 'active_tutors');
+    await setDoc(docRef, { tutors: updated, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (error) {
+    console.warn('Could not sync deleted active tutor to Firestore:', error);
+  }
+}
+
 export interface FirestoreMaintenanceDoc {
   isActive: boolean;
   targetTimestamp: number;

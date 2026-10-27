@@ -37,8 +37,15 @@ import {
   deletePortalAccountFromFirestore,
   updateUserRoleInFirestore,
   saveManagedStudentToFirestore,
+  deleteManagedStudentFromFirestore,
+  deleteTutorAssignmentFromFirestore,
+  deleteTutorRegistrationFromFirestore,
   getLocalManagedStudents,
   subscribeToManagedStudents,
+  getLocalActiveTutors,
+  fetchActiveTutorsFromFirestore,
+  saveActiveTutorsToFirestore,
+  deleteActiveTutorFromFirestore,
 } from '../firebase';
 import { AccountManagementSubTab } from './admin/AccountManagementSubTab';
 import { MidtransSettingsSubTab } from './admin/MidtransSettingsSubTab';
@@ -49,7 +56,7 @@ import { StudentFormModal } from './admin/StudentFormModal';
 import { RegistrationSlipModal } from './admin/RegistrationSlipModal';
 import { AddSessionsModal } from './admin/AddSessionsModal';
 import { TutorVerificationSubTab } from './admin/TutorVerificationSubTab';
-import { TutorManagementSubTab, BASE_ACTIVE_TUTORS } from './admin/TutorManagementSubTab';
+import { TutorManagementSubTab, BASE_ACTIVE_TUTORS, ActiveTutorItem } from './admin/TutorManagementSubTab';
 import { TutorApplicantDetailModal } from './admin/TutorApplicantDetailModal';
 import { TutorDispatchModal } from './admin/TutorDispatchModal';
 import { saveAuthSession } from '../utils/sessionToken';
@@ -413,6 +420,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Master managed students & tutor assignments state
   const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(() => getLocalManagedStudents());
+  const [activeTutors, setActiveTutors] = useState<ActiveTutorItem[]>(() => getLocalActiveTutors());
   const [tutorAssignments, setTutorAssignments] = useState<FirestoreTutorAssignmentDoc[]>([]);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<ManagedStudent | null>(null);
@@ -659,6 +667,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     );
 
+    // Initial load for dynamic active tutors from Firestore
+    fetchActiveTutorsFromFirestore()
+      .then((data) => {
+        if (!isMounted) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setActiveTutors(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Error fetching active tutors from Firestore:', err);
+      });
+
+    // Real-time live listener for Managed Students from Firestore
+    const unsubscribeManaged = subscribeToManagedStudents(
+      (students) => {
+        if (!isMounted) return;
+        if (Array.isArray(students) && students.length > 0) {
+          setManagedStudents(students);
+        }
+      },
+      (err) => {
+        console.warn('Real-time managed students listener warning:', err);
+      }
+    );
+
     // Real-time live listener for multi-role Portal Credentials from Firestore
     const unsubscribePortalAccounts = subscribeToPortalAccounts(
       (accounts) => {
@@ -685,6 +718,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
       if (typeof unsubscribePortalAccounts === 'function') {
         unsubscribePortalAccounts();
+      }
+      if (typeof unsubscribeManaged === 'function') {
+        unsubscribeManaged();
       }
     };
   }, []);
@@ -872,31 +908,123 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTimeout(() => setActionFeedback(null), 3500);
   };
 
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: string) => {
     setManagedStudents((prev) => prev.filter((s) => s.id !== id));
-    setActionFeedback(`Data siswa berhasil dihapus dari database.`);
+    try {
+      await deleteManagedStudentFromFirestore(id);
+      setActionFeedback(`Data siswa & wali berhasil dihapus dari sistem & database.`);
+    } catch (err) {
+      console.warn('Gagal menghapus siswa dari Firestore:', err);
+      setActionFeedback(`Data siswa berhasil dihapus dari database.`);
+    }
     setTimeout(() => setActionFeedback(null), 3500);
   };
 
-  const handleAddSessionsConfirm = (
+  const handleAddSessionsConfirm = async (
     studentId: string,
     additionalSessions: number,
     updatedStatus: 'aktif' | 'perlu_perpanjang' | 'cuti'
   ) => {
+    const currentStudent = managedStudents.find((s) => s.id === studentId);
+    let updatedStudentToPersist: ManagedStudent | undefined;
+    if (currentStudent) {
+      updatedStudentToPersist = {
+        ...currentStudent,
+        packageSessions: currentStudent.packageSessions + additionalSessions,
+        status: updatedStatus,
+      };
+    }
+
     setManagedStudents((prev) =>
       prev.map((s) => {
         if (s.id === studentId) {
-          return {
+          const updated: ManagedStudent = {
             ...s,
             packageSessions: s.packageSessions + additionalSessions,
             status: updatedStatus,
           };
+          return updated;
         }
         return s;
       })
     );
-    setActionFeedback(`Paket belajar siswa #${studentId} berhasil ditambah +${additionalSessions} sesi!`);
+
+    if (updatedStudentToPersist) {
+      try {
+        await saveManagedStudentToFirestore(updatedStudentToPersist);
+        setActionFeedback(`Paket belajar siswa #${studentId} berhasil ditambah +${additionalSessions} sesi & tersimpan ke database!`);
+      } catch (err) {
+        console.warn('Gagal menyimpan penambahan sesi ke Firestore:', err);
+        setActionFeedback(`Paket belajar siswa #${studentId} berhasil ditambah +${additionalSessions} sesi!`);
+      }
+    } else {
+      setActionFeedback(`Paket belajar siswa #${studentId} berhasil ditambah +${additionalSessions} sesi!`);
+    }
     setTimeout(() => setActionFeedback(null), 3500);
+  };
+
+  const handleDeleteTutor = async (tutor: ActiveTutorItem, unassignStudents?: boolean) => {
+    // 1. Hapus dari state activeTutors dan persistensi active_tutors
+    const updatedTutors = activeTutors.filter(
+      (t) => t.name.toLowerCase() !== tutor.name.toLowerCase() && (t.id ? t.id !== tutor.id : true)
+    );
+    setActiveTutors(updatedTutors);
+    try {
+      await saveActiveTutorsToFirestore(updatedTutors);
+    } catch (e) {
+      console.warn('Gagal menyimpan pembaruan tutor ke Firestore:', e);
+    }
+
+    // 2. Jika merupakan pelamar di koleksi tutor_registrations, hapus juga dari sana
+    if (tutor.id && tutor.id.startsWith('TUTOR-REG-')) {
+      try {
+        await deleteTutorRegistrationFromFirestore(tutor.id);
+        setTutorRegistrations((prev) => prev.filter((r) => r.id !== tutor.id));
+      } catch (e) {
+        console.warn('Gagal menghapus pendaftaran tutor dari Firestore:', e);
+      }
+    }
+
+    // 3. Jika konfirmasi pelepasan siswa diaktifkan, lepaskan penugasan siswa binaan
+    let unassignedCount = 0;
+    if (unassignStudents) {
+      const affectedStudents = managedStudents.filter(
+        (s) => (s.tutorName || '').toLowerCase() === tutor.name.toLowerCase()
+      );
+      unassignedCount = affectedStudents.length;
+
+      for (const student of affectedStudents) {
+        const updatedStudent: ManagedStudent = {
+          ...student,
+          tutorName: 'Belum Ditugaskan',
+        };
+        try {
+          await saveManagedStudentToFirestore(updatedStudent);
+          await deleteTutorAssignmentFromFirestore(student.id);
+        } catch (e) {
+          console.warn('Gagal melepaskan penugasan siswa:', e);
+        }
+      }
+
+      setManagedStudents((prev) =>
+        prev.map((s) =>
+          (s.tutorName || '').toLowerCase() === tutor.name.toLowerCase()
+            ? { ...s, tutorName: 'Belum Ditugaskan' }
+            : s
+        )
+      );
+
+      setTutorAssignments((prev) =>
+        prev.filter((a) => (a.tutorName || '').toLowerCase() !== tutor.name.toLowerCase())
+      );
+    }
+
+    const message =
+      unassignedCount > 0
+        ? `Tutor ${tutor.name} berhasil dihapus & ${unassignedCount} siswa binaan telah dialihkan ke status Belum Ditugaskan.`
+        : `Tutor ${tutor.name} berhasil dihapus dari sistem!`;
+    setActionFeedback(message);
+    setTimeout(() => setActionFeedback(null), 4000);
   };
 
   const handleExportStudents = (format: 'excel' | 'csv' | 'pdf') => {
@@ -1117,7 +1245,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
 
   const candidateDispatchTutors: DispatchableTutor[] = [
-    ...BASE_ACTIVE_TUTORS.map((t) => ({
+    ...activeTutors.map((t) => ({
       name: t.name,
       district: t.district?.split('&')[0]?.trim() || 'Magelang',
       spec: t.spec,
@@ -1125,16 +1253,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       status: t.status,
       rating: t.rating,
     })),
-    ...acceptedTutorApplicants.map((app) => ({
-      id: app.id,
-      name: app.fullName,
-      district: app.district,
-      spec: app.subjects,
-      univ: app.education,
-      status: 'Tersedia',
-      rating: 5.0,
-      phone: app.whatsapp,
-    })),
+    ...acceptedTutorApplicants
+      .filter((app) => !activeTutors.some((t) => t.name.toLowerCase() === app.fullName.toLowerCase()))
+      .map((app) => ({
+        id: app.id,
+        name: app.fullName,
+        district: app.district,
+        spec: app.subjects,
+        univ: app.education,
+        status: 'Tersedia',
+        rating: 5.0,
+        phone: app.whatsapp,
+      })),
   ];
 
   const handleOpenDispatchForManagedStudent = (student: ManagedStudent) => {
@@ -1182,15 +1312,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleAssignTutorToStudent = async (studentId: string, tutorName: string) => {
-    let studentForAssignment: ManagedStudent | undefined;
+    const existingStudent = managedStudents.find((s) => s.id === studentId);
+    let studentForAssignment: ManagedStudent | undefined = existingStudent
+      ? { ...existingStudent, tutorName }
+      : undefined;
 
-    setManagedStudents((prev) => {
-      const found = prev.find((s) => s.id === studentId);
-      if (found) {
-        studentForAssignment = { ...found, tutorName };
-      }
-      return prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s));
-    });
+    setManagedStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, tutorName } : s))
+    );
 
     const reg = firestoreRegistrations.find((r) => r.studentId === studentId);
     if (reg) {
@@ -2690,8 +2819,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {tutorSubTab === 'aktif' && (
                 <TutorManagementSubTab
                   acceptedApplicants={acceptedTutorApplicants}
+                  activeTutors={activeTutors}
                   managedStudents={managedStudents}
                   assignments={tutorAssignments}
+                  onDeleteTutor={handleDeleteTutor}
+                  onSwitchToVerificationTab={() => setTutorSubTab('verifikasi')}
                 />
               )}
 
