@@ -1043,7 +1043,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const pendingCount = firestoreRegistrations.filter((r) => r.paymentStatus === 'pending').length;
+  const isRegVerified = (r: FirestoreRegistrationDoc) => r.paymentStatus === 'verified' || r.paymentStatus === 'paid';
+  const pendingCount = firestoreRegistrations.filter((r) => !isRegVerified(r)).length;
   const pendingTutorCount = tutorRegistrations.filter((r) => r.status === 'pending_review').length;
   const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
 
@@ -2161,17 +2162,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </div>
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  reg.paymentStatus === 'verified'
+                                  isRegVerified(reg)
                                     ? 'bg-[#c8ebce] text-[#284230]'
                                     : 'bg-[#EFC9AE] text-[#6b2702]'
                                 }`}
                               >
-                                {reg.paymentStatus === 'verified' ? 'TERVERIFIKASI' : 'PENDING'}
+                                {isRegVerified(reg) ? 'TERVERIFIKASI' : 'PENDING'}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-2 pt-1 border-t border-[#2A2823]/5">
-                              {reg.paymentStatus !== 'verified' ? (
+                              {!isRegVerified(reg) ? (
                                 <button
                                   onClick={() => handleVerifyStudent(reg.studentId)}
                                   className="flex-1 py-1.5 rounded-lg bg-[#284230] text-white text-[11px] font-bold hover:bg-[#3F5A46] transition-colors cursor-pointer"
@@ -2958,7 +2959,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <AccountManagementSubTab
               adminCredential={adminCredential}
               portalAccounts={portalAccounts}
-              verifiedRegistrations={firestoreRegistrations.filter((r) => r.paymentStatus === 'verified')}
+              verifiedRegistrations={firestoreRegistrations.filter(isRegVerified)}
               acceptedTutors={tutorRegistrations.filter((t) => t.status === 'accepted')}
               isSyncingDb={isSyncingDb}
               currentUserRole={activeAdminRole}
@@ -3182,7 +3183,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="pt-2 flex items-center gap-2">
-              {selectedRegistration.paymentStatus !== 'verified' && (
+              {!isRegVerified(selectedRegistration) && (
                 <button
                   onClick={() => {
                     handleVerifyStudent(selectedRegistration.studentId);

@@ -24,11 +24,16 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
   const [statusFilter, setStatusFilter] = useState<'semua' | 'pending' | 'verified'>('semua');
   const [levelFilter, setLevelFilter] = useState<string>('semua');
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [copiedWaId, setCopiedWaId] = useState<string | null>(null);
+
+  // Helper: check if registration is verified (either manually by admin or automatically via settled Midtrans payment)
+  const isRegistrationVerified = (r: FirestoreRegistrationDoc) =>
+    r.paymentStatus === 'verified' || r.paymentStatus === 'paid';
 
   // Computed metrics
   const totalRegistrations = registrations.length;
-  const pendingRegistrations = registrations.filter((r) => r.paymentStatus === 'pending');
-  const verifiedRegistrations = registrations.filter((r) => r.paymentStatus === 'verified');
+  const pendingRegistrations = registrations.filter((r) => !isRegistrationVerified(r));
+  const verifiedRegistrations = registrations.filter((r) => isRegistrationVerified(r));
   const totalNominal = registrations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
 
   // Filtered registrations
@@ -42,12 +47,13 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
       (item.invoiceNumber || '').toLowerCase().includes(q) ||
       (item.homeAddress || '').toLowerCase().includes(q);
 
+    const isVerified = isRegistrationVerified(item);
     const matchesStatus =
       statusFilter === 'semua'
         ? true
         : statusFilter === 'pending'
-        ? item.paymentStatus === 'pending'
-        : item.paymentStatus === 'verified';
+        ? !isVerified
+        : isVerified;
 
     const matchesLevel =
       levelFilter === 'semua'
@@ -64,6 +70,15 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
     } finally {
       setVerifyingId(null);
     }
+  };
+
+  const handleCopyWaMessage = (item: FirestoreRegistrationDoc) => {
+    const text = `Halo Bapak/Ibu ${item.parentName}, pendaftaran bimbel Bright Future untuk Ananda ${item.studentName} (${item.studentId}) telah terverifikasi. Tim akademik kami akan segera mengaturkan tutor ke alamat rumah Anda. Terima kasih!`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedWaId(item.studentId);
+    setTimeout(() => setCopiedWaId(null), 2000);
   };
 
   const handleVerifyAllPending = async () => {
@@ -303,6 +318,7 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
                 <th className="py-3 px-4">Alamat Kunjungan</th>
                 <th className="py-3 px-4">Pilihan Hari</th>
                 <th className="py-3 px-4">Tagihan SPP</th>
+                <th className="py-3 px-4">Metode Bayar</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-center">Aksi Verifikasi</th>
               </tr>
@@ -310,7 +326,7 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
             <tbody className="divide-y divide-[#2A2823]/8">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-xs text-[#6B675F]">
+                  <td colSpan={9} className="py-12 text-center text-xs text-[#6B675F]">
                     {isLoading ? (
                       <div className="flex flex-col items-center justify-center gap-2">
                         <span className="material-symbols-outlined text-[28px] animate-spin text-[#284230]">
@@ -335,7 +351,8 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
                 </tr>
               ) : (
                 filteredList.map((item) => {
-                  const isVerified = item.paymentStatus === 'verified';
+                  const isVerified = isRegistrationVerified(item);
+                  const isMidtransPaid = item.paymentMethod === 'midtrans' && item.paymentStatus === 'paid';
                   const dateStr = item.createdAt
                     ? new Date(item.createdAt).toLocaleDateString('id-ID', {
                         day: '2-digit',
@@ -438,51 +455,81 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
                         <div className="text-[10px] text-[#6B675F]">8 Sesi Kunjungan</div>
                       </td>
 
+                      {/* Payment Method */}
+                      <td className="py-3.5 px-4">
+                        {item.paymentMethod === 'midtrans' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 text-[10px] font-bold">
+                            <span className="material-symbols-outlined text-[12px]">payments</span>
+                            <span>Midtrans</span>
+                          </span>
+                        ) : item.paymentMethod === 'manual_transfer' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">
+                            <span className="material-symbols-outlined text-[12px]">account_balance</span>
+                            <span>Transfer</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 text-gray-600 border border-gray-200 text-[10px] font-semibold">
+                            <span>-</span>
+                          </span>
+                        )}
+                      </td>
+
                       {/* Status */}
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                             isVerified
-                              ? 'bg-[#c8ebce] text-[#284230]'
+                              ? isMidtransPaid
+                                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                : 'bg-[#c8ebce] text-[#284230]'
                               : 'bg-amber-100 text-amber-900 border border-amber-300'
                           }`}
                         >
                           <span className="material-symbols-outlined text-[12px]">
-                            {isVerified ? 'check_circle' : 'pending'}
+                            {isVerified ? (isMidtransPaid ? 'verified' : 'check_circle') : 'pending'}
                           </span>
-                          <span>{isVerified ? 'TERVERIFIKASI' : 'MENUNGGU'}</span>
+                          <span>
+                            {isVerified
+                              ? isMidtransPaid
+                                ? 'TERVERIFIKASI (Midtrans)'
+                                : 'TERVERIFIKASI'
+                              : 'MENUNGGU'}
+                          </span>
                         </span>
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions: Max 3 Icons Per Row */}
                       <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Quick Verify Button */}
+                        <div className="grid grid-cols-3 gap-1.5 w-max mx-auto justify-items-center items-center">
+                          {/* Quick Verify Button: Icon-Only */}
                           {!isVerified && (
                             <button
+                              type="button"
                               onClick={() => handleQuickVerify(item.studentId)}
                               disabled={verifyingId === item.studentId}
-                              className="px-2.5 py-1 rounded-lg bg-[#284230] text-white font-bold text-[10px] hover:bg-[#3F5A46] cursor-pointer shadow-xs transition-all disabled:opacity-50 inline-flex items-center gap-1"
+                              className="w-7 h-7 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer shadow-xs transition-all disabled:opacity-50 flex items-center justify-center"
                               title="Setujui dan Verifikasi Pendaftaran"
+                              aria-label="Verifikasi Pendaftaran"
                             >
                               {verifyingId === item.studentId ? (
-                                <span className="material-symbols-outlined text-[12px] animate-spin">
+                                <span className="material-symbols-outlined text-[14px] animate-spin">
                                   sync
                                 </span>
                               ) : (
-                                <span className="material-symbols-outlined text-[12px]">check</span>
+                                <span className="material-symbols-outlined text-[14px]">check</span>
                               )}
-                              <span>Verifikasi</span>
                             </button>
                           )}
 
                           {/* Detail Button */}
                           <button
+                            type="button"
                             onClick={() => onViewDetail(item)}
-                            className="p-1.5 rounded-lg bg-[#f0eee8] text-[#2A2823] hover:bg-[#ebe8e2] cursor-pointer transition-all"
+                            className="w-7 h-7 rounded-lg bg-[#f0eee8] text-[#2A2823] hover:bg-[#ebe8e2] cursor-pointer transition-all flex items-center justify-center"
                             title="Lihat Detail Lengkap Pendaftaran"
+                            aria-label="Lihat Detail"
                           >
-                            <span className="material-symbols-outlined text-[16px]">visibility</span>
+                            <span className="material-symbols-outlined text-[15px]">visibility</span>
                           </button>
 
                           {/* Smart Dispatch Tutor */}
@@ -490,36 +537,45 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
                             <button
                               type="button"
                               onClick={() => onOpenDispatch(item)}
-                              className="p-1.5 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer transition-all shadow-xs"
+                              className="w-7 h-7 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer transition-all shadow-xs flex items-center justify-center"
                               title="Smart Dispatch: Pasangkan Tutor Terdekat"
+                              aria-label="Smart Dispatch Tutor"
                             >
-                              <span className="material-symbols-outlined text-[16px]">near_me</span>
+                              <span className="material-symbols-outlined text-[15px]">near_me</span>
                             </button>
                           )}
 
                           {/* Print Slip Button */}
                           <button
+                            type="button"
                             onClick={() => onPrintSlip(item)}
-                            className="p-1.5 rounded-lg bg-white border border-[#2A2823]/15 text-[#3F5A46] hover:bg-[#FAF7F1] cursor-pointer transition-all"
+                            className="w-7 h-7 rounded-lg bg-white border border-[#2A2823]/15 text-[#3F5A46] hover:bg-[#FAF7F1] cursor-pointer transition-all flex items-center justify-center"
                             title="Cetak Bukti Pendaftaran"
+                            aria-label="Cetak Bukti"
                           >
-                            <span className="material-symbols-outlined text-[16px]">print</span>
+                            <span className="material-symbols-outlined text-[15px]">print</span>
                           </button>
 
-                          {/* WhatsApp Official Confirm Button */}
-                          <a
-                            href={`https://wa.me/${item.whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20Bapak%2FIbu%20${encodeURIComponent(
-                              item.parentName
-                            )}%2C%20selamat!%20Pendaftaran%20les%20privat%20Bright%20Future%20untuk%20Ananda%20${encodeURIComponent(
-                              item.studentName
-                            )}%20(No.%20${item.studentId})%20telah%20terverifikasi.%20Tim%20akademik%20kami%20akan%20segera%20mengaturkan%20tutor%20ke%20alamat%20rumah.`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg bg-[#25D366] text-white hover:bg-emerald-600 cursor-pointer transition-all"
-                            title="Kirim Konfirmasi via WhatsApp"
+                          {/* WhatsApp Official Confirm Button: Copy Draft to Clipboard */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyWaMessage(item)}
+                            className={`w-7 h-7 rounded-lg transition-all flex items-center justify-center cursor-pointer ${
+                              copiedWaId === item.studentId
+                                ? 'bg-emerald-700 text-white shadow-xs'
+                                : 'bg-[#25D366] text-white hover:bg-emerald-600'
+                            }`}
+                            title={
+                              copiedWaId === item.studentId
+                                ? 'Pesan WhatsApp Tersalin!'
+                                : 'Salin Pesan Konfirmasi WhatsApp'
+                            }
+                            aria-label="Salin Pesan WhatsApp"
                           >
-                            <span className="material-symbols-outlined text-[16px]">chat</span>
-                          </a>
+                            <span className="material-symbols-outlined text-[15px]">
+                              {copiedWaId === item.studentId ? 'done' : 'content_copy'}
+                            </span>
+                          </button>
                         </div>
                       </td>
                     </tr>
