@@ -7,8 +7,12 @@ import {
   subscribeToManagedStudents,
   getLocalTutorAssignments,
   getLocalManagedStudents,
+  subscribeToInvoices,
+  updateInvoiceStatusInFirestore,
+  FirestoreInvoiceDoc,
 } from '../firebase';
 import { resolveTutorForStudent, AssignedTutorSummary } from '../utils/tutorPairingResolver';
+import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 
 interface ParentDashboardProps {
   onLogout: () => void;
@@ -51,7 +55,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   // Session Notes Details Modal
   const [isSessionDetailsOpen, setIsSessionDetailsOpen] = useState<boolean>(false);
 
-  // Invoice Payment Simulator
+  // Invoice Payment Realtime States from Firestore
+  const [invoices, setInvoices] = useState<FirestoreInvoiceDoc[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState<boolean>(true);
   const [invoicePaid, setInvoicePaid] = useState<boolean>(false);
   const [isPaymentSuccessModalOpen, setIsPaymentSuccessModalOpen] = useState<boolean>(false);
 
@@ -63,6 +69,69 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
       getLocalTutorAssignments()
     );
   });
+
+  // Listen to Firestore invoices in real-time
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingInvoices(true);
+
+    const unsubscribeInvoices = subscribeToInvoices(
+      (data) => {
+        if (!isMounted) return;
+        setInvoices(data || []);
+        setIsLoadingInvoices(false);
+      },
+      (err) => {
+        if (!isMounted) return;
+        console.warn('Realtime invoice listener warning in ParentDashboard:', err);
+        setIsLoadingInvoices(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      if (typeof unsubscribeInvoices === 'function') {
+        unsubscribeInvoices();
+      }
+    };
+  }, []);
+
+  // Filter invoices for current child / parent
+  const childFirstWord = currentChildName.split(' ')[0].toLowerCase();
+  const cleanPhone = (parentPhone || '').replace(/[^0-9]/g, '');
+
+  const childInvoices = invoices.filter((inv) => {
+    const invStudent = (inv.studentName || '').toLowerCase();
+    const invPkg = (inv.package || '').toLowerCase();
+    const invWa = (inv.whatsapp || '').replace(/[^0-9]/g, '');
+
+    const nameMatches = invStudent.includes(childFirstWord) || invPkg.includes(childFirstWord);
+    const phoneMatches =
+      cleanPhone &&
+      invWa &&
+      (invWa === cleanPhone || invWa.endsWith(cleanPhone) || cleanPhone.endsWith(invWa));
+
+    return nameMatches || (phoneMatches && invStudent.includes(childFirstWord));
+  });
+
+  // Default fallback invoice template
+  const defaultChildInvoice: FirestoreInvoiceDoc = {
+    inv: selectedChild === 'rayhan' ? 'INV-2026-09-088' : 'INV-2026-09-089',
+    parent: parentName,
+    studentName: currentChildName,
+    packageType: 'paket',
+    package: selectedChild === 'rayhan' ? 'Paket 8 Sesi SD UMUM (Rayhan)' : 'Paket 8 Sesi Calistung (Kayla)',
+    channel: 'Midtrans QRIS / Virtual Account',
+    amount: selectedChild === 'rayhan' ? 280000 : 238000,
+    status: invoicePaid ? 'LUNAS' : 'PENDING',
+    date: 'Oktober 2026',
+    whatsapp: parentPhone,
+    createdAt: new Date().toISOString(),
+  };
+
+  const activeInvoice: FirestoreInvoiceDoc =
+    childInvoices.length > 0 ? childInvoices[0] : defaultChildInvoice;
+  const isCurrentInvoicePaid = activeInvoice.status === 'LUNAS' || invoicePaid;
 
   // Listen to tutor assignments & managed students in real time for selected child
   useEffect(() => {
@@ -116,22 +185,50 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     setTimeout(() => setFeedbackToast(null), 3500);
   };
 
-  const handlePayInvoice = (amount: number, invNumber: string, packageName: string) => {
+  const handlePayInvoice = async (amount: number, invNumber: string, packageName: string) => {
     if (onOpenMidtransPayment) {
       onOpenMidtransPayment({
         inv: invNumber,
-        studentName: selectedChild === 'rayhan' ? 'Rayhan Kusuma' : 'Kayla Kusuma',
+        studentName: currentChildName,
         amount,
         package: packageName,
       });
       return;
     }
 
-    // Default inline simulation
+    // Default inline simulation: update status in Cloud Firestore
+    try {
+      await updateInvoiceStatusInFirestore(invNumber, 'LUNAS');
+    } catch (err) {
+      console.warn('Could not update invoice in Firestore:', err);
+    }
     setInvoicePaid(true);
     setIsPaymentSuccessModalOpen(true);
     setFeedbackToast(`Pembayaran tagihan ${invNumber} via Midtrans Snap berhasil diverifikasi!`);
     setTimeout(() => setFeedbackToast(null), 4000);
+  };
+
+  const handleDownloadPdf = (inv: FirestoreInvoiceDoc) => {
+    try {
+      generateAndDownloadInvoicePdf({
+        inv: inv.inv,
+        parent: inv.parent || parentName,
+        studentName: inv.studentName || currentChildName,
+        packageType: inv.packageType || 'paket',
+        package: inv.package,
+        channel: inv.channel,
+        amount: inv.amount,
+        status: inv.status,
+        date: inv.date,
+        whatsapp: inv.whatsapp || parentPhone,
+      });
+      setFeedbackToast(`Invoice resmi ${inv.inv} berhasil diunduh format PDF!`);
+      setTimeout(() => setFeedbackToast(null), 3500);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setFeedbackToast('Gagal mengunduh invoice PDF, silakan coba lagi.');
+      setTimeout(() => setFeedbackToast(null), 3500);
+    }
   };
 
   return (
@@ -452,11 +549,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             {/* Pay Button Header CTA */}
             <button
               type="button"
-              onClick={() => handlePayInvoice(280000, 'INV-2026-09-088', 'Paket 8 Sesi SD UMUM (Rayhan)')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#C1683F] text-white text-xs font-bold hover:bg-[#A85530] transition-colors shadow-2xs cursor-pointer"
+              disabled={isCurrentInvoicePaid}
+              onClick={() => handlePayInvoice(activeInvoice.amount, activeInvoice.inv, activeInvoice.package)}
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors shadow-2xs cursor-pointer ${
+                isCurrentInvoicePaid
+                  ? 'bg-emerald-700 text-white opacity-80'
+                  : 'bg-[#C1683F] text-white hover:bg-[#A85530]'
+              }`}
             >
-              <span className="material-symbols-outlined text-[17px]">payments</span>
-              <span>Bayar Sesi</span>
+              <span className="material-symbols-outlined text-[17px]">
+                {isCurrentInvoicePaid ? 'check_circle' : 'payments'}
+              </span>
+              <span>{isCurrentInvoicePaid ? 'Lunas ✓' : 'Bayar Sesi'}</span>
             </button>
 
             {/* Parent Profile Pill */}
@@ -494,11 +598,18 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => handlePayInvoice(280000, 'INV-2026-09-088', 'Paket 8 Sesi SD UMUM (Rayhan)')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C1683F] text-white text-xs font-bold shadow-xs hover:bg-[#A85530] transition-all cursor-pointer"
+                  disabled={isCurrentInvoicePaid}
+                  onClick={() => handlePayInvoice(activeInvoice.amount, activeInvoice.inv, activeInvoice.package)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer ${
+                    isCurrentInvoicePaid
+                      ? 'bg-emerald-800 text-white opacity-80 cursor-default'
+                      : 'bg-[#C1683F] text-white hover:bg-[#A85530]'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-[18px]">payments</span>
-                  <span>Bayar Tagihan SPP (1)</span>
+                  <span className="material-symbols-outlined text-[18px]">
+                    {isCurrentInvoicePaid ? 'check_circle' : 'payments'}
+                  </span>
+                  <span>{isCurrentInvoicePaid ? 'Tagihan Lunas ✓' : `Bayar Tagihan SPP (${activeInvoice.inv})`}</span>
                 </button>
                 <a
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#f0eee8] text-[#1c1c18] text-xs font-bold hover:bg-[#ebe8e2] transition-colors border border-[rgba(42,40,35,0.08)] cursor-pointer"
@@ -559,6 +670,162 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             </div>
           </header>
 
+          {activeTab === 'tagihan-midtrans' ? (
+            <div className="space-y-6">
+              {/* Header Modul Tagihan & Midtrans */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[rgba(42,40,35,0.10)]">
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#c8ebce] text-[#284230] text-[10px] font-bold uppercase tracking-wider">
+                      Modul Keuangan &amp; Midtrans
+                    </span>
+                    <span className="text-xs text-[#284230] font-semibold flex items-center gap-1.5 bg-[#FAF7F1] px-2.5 py-0.5 rounded-full border border-[rgba(42,40,35,0.10)]">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Cloud Firestore Live Database</span>
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#1c1c18]">
+                    Modul Tagihan &amp; Pembayaran SPP
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#6B675F]">
+                    Sinkronisasi tagihan real-time dengan Admin Dashboard, Midtrans Snap QRIS/VA, dan Transfer Bank Jateng.
+                  </p>
+                </div>
+              </div>
+
+              {/* Bento KPI Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-5 rounded-2xl bg-white border border-[rgba(42,40,35,0.10)] shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Total Tagihan Anak</span>
+                  <span className="text-2xl font-extrabold text-[#1c1c18] mt-1 block">
+                    {childInvoices.length > 0 ? childInvoices.length : 1} Tagihan
+                  </span>
+                  <span className="text-[10px] text-[#3F5A46] font-bold mt-1 block">
+                    {currentChildName} ({selectedChild === 'rayhan' ? 'Kelas 5 SD' : 'Kelas 2 SD'})
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-white border border-[rgba(42,40,35,0.10)] shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Tagihan Lunas</span>
+                  <span className="text-2xl font-extrabold text-emerald-700 mt-1 block">
+                    {isCurrentInvoicePaid ? 'Lunas ✓' : '0 Lunas'}
+                  </span>
+                  <span className="text-[10px] text-[#6B675F] mt-1 block">Terverifikasi di Cloud Firestore</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-white border border-[rgba(42,40,35,0.10)] shadow-xs">
+                  <span className="text-[11px] text-[#6B675F] font-semibold block">Menunggu Bayar</span>
+                  <span className={`text-2xl font-extrabold mt-1 block ${isCurrentInvoicePaid ? 'text-gray-400' : 'text-amber-700'}`}>
+                    {isCurrentInvoicePaid ? '0 Pending' : `Rp ${(activeInvoice.amount || 280000).toLocaleString('id-ID')}`}
+                  </span>
+                  <span className="text-[10px] text-amber-700 font-bold mt-1 block">
+                    {isCurrentInvoicePaid ? 'Semua tagihan telah lunas' : 'Tersedia Midtrans & Transfer Manual'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Detail Tagihan Utama */}
+              <div className="p-6 rounded-3xl bg-white border border-[rgba(42,40,35,0.10)] shadow-xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[rgba(42,40,35,0.08)]">
+                  <div>
+                    <span className="text-xs font-mono font-bold text-[#284230]">{activeInvoice.inv}</span>
+                    <h3 className="text-lg font-bold text-[#1c1c18] mt-0.5">{activeInvoice.package}</h3>
+                    <p className="text-xs text-[#6B675F]">
+                      Siswa: <strong>{activeInvoice.studentName || currentChildName}</strong> • Wali: {parentName}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 ${
+                        isCurrentInvoicePaid
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          : 'bg-amber-100 text-amber-900 border border-amber-300'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {isCurrentInvoicePaid ? 'check_circle' : 'pending'}
+                      </span>
+                      <span>{isCurrentInvoicePaid ? 'LUNAS' : 'MENUNGGU PEMBAYARAN'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: Summary Breakdown */}
+                  <div className="space-y-3 bg-[#FAF7F1] p-4 rounded-2xl border border-[rgba(42,40,35,0.08)]">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-[#3F5A46]">Rincian Pembiayaan</h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-[#6B675F]">Program Bimbel:</span>
+                        <span className="font-semibold text-[#1c1c18]">{activeInvoice.package}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#6B675F]">Jumlah Sesi:</span>
+                        <span className="font-semibold text-[#1c1c18]">8 Sesi Terjadwal (70 Mnt/Sesi)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#6B675F]">Kanal Pembayaran:</span>
+                        <span className="font-semibold text-[#1c1c18]">{activeInvoice.channel}</span>
+                      </div>
+                      <div className="pt-2 border-t border-[rgba(42,40,35,0.08)] flex justify-between items-center text-sm font-extrabold">
+                        <span className="text-[#1c1c18]">Total Tagihan:</span>
+                        <span className="text-xl text-[#284230]">Rp {(activeInvoice.amount || 280000).toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                      <button
+                        type="button"
+                        disabled={isCurrentInvoicePaid}
+                        onClick={() => handlePayInvoice(activeInvoice.amount, activeInvoice.inv, activeInvoice.package)}
+                        className="flex-1 py-3 px-4 rounded-xl bg-[#0091FF] text-white text-xs font-bold hover:bg-[#007AE6] disabled:opacity-50 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {isCurrentInvoicePaid ? 'check_circle' : 'lock'}
+                        </span>
+                        <span>{isCurrentInvoicePaid ? 'Tagihan Sudah Dibayar' : 'Bayar Sekarang via Midtrans Snap'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadPdf(activeInvoice)}
+                        className="py-3 px-4 rounded-xl bg-white text-[#284230] border border-[#284230]/20 text-xs font-bold hover:bg-[#FAF7F1] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                        title="Unduh Invoice Resmi format PDF"
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-red-600">picture_as_pdf</span>
+                        <span>Unduh PDF</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right: Manual Transfer & Instructions */}
+                  <div className="space-y-3 bg-[#FAF4ED] p-4 rounded-2xl border border-amber-200">
+                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                      <span className="material-symbols-outlined text-[18px]">account_balance</span>
+                      <span>Alternatif Transfer Bank Jateng</span>
+                    </div>
+                    <div className="space-y-2 text-xs text-[#2A2823]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#6B675F]">Bank Tujuan:</span>
+                        <span className="font-bold">Bank Jateng (BPD Jateng)</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#6B675F]">Nomor Rekening:</span>
+                        <span className="font-mono font-bold text-sm bg-white px-2 py-0.5 rounded border border-amber-300 select-all">
+                          3014266266
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#6B675F]">Atas Nama:</span>
+                        <span className="font-bold">Monica Yuliana</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B675F] pt-2 border-t border-amber-200/60 leading-relaxed">
+                        Jika menggunakan Transfer Manual, mohon cantumkan berita transfer: <strong className="font-mono text-[#284230]">{activeInvoice.inv}</strong> dan kirimkan bukti struk ke WhatsApp Hotline agar diverifikasi oleh Admin.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* 3 Minimalist Stat Cards */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Stat 1: Kehadiran */}
@@ -838,45 +1105,72 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     </span>
                     <h3 className="text-base font-bold text-[#1c1c18]">Tagihan &amp; Midtrans Snap</h3>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#EFC9AE] text-[#6b2702] text-[10px] font-bold">
-                    {invoicePaid ? 'Lunas' : '1 Pending'}
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isCurrentInvoicePaid
+                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        : 'bg-[#EFC9AE] text-[#6b2702]'
+                    }`}
+                  >
+                    {isCurrentInvoicePaid ? 'Lunas' : 'Menunggu Bayar'}
                   </span>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <span className="text-[10px] font-mono text-[#6B675F]">INV-2026-09-088</span>
-                      <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">Paket 8 Sesi Rayhan Kusuma</h4>
-                      <p className="text-[11px] text-[#6B675F]">Periode: 1 – 31 Okt 2026</p>
+                      <span className="text-[10px] font-mono text-[#6B675F]">{activeInvoice.inv}</span>
+                      <h4 className="text-xs sm:text-sm font-bold text-[#1c1c18]">{activeInvoice.package}</h4>
+                      <p className="text-[11px] text-[#6B675F]">Periode: {activeInvoice.date || 'Oktober 2026'}</p>
                     </div>
-                    <span className="text-lg font-extrabold text-[#C1683F]">
-                      {invoicePaid ? 'LUNAS' : 'Rp 280.000'}
+                    <span
+                      className={`text-lg font-extrabold ${
+                        isCurrentInvoicePaid ? 'text-emerald-700' : 'text-[#C1683F]'
+                      }`}
+                    >
+                      {isCurrentInvoicePaid ? 'LUNAS' : `Rp ${(activeInvoice.amount || 280000).toLocaleString('id-ID')}`}
                     </span>
                   </div>
 
                   {/* Multi-Child Bundle Callout */}
-                  <div className="p-2.5 rounded-xl bg-white border border-dashed border-[#EFC9AE] flex items-center justify-between text-[11px]">
-                    <span className="text-[#1c1c18]">
-                      Bayar sekaligus SPP Kayla (Total <strong>Rp 518.000</strong>)
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-[#C1683F] text-white font-bold text-[10px]">
-                      Hemat 15%
-                    </span>
+                  {!isCurrentInvoicePaid && (
+                    <div className="p-2.5 rounded-xl bg-white border border-dashed border-[#EFC9AE] flex items-center justify-between text-[11px]">
+                      <span className="text-[#1c1c18]">
+                        Bayar sekaligus SPP Kayla (Total <strong>Rp 518.000</strong>)
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-[#C1683F] text-white font-bold text-[10px]">
+                        Hemat 15%
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      disabled={isCurrentInvoicePaid}
+                      onClick={() => handlePayInvoice(activeInvoice.amount, activeInvoice.inv, activeInvoice.package)}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-[#0091FF] text-white text-xs font-bold hover:bg-[#007AE6] disabled:opacity-50 transition-opacity shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[17px]">
+                        {isCurrentInvoicePaid ? 'check_circle' : 'lock'}
+                      </span>
+                      <span>{isCurrentInvoicePaid ? 'Tagihan Sudah Dibayar' : 'Bayar Sekarang via Midtrans Snap'}</span>
+                    </button>
+                    {isCurrentInvoicePaid && (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadPdf(activeInvoice)}
+                        className="py-2.5 px-3 rounded-xl bg-white text-[#284230] border border-[#284230]/20 text-xs font-bold hover:bg-[#FAF7F1] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Unduh Invoice Resmi format PDF"
+                      >
+                        <span className="material-symbols-outlined text-[17px] text-red-600">picture_as_pdf</span>
+                        <span>Unduh PDF</span>
+                      </button>
+                    )}
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={invoicePaid}
-                    onClick={() => handlePayInvoice(280000, 'INV-2026-09-088', 'Paket 8 Sesi SD UMUM (Rayhan)')}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#0091FF] text-white text-xs font-bold hover:bg-[#007AE6] disabled:opacity-50 transition-opacity shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[17px]">lock</span>
-                    <span>{invoicePaid ? 'Tagihan Sudah Dibayar' : 'Bayar Sekarang via Midtrans Snap'}</span>
-                  </button>
-
                   {/* Info Transfer Manual Bank Jateng */}
-                  {!invoicePaid && (
+                  {!isCurrentInvoicePaid && (
                     <div className="p-2.5 rounded-xl bg-[#FAF4ED] border border-amber-200 text-[10.5px] space-y-1">
                       <div className="flex items-center justify-between text-amber-900 font-bold">
                         <span>Opsi Transfer Manual:</span>
@@ -938,6 +1232,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Footer */}
           <footer className="pt-6 border-t border-[rgba(42,40,35,0.08)] flex flex-col sm:flex-row items-center justify-between gap-3 text-[#6B675F] text-[11px]">
