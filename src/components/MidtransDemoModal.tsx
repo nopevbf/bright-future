@@ -35,13 +35,57 @@ interface MethodChargeRecord {
   isExpired: boolean;
 }
 
+const getSessionStorageKey = (invoiceNumber: string) => `bf_midtrans_cache_${invoiceNumber}`;
+
+const loadCachedRecords = (invoiceNumber: string): Record<string, MethodChargeRecord> => {
+  if (!invoiceNumber || typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(getSessionStorageKey(invoiceNumber));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, MethodChargeRecord>;
+    const updated: Record<string, MethodChargeRecord> = {};
+    const currentTime = Date.now();
+    for (const [key, val] of Object.entries(parsed)) {
+      updated[key] = {
+        ...val,
+        isExpired: val.isExpired || val.expiresAt <= currentTime,
+      };
+    }
+    return updated;
+  } catch (e) {
+    console.warn('[MidtransModal] Failed to read cached charge records:', e);
+    return {};
+  }
+};
+
+const saveCachedRecords = (invoiceNumber: string, records: Record<string, MethodChargeRecord>) => {
+  if (!invoiceNumber || typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(getSessionStorageKey(invoiceNumber), JSON.stringify(records));
+  } catch (e) {
+    console.warn('[MidtransModal] Failed to save cached charge records:', e);
+  }
+};
+
+const clearCachedRecords = (invoiceNumber: string) => {
+  if (!invoiceNumber || typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(getSessionStorageKey(invoiceNumber));
+  } catch {
+    // Ignore
+  }
+};
+
 export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   submission,
   onClose,
   onPaymentSuccess,
 }) => {
+  const invoiceNumber = submission?.invoiceNumber || '';
   const [activeMethod, setActiveMethod] = useState<PaymentMethodType>('qris');
-  const [chargeRecords, setChargeRecords] = useState<Record<string, MethodChargeRecord>>({});
+  const [chargeRecords, setChargeRecords] = useState<Record<string, MethodChargeRecord>>(() => {
+    return loadCachedRecords(invoiceNumber);
+  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -50,8 +94,21 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   const [isPaid, setIsPaid] = useState<boolean>(false);
   const [now, setNow] = useState<number>(Date.now());
 
-  const invoiceNumber = submission?.invoiceNumber || '';
   const isFetchingRef = useRef<boolean>(false);
+
+  // Sync state changes to sessionStorage for persistence across modal open/close
+  useEffect(() => {
+    if (invoiceNumber && Object.keys(chargeRecords).length > 0) {
+      saveCachedRecords(invoiceNumber, chargeRecords);
+    }
+  }, [chargeRecords, invoiceNumber]);
+
+  // Clean cache on paid
+  useEffect(() => {
+    if (isPaid && invoiceNumber) {
+      clearCachedRecords(invoiceNumber);
+    }
+  }, [invoiceNumber, isPaid]);
 
   // Live clock ticker every 1 second
   useEffect(() => {
@@ -159,7 +216,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     ? Math.max(0, Math.floor((currentRecord.expiresAt - now) / 1000))
     : 15 * 60;
 
-  const isCurrentExpired = Boolean(currentRecord && remainingSeconds <= 0);
+  const isCurrentExpired = Boolean(currentRecord && (currentRecord.isExpired || remainingSeconds <= 0));
 
   // Invalidation when countdown expires (User triggers refresh manually via button)
   useEffect(() => {

@@ -20,6 +20,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
     global.fetch = vi.fn().mockImplementation(async (url: string, opts: any) => {
       const body = opts?.body ? JSON.parse(opts.body) : {};
       const method = body.paymentMethod || 'qris';
@@ -373,5 +374,69 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       call[0].includes('/api/midtrans/charge')
     );
     expect(chargeCalls.length).toBe(0);
+  });
+
+  it('MDT-PERSIST-001: should restore active charge, continue countdown timer, and avoid refetching when modal is closed and reopened', async () => {
+    sessionStorage.clear();
+    const { unmount } = render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    // 1. Reveal QRIS
+    fireEvent.click(screen.getByRole('button', { name: /perlihatkan|tampilkan kode qris/i }));
+    await waitFor(() => {
+      expect(screen.getByAltText(/qris midtrans/i)).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    // 2. Close modal (unmount)
+    unmount();
+
+    // 3. Reopen modal
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    // QRIS must be immediately visible without clicking reveal
+    expect(screen.getByAltText(/qris midtrans/i)).toBeInTheDocument();
+    // No additional fetch should occur
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    // Active countdown badge is present (not "Siap Ditampilkan")
+    expect(screen.getByText(/sisa waktu:/i)).toBeInTheDocument();
+  });
+
+  it('MDT-PERSIST-002: should restore as expired state if reopened after 15 minutes have passed', async () => {
+    sessionStorage.clear();
+    const expiredRecord = {
+      qris: {
+        data: {
+          status: 'success',
+          paymentType: 'qris',
+          qrCodeUrl: 'https://api.sandbox.midtrans.com/v2/qris/mock-qr/qr-code',
+        },
+        expiresAt: Date.now() - 5000, // 5 seconds in the past
+        isExpired: true,
+      },
+    };
+    sessionStorage.setItem('bf_midtrans_cache_INV-2026-001', JSON.stringify(expiredRecord));
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Directly shows expired notice
+    expect(screen.getByText(/kode pembayaran kedaluwarsa/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /buat kode pembayaran baru/i })).toBeInTheDocument();
+    // No automatic fetch call on mount
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
