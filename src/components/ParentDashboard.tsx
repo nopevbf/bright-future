@@ -18,6 +18,11 @@ import { resolveTutorForStudent, AssignedTutorSummary } from '../utils/tutorPair
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 import { MidtransDemoModal } from './MidtransDemoModal';
 import { EducationalLevel } from '../types';
+import {
+  getMidtransSettings,
+  calculateMidtransFee,
+  getActivePaymentMethods,
+} from '../utils/midtransSettings';
 
 export interface ParentChildInfo {
   id: string;
@@ -116,7 +121,7 @@ export function resolveChildrenForParent(
 
   for (const r of registrations) {
     if (isMatch(r.whatsapp, r.parentName)) {
-      const regId = r.studentId || r.id;
+      const regId = r.studentId || (r as any).id;
       if (!seenIds.has(regId)) {
         seenIds.add(regId);
         matched.push({
@@ -299,6 +304,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const activeInvoice: FirestoreInvoiceDoc =
     childInvoices.length > 0 ? childInvoices[0] : defaultChildInvoice;
   const isCurrentInvoicePaid = activeInvoice.status === 'LUNAS' || invoicePaid;
+
+  const midtransSettings = getMidtransSettings();
+  const midtransFee = calculateMidtransFee(activeInvoice.amount || 280000, midtransSettings);
+  const activeMidtransMethods = getActivePaymentMethods(midtransSettings);
 
   // Listen to tutor assignments & managed students in real time for selected child
   useEffect(() => {
@@ -931,9 +940,24 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                         <span className="text-[#6B675F]">Kanal Pembayaran:</span>
                         <span className="font-semibold text-[#1c1c18]">{activeInvoice.channel}</span>
                       </div>
+                      {midtransSettings.isCustomerFee && midtransFee.feeAmount > 0 && (
+                        <div className="flex justify-between text-[#C1683F] font-semibold">
+                          <span>Biaya Layanan Midtrans:</span>
+                          <span>+ {midtransFee.formattedFee}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-[11px] text-[#6B675F]">
+                        <span>Metode Aktif:</span>
+                        <span className="font-medium text-[#3F5A46] text-right truncate max-w-[200px]" title={activeMidtransMethods.map((m) => m.name).join(', ')}>
+                          {activeMidtransMethods.map((m) => m.name).slice(0, 3).join(', ')}
+                          {activeMidtransMethods.length > 3 ? ` +${activeMidtransMethods.length - 3}` : ''}
+                        </span>
+                      </div>
                       <div className="pt-2 border-t border-[rgba(42,40,35,0.08)] flex justify-between items-center text-sm font-extrabold">
                         <span className="text-[#1c1c18]">Total Tagihan:</span>
-                        <span className="text-xl text-[#284230]">Rp {(activeInvoice.amount || 280000).toLocaleString('id-ID')}</span>
+                        <span className="text-xl text-[#284230]">
+                          Rp {(midtransSettings.isCustomerFee ? midtransFee.grandTotal : (activeInvoice.amount || 280000)).toLocaleString('id-ID')}
+                        </span>
                       </div>
                     </div>
 

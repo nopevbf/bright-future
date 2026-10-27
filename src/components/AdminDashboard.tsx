@@ -41,6 +41,7 @@ import {
   subscribeToManagedStudents,
 } from '../firebase';
 import { AccountManagementSubTab } from './admin/AccountManagementSubTab';
+import { MidtransSettingsSubTab } from './admin/MidtransSettingsSubTab';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
 import { StudentManagementSubTab } from './admin/StudentManagementSubTab';
 import { StudentDetailModal } from './admin/StudentDetailModal';
@@ -402,6 +403,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [tutorRegistrations, setTutorRegistrations] = useState<FirestoreTutorRegistrationDoc[]>([]);
   const [isLoadingTutorRegistrations, setIsLoadingTutorRegistrations] = useState<boolean>(false);
   const [selectedTutorApplicant, setSelectedTutorApplicant] = useState<FirestoreTutorRegistrationDoc | null>(null);
+
+  // Sub-menu state for Midtrans
+  const [midtransSubTab, setMidtransSubTab] = useState<'transaksi' | 'pengaturan'>('transaksi');
 
   // Portal credentials accounts state
   const [portalAccounts, setPortalAccounts] = useState<PortalCredentialDoc[]>([]);
@@ -2757,8 +2761,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Quick Summary Metric Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Sub-menu Switcher Khusus Midtrans */}
+              {activeTab === 'midtrans' && (
+                <div className="flex items-center gap-1.5 p-1 bg-[#FAF7F1] rounded-2xl border border-[#2A2823]/8 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setMidtransSubTab('transaksi')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                      midtransSubTab === 'transaksi'
+                        ? 'bg-[#284230] text-white shadow-xs'
+                        : 'text-[#6B675F] hover:text-[#2A2823] hover:bg-white/60'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                    <span>Monitoring Transaksi</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="tab-midtrans-settings"
+                    onClick={() => setMidtransSubTab('pengaturan')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                      midtransSubTab === 'pengaturan'
+                        ? 'bg-[#284230] text-white shadow-xs'
+                        : 'text-[#6B675F] hover:text-[#2A2823] hover:bg-white/60'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">tune</span>
+                    <span>Pengaturan Gateway & Fee</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Sub-menu 2: Pengaturan & Fee Midtrans */}
+              {activeTab === 'midtrans' && midtransSubTab === 'pengaturan' ? (
+                <MidtransSettingsSubTab />
+              ) : (
+                <>
+                  {/* Quick Summary Metric Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Total Invoice</span>
                   <span className="text-xl font-extrabold text-[#2A2823] mt-1 block">{validInvoices.length} Tagihan</span>
@@ -3002,9 +3043,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </table>
                 </div>
               </div>
-            </div>
-            );
-          })()}
+            </>
+          )}
+        </div>
+        );
+      })()}
 
           {/* TAB: AKUN & HAK AKSES */}
           {activeTab === 'akun' && (

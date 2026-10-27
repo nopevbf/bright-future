@@ -82,6 +82,7 @@ export interface CoreChargeResult {
   bank?: string | null;
   billerCode?: string | null;
   billKey?: string | null;
+  paymentCode?: string | null;
   expiryTime?: string | null;
   grossAmount?: number;
   isMock?: boolean;

@@ -8,7 +8,6 @@ import { ManagedStudent } from '../components/admin/studentData';
 const { testRegistrations, testInvoices } = vi.hoisted(() => {
   const testRegistrations: FirestoreRegistrationDoc[] = [
     {
-      id: 'REG-001',
       studentId: 'BF-2026-09-9001',
       studentName: 'Siswa Baru 1',
       parentName: 'Wali 1',
@@ -16,13 +15,15 @@ const { testRegistrations, testInvoices } = vi.hoisted(() => {
       whatsapp: '081234567890',
       homeAddress: 'Secang',
       selectedSchedule: ['Senin 15:30'],
+      totalSessions: 8,
       totalAmount: 280000,
+      appliedDiscount: 0,
+      invoiceNumber: 'INV-TEST-REG-1',
       paymentStatus: 'paid',
-      submittedAt: '2026-10-27T08:00:00Z',
+      createdAt: '2026-10-27T08:00:00Z',
       status: 'verified',
     },
     {
-      id: 'REG-002',
       studentId: 'BF-2026-09-9002',
       studentName: 'Siswa Baru 2',
       parentName: 'Wali 2',
@@ -30,9 +31,12 @@ const { testRegistrations, testInvoices } = vi.hoisted(() => {
       whatsapp: '081234567891',
       homeAddress: 'Mungkid',
       selectedSchedule: ['Selasa 15:30'],
+      totalSessions: 8,
       totalAmount: 360000,
+      appliedDiscount: 0,
+      invoiceNumber: 'INV-TEST-REG-2',
       paymentStatus: 'pending',
-      submittedAt: '2026-10-27T09:00:00Z',
+      createdAt: '2026-10-27T09:00:00Z',
       status: 'submitted',
     },
   ];

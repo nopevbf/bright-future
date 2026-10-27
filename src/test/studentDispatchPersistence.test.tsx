@@ -8,6 +8,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AdminDashboard } from '../components/AdminDashboard';
 import * as firebaseModule from '../firebase';
+import { ManagedStudent } from '../components/admin/studentData';
 
 describe('Admin Data Siswa & Smart Dispatch Lifecycle (ISTQB & TDD)', () => {
   beforeEach(() => {
@@ -45,7 +46,7 @@ describe('Admin Data Siswa & Smart Dispatch Lifecycle (ISTQB & TDD)', () => {
   it('TC-DSP-002: Editing a student in Manajemen Siswa & Wali invokes saveManagedStudentToFirestore', async () => {
     const saveSpy = vi.spyOn(firebaseModule, 'saveManagedStudentToFirestore').mockResolvedValue(undefined);
 
-    const mockStudent: firebaseModule.ManagedStudent = {
+    const mockStudent: ManagedStudent = {
       id: 'BF-2026-TEST-01',
       studentName: 'Kevin Pratama',
       level: 'SD',

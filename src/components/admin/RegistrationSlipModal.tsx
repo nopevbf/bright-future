@@ -1,6 +1,10 @@
 import React from 'react';
 import { FirestoreRegistrationDoc } from '../../firebase';
 import { parseSessionsPerWeek } from '../../utils/pricing';
+import {
+  getMidtransSettings,
+  getActivePaymentMethods,
+} from '../../utils/midtransSettings';
 
 interface RegistrationSlipModalProps {
   registration: FirestoreRegistrationDoc | null;
@@ -228,7 +232,7 @@ export const RegistrationSlipModal: React.FC<RegistrationSlipModalProps> = ({
           <div className="p-3 bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] rounded-xl text-[10px] space-y-0.5 text-[#6B675F]">
             <p className="font-bold text-[#284230]">INSTRUKSI REKENING &amp; GATEWAY RESMI:</p>
             <p>• <strong>Transfer Manual:</strong> Bank Jateng No. Rekening <strong className="text-[#2A2823] font-mono">3014266266</strong> a.n. <strong>Monica Yuliana</strong></p>
-            <p>• <strong>Midtrans (Real-time):</strong> QRIS (GoPay/ShopeePay), Virtual Account BCA, Mandiri, BNI, BRI (Otomatis Lunas)</p>
+            <p>• <strong>Midtrans (Real-time):</strong> {getActivePaymentMethods(getMidtransSettings()).map((m) => m.name).slice(0, 5).join(', ')} (Otomatis Lunas)</p>
           </div>
 
           {/* Verification Badge & Signatures */}

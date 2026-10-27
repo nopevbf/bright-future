@@ -110,6 +110,9 @@ export interface FirestoreRegistrationDoc {
   createdAt: string;
   assignedTutor?: string;
   assignedAt?: string;
+  id?: string;
+  status?: string;
+  submittedAt?: string;
 }
 
 export interface AdminCredentialDoc {

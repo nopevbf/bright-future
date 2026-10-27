@@ -11,6 +11,11 @@ import {
   calculateDynamicTutoringFee,
 } from '../utils/pricing';
 import {
+  getMidtransSettings,
+  calculateMidtransFee,
+  getActivePaymentMethods,
+} from '../utils/midtransSettings';
+import {
   Send,
   CheckCircle2,
   Copy,
@@ -122,6 +127,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     sessionsPerWeek,
     hasSiblingDiscount: formData.hasSiblingDiscount,
   });
+
+  const midtransSettings = getMidtransSettings();
+  const midtransFee = calculateMidtransFee(dynamicFee.grandTotal, midtransSettings);
+  const activeMidtransMethods = getActivePaymentMethods(midtransSettings);
 
   const handleWhatsappChange = async (val: string) => {
     const rawVal = val;
@@ -715,6 +724,36 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
               </div>
 
+              {/* Rincian Fee Midtrans Real-time Preview */}
+              {formData.paymentMethod === 'midtrans' && (
+                <div className="mt-2.5 p-3.5 rounded-xl bg-[#EAF2ED]/80 border border-[#3F5A46]/25 text-xs space-y-1.5 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#3F5A46] uppercase tracking-wide text-[11px] flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Midtrans Gateway Real-time</span>
+                    </span>
+                    <span className="text-[10px] text-[#3F5A46] font-semibold px-2 py-0.5 bg-[#c8ebce] rounded-md">
+                      {activeMidtransMethods.length} Kanal Aktif
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[#6B675F]">Biaya Transaksi Midtrans:</span>
+                    <span className="font-mono font-bold text-[#2A2823]">
+                      {midtransSettings.isCustomerFee && midtransFee.feeAmount > 0
+                        ? `+ Rp ${midtransFee.feeAmount.toLocaleString('id-ID')}`
+                        : 'Rp 0 (Ditanggung Bimbel)'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#6B675F]">Metode Pembayaran Tersedia:</span>
+                    <span className="font-medium text-[#2A2823] text-right truncate max-w-[200px]" title={activeMidtransMethods.map((m) => m.name).join(', ')}>
+                      {activeMidtransMethods.map((m) => m.name).slice(0, 3).join(', ')}
+                      {activeMidtransMethods.length > 3 ? ` +${activeMidtransMethods.length - 3} lainnya` : ''}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Panduan Rekening Bank Jateng Preview */}
               {formData.paymentMethod === 'manual_transfer' && (
                 <div className="mt-2.5 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-1.5 animate-fade-in">
@@ -755,7 +794,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     Tarif Rp {dynamicFee.sessionRate.toLocaleString('id-ID')} / sesi ({dynamicFee.sessionsPerWeek} Sesi / Mgg)
                   </span>
                 </div>
-                <div className="font-bold text-[#2A2823] flex items-center gap-1.5">
+                <div className="font-bold text-[#2A2823] flex items-center gap-2">
                   {formData.hasSiblingDiscount && dynamicFee.discountAmount > 0 && (
                     <span className="text-[11px] text-[#6B675F] line-through">
                       Rp {dynamicFee.subtotal.toLocaleString('id-ID')}
@@ -765,6 +804,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   <span className="text-[#C1683F] font-extrabold text-sm">
                     Rp {dynamicFee.grandTotal.toLocaleString('id-ID')}
                   </span>
+                  {formData.paymentMethod === 'midtrans' && midtransFee.feeAmount > 0 && (
+                    <span className="text-[11px] text-[#6B675F] font-normal">
+                      (+Fee Midtrans {midtransFee.formattedFee})
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -846,10 +890,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 </div>
 
                 <div>
-                  <div className="text-[10px] text-[#6B675F] font-bold uppercase">Total SPP Bulanan</div>
+                  <div className="text-[10px] text-[#6B675F] font-bold uppercase">Total Tagihan</div>
                   <div className="font-extrabold text-[#C1683F] text-base mt-0.5">
                     Rp {submittedData.totalAmount.toLocaleString('id-ID')}
                   </div>
+                  {submittedData.paymentMethod === 'midtrans' && midtransFee.feeAmount > 0 && (
+                    <div className="text-[10px] text-[#6B675F]">
+                      (Termasuk Fee Midtrans Rp {midtransFee.feeAmount.toLocaleString('id-ID')})
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -863,13 +912,20 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   {submittedData.selectedSchedule.join(', ')} ({dynamicFee.sessionsPerWeek} Sesi / Mgg) • Wali: {submittedData.parentName} (
                   {submittedData.whatsapp})
                 </div>
-                <div className="mt-1">
-                  <span className="font-semibold text-[#2A2823]">Metode Pembayaran:</span>{' '}
-                  <span className="font-bold text-[#3F5A46]">
-                    {submittedData.paymentMethod === 'manual_transfer'
-                      ? 'Transfer Manual Bank Jateng'
-                      : 'Midtrans Snap Gateway (Real-time)'}
-                  </span>
+                <div className="mt-1 flex items-center justify-between flex-wrap gap-1">
+                  <div>
+                    <span className="font-semibold text-[#2A2823]">Metode Pembayaran:</span>{' '}
+                    <span className="font-bold text-[#3F5A46]">
+                      {submittedData.paymentMethod === 'manual_transfer'
+                        ? 'Transfer Manual Bank Jateng'
+                        : 'Midtrans Snap Gateway (Real-time)'}
+                    </span>
+                  </div>
+                  {submittedData.paymentMethod === 'midtrans' && (
+                    <span className="text-[10px] font-semibold text-[#3F5A46] bg-[#c8ebce] px-2 py-0.5 rounded-full">
+                      Tersedia: {activeMidtransMethods.map((m) => m.name).slice(0, 3).join(', ')}{activeMidtransMethods.length > 3 ? '...' : ''}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

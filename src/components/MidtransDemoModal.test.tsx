@@ -109,10 +109,10 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /^qris\b/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^bca va\b/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^bri va\b/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^mandiri va\b/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^qris/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bca/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bri/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /mandiri/i })).toBeInTheDocument();
   });
 
   it('MDT-MODAL-003: revealing QRIS requests charge and displays QR code', async () => {
@@ -141,7 +141,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    const bcaTab = screen.getByRole('button', { name: /bca va/i });
+    const bcaTab = screen.getByRole('button', { name: /bca/i });
     fireEvent.click(bcaTab);
 
     // Should NOT have fetched bca_va yet
@@ -165,7 +165,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    const briTab = screen.getByRole('button', { name: /bri va/i });
+    const briTab = screen.getByRole('button', { name: /bri/i });
     fireEvent.click(briTab);
 
     expect(global.fetch).not.toHaveBeenCalled();
@@ -187,7 +187,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
       />
     );
 
-    const mandiriTab = screen.getByRole('button', { name: /mandiri va/i });
+    const mandiriTab = screen.getByRole('button', { name: /mandiri/i });
     fireEvent.click(mandiriTab);
 
     expect(global.fetch).not.toHaveBeenCalled();
@@ -217,7 +217,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     });
 
     // 2. Switch to BCA VA and reveal
-    fireEvent.click(screen.getByRole('button', { name: /bca va/i }));
+    fireEvent.click(screen.getByRole('button', { name: /bca/i }));
     fireEvent.click(screen.getByRole('button', { name: /perlihatkan|tampilkan.*bca/i }));
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -290,7 +290,7 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     fireEvent.click(checkBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/pembayaran sukses terverifikasi/i)).toBeInTheDocument();
+      expect(screen.getByText('Pembayaran Berhasil!')).toBeInTheDocument();
     });
   });
 
@@ -438,5 +438,51 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     expect(screen.getByRole('button', { name: /buat kode pembayaran baru/i })).toBeInTheDocument();
     // No automatic fetch call on mount
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('TC-MDL-DYN-001: dynamically renders only enabled payment methods from settings', () => {
+    localStorage.setItem(
+      'bf_midtrans_settings',
+      JSON.stringify({
+        feeType: 'flat',
+        feeAmount: 4000,
+        isCustomerFee: true,
+        enabledMethods: ['qris', 'bni_va'],
+      })
+    );
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^qris/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /bni/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mandiri/i })).not.toBeInTheDocument();
+  });
+
+  it('TC-MDL-FEE-001: renders fee breakdown (Biaya Layanan Midtrans) and grand total', () => {
+    localStorage.setItem(
+      'bf_midtrans_settings',
+      JSON.stringify({
+        feeType: 'flat',
+        feeAmount: 4000,
+        isCustomerFee: true,
+        enabledMethods: ['qris', 'bca_va'],
+      })
+    );
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Dummy submission amount is 350.000 + 4.000 fee = 354.000
+    expect(screen.getByText(/Biaya Layanan/i)).toBeInTheDocument();
+    expect(screen.getByText(/354\.000/)).toBeInTheDocument();
   });
 });

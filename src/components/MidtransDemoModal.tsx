@@ -3,16 +3,15 @@ import { SubmittedRegistration } from '../types';
 import {
   X,
   QrCode,
-  CheckCircle2,
   Building,
   CreditCard,
+  Store,
   Copy,
   Check,
   RefreshCw,
   Loader2,
   Clock,
   AlertTriangle,
-  Search,
 } from 'lucide-react';
 import {
   updateRegistrationStatusInFirestore,
@@ -20,6 +19,12 @@ import {
   subscribeToInvoice,
 } from '../firebase';
 import { CoreChargeResult } from '../utils/midtransService';
+import {
+  getMidtransSettings,
+  calculateMidtransFee,
+  getActivePaymentMethods,
+  MidtransSettingsConfig,
+} from '../utils/midtransSettings';
 
 interface MidtransDemoModalProps {
   submission: SubmittedRegistration | null;
@@ -27,7 +32,7 @@ interface MidtransDemoModalProps {
   onPaymentSuccess?: (orderId: string) => void;
 }
 
-type PaymentMethodType = 'qris' | 'bca_va' | 'bri_va' | 'mandiri_va';
+type PaymentMethodType = string;
 
 interface MethodChargeRecord {
   data: CoreChargeResult;
@@ -67,22 +72,28 @@ const saveCachedRecords = (invoiceNumber: string, records: Record<string, Method
   }
 };
 
-const clearCachedRecords = (invoiceNumber: string) => {
-  if (!invoiceNumber || typeof window === 'undefined') return;
-  try {
-    sessionStorage.removeItem(getSessionStorageKey(invoiceNumber));
-  } catch {
-    // Ignore
-  }
-};
-
 export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   submission,
   onClose,
   onPaymentSuccess,
 }) => {
   const invoiceNumber = submission?.invoiceNumber || '';
-  const [activeMethod, setActiveMethod] = useState<PaymentMethodType>('qris');
+  const [settings, setSettings] = useState<MidtransSettingsConfig>(() => getMidtransSettings());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setSettings(getMidtransSettings());
+    };
+    window.addEventListener('bf_midtrans_settings_updated', handleUpdate);
+    return () => window.removeEventListener('bf_midtrans_settings_updated', handleUpdate);
+  }, []);
+
+  const activeMethods = getActivePaymentMethods(settings);
+  const [activeMethod, setActiveMethod] = useState<PaymentMethodType>(() => {
+    const initialMethods = getActivePaymentMethods(getMidtransSettings());
+    return initialMethods[0]?.id || 'qris';
+  });
+
   const [chargeRecords, setChargeRecords] = useState<Record<string, MethodChargeRecord>>(() => {
     return loadCachedRecords(invoiceNumber);
   });
@@ -96,64 +107,58 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
 
   const isFetchingRef = useRef<boolean>(false);
 
+  // Sync active method if current activeMethod is not among enabled methods
+  useEffect(() => {
+    if (activeMethods.length > 0 && !activeMethods.some((m) => m.id === activeMethod)) {
+      setActiveMethod(activeMethods[0].id);
+    }
+  }, [activeMethods, activeMethod]);
+
+  const feeCalculation = calculateMidtransFee(submission?.totalAmount || 0, settings);
+
   // Sync state changes to sessionStorage for persistence across modal open/close
   useEffect(() => {
-    if (invoiceNumber && Object.keys(chargeRecords).length > 0) {
+    if (invoiceNumber) {
       saveCachedRecords(invoiceNumber, chargeRecords);
     }
   }, [chargeRecords, invoiceNumber]);
 
-  // Clean cache on paid
-  useEffect(() => {
-    if (isPaid && invoiceNumber) {
-      clearCachedRecords(invoiceNumber);
-    }
-  }, [invoiceNumber, isPaid]);
-
-  // Live clock ticker every 1 second
+  // Update clock every second for live countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
-  // Real-time Firestore Invoice Status Listener
+  // Listen to Firestore realtime updates for payment status
   useEffect(() => {
-    if (!invoiceNumber) return;
+    if (!submission?.invoiceNumber) return;
 
-    const unsubscribe = subscribeToInvoice(invoiceNumber, (invDoc) => {
-      if (invDoc && invDoc.status === 'LUNAS') {
+    const unsubscribe = subscribeToInvoice(submission.invoiceNumber, (invoice) => {
+      if (invoice && invoice.status === 'LUNAS') {
         setIsPaid(true);
-        setIsCheckingStatus(false);
-        onPaymentSuccess?.(invoiceNumber);
+        onPaymentSuccess?.(submission.invoiceNumber);
       }
     });
 
-    return () => {
-      unsubscribe();
-    };
-  }, [invoiceNumber, onPaymentSuccess]);
+    return () => unsubscribe();
+  }, [submission?.invoiceNumber, onPaymentSuccess]);
 
-  // Request Charge details from Midtrans Core API (with 15 min custom_expiry)
+  // Lazy Load on-demand Core API Charge
   const fetchChargeDetails = useCallback(
     async (method: PaymentMethodType, forceRefresh = false) => {
       if (!submission) return;
 
-      // In-flight guard: prevent double request if fetch is already in progress
-      if (isFetchingRef.current) return;
-
-      const existing = chargeRecords[method];
-      // Use cached if valid and not expired
-      if (!forceRefresh && existing && !existing.isExpired && existing.expiresAt > Date.now()) {
+      if (!forceRefresh && chargeRecords[method] && !chargeRecords[method].isExpired) {
         return;
       }
 
+      if (isFetchingRef.current) return;
       isFetchingRef.current = true;
+
       setIsLoading(true);
       setErrorMsg(null);
-      setStatusNotice(null);
 
       try {
         const res = await fetch('/api/midtrans/charge', {
@@ -161,7 +166,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             orderId: submission.invoiceNumber,
-            grossAmount: submission.totalAmount,
+            grossAmount: feeCalculation.grandTotal,
             paymentMethod: method,
             customerDetails: {
               firstName: submission.studentName,
@@ -169,11 +174,21 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
             },
             itemDetails: [
               {
-                id: submission.studentId || 'BIMBEL-SPP',
-                name: `SPP Bimbel (${submission.level?.toUpperCase() || 'SD'})`,
-                price: submission.totalAmount,
+                id: 'SPP',
+                name: `SPP ${submission.studentName || 'Siswa'}`,
+                price: feeCalculation.baseAmount,
                 quantity: 1,
               },
+              ...(feeCalculation.feeAmount > 0
+                ? [
+                    {
+                      id: 'MIDTRANS-FEE',
+                      name: 'Biaya Layanan Midtrans Gateway',
+                      price: feeCalculation.feeAmount,
+                      quantity: 1,
+                    },
+                  ]
+                : []),
             ],
           }),
         });
@@ -181,13 +196,10 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
         const data: CoreChargeResult = await res.json();
 
         if (!res.ok || data.status === 'error') {
-          throw new Error(data.message || 'Gagal membuat tagihan pembayaran Midtrans');
+          throw new Error(data.message || 'Gagal memuat detail transaksi Midtrans');
         }
 
-        // Midtrans custom_expiry is 15 minutes (900,000 ms)
-        const expiryDurationMs = 15 * 60 * 1000;
-        const expiresAt = Date.now() + expiryDurationMs;
-
+        const expiresAt = Date.now() + 15 * 60 * 1000;
         setChargeRecords((prev) => ({
           ...prev,
           [method]: {
@@ -204,21 +216,18 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
         isFetchingRef.current = false;
       }
     },
-    [chargeRecords, submission]
+    [chargeRecords, submission, feeCalculation]
   );
 
-  // Current method charge record & countdown calculations
   const currentRecord = chargeRecords[activeMethod];
   const currentCharge = currentRecord?.data;
 
-  // Calculate remaining seconds
   const remainingSeconds = currentRecord
     ? Math.max(0, Math.floor((currentRecord.expiresAt - now) / 1000))
     : 15 * 60;
 
   const isCurrentExpired = Boolean(currentRecord && (currentRecord.isExpired || remainingSeconds <= 0));
 
-  // Invalidation when countdown expires (User triggers refresh manually via button)
   useEffect(() => {
     if (isCurrentExpired && currentRecord && !currentRecord.isExpired) {
       setChargeRecords((prev) => {
@@ -236,7 +245,6 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
 
   if (!submission) return null;
 
-  // Format MM:SS countdown
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
   const countdownFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -248,7 +256,6 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  // Manual Check Payment Status Button Handler
   const handleCheckStatus = async () => {
     setIsCheckingStatus(true);
     setStatusNotice(null);
@@ -299,6 +306,21 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
     }
   };
 
+  const getMethodIcon = (iconType: string) => {
+    switch (iconType) {
+      case 'qrcode':
+        return <QrCode className="w-5 h-5 shrink-0 text-[#3F5A46]" />;
+      case 'building':
+        return <Building className="w-5 h-5 shrink-0 text-[#3F5A46]" />;
+      case 'store':
+        return <Store className="w-5 h-5 shrink-0 text-[#C1683F]" />;
+      default:
+        return <CreditCard className="w-5 h-5 shrink-0 text-[#3F5A46]" />;
+    }
+  };
+
+  const currentMethodConfig = activeMethods.find((m) => m.id === activeMethod) || activeMethods[0];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div className="max-w-md w-full rounded-[26px] bg-white border border-[rgba(42,40,35,0.1)] shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
@@ -329,7 +351,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           </button>
         </div>
 
-        {/* Invoice Summary & 15-Minute Countdown */}
+        {/* Invoice Summary & Fee Breakdown Card */}
         <div className="p-4 sm:p-5 bg-[#FAF7F1] border-b border-[rgba(42,40,35,0.06)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
@@ -349,24 +371,30 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-[#6B675F]">Total Tagihan:</div>
+            <div className="text-[10px] text-[#6B675F]">
+              Subtotal: Rp {feeCalculation.baseAmount.toLocaleString('id-ID')}
+            </div>
+            {feeCalculation.feeAmount > 0 && (
+              <div className="text-[10px] text-[#C1683F] font-semibold">
+                Biaya Layanan: + {feeCalculation.formattedFee}
+              </div>
+            )}
             <div className="text-lg font-extrabold text-[#C1683F]">
-              Rp {submission.totalAmount.toLocaleString('id-ID')}
+              Rp {feeCalculation.grandTotal.toLocaleString('id-ID')}
             </div>
           </div>
         </div>
 
-        {/* Modal Body: Active Payment Display or Paid State */}
+        {/* Modal Body */}
         {!isPaid ? (
           <div className="p-5 sm:p-6 space-y-4">
-            {/* 4 Method Selection Buttons */}
+            {/* Dynamic Method Selection Buttons */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-bold text-[#2A2823] uppercase">
                   Pilih Metode Pembayaran
                 </label>
 
-                {/* 15-Minute Countdown Timer Badge */}
                 {currentRecord && !isCurrentExpired ? (
                   <div
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold border transition-colors ${
@@ -398,74 +426,29 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {/* 1. QRIS */}
-                <button
-                  type="button"
-                  onClick={() => setActiveMethod('qris')}
-                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    activeMethod === 'qris'
-                      ? 'border-[#3F5A46] bg-[#EAF2ED] text-[#3F5A46] shadow-xs'
-                      : 'border-[rgba(42,40,35,0.1)] hover:bg-[#FAF7F1] text-[#2A2823]'
-                  }`}
-                >
-                  <QrCode className="w-5 h-5 shrink-0 text-[#3F5A46]" />
-                  <div>
-                    <div className="text-xs font-bold">QRIS</div>
-                    <div className="text-[10px] text-[#6B675F]">GoPay, OVO, Dana</div>
-                  </div>
-                </button>
-
-                {/* 2. BCA VA */}
-                <button
-                  type="button"
-                  onClick={() => setActiveMethod('bca_va')}
-                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    activeMethod === 'bca_va'
-                      ? 'border-[#3F5A46] bg-[#EAF2ED] text-[#3F5A46] shadow-xs'
-                      : 'border-[rgba(42,40,35,0.1)] hover:bg-[#FAF7F1] text-[#2A2823]'
-                  }`}
-                >
-                  <Building className="w-5 h-5 shrink-0 text-[#3F5A46]" />
-                  <div>
-                    <div className="text-xs font-bold">BCA VA</div>
-                    <div className="text-[10px] text-[#6B675F]">Virtual Account</div>
-                  </div>
-                </button>
-
-                {/* 3. BRI VA */}
-                <button
-                  type="button"
-                  onClick={() => setActiveMethod('bri_va')}
-                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    activeMethod === 'bri_va'
-                      ? 'border-[#3F5A46] bg-[#EAF2ED] text-[#3F5A46] shadow-xs'
-                      : 'border-[rgba(42,40,35,0.1)] hover:bg-[#FAF7F1] text-[#2A2823]'
-                  }`}
-                >
-                  <Building className="w-5 h-5 shrink-0 text-[#3F5A46]" />
-                  <div>
-                    <div className="text-xs font-bold">BRI VA</div>
-                    <div className="text-[10px] text-[#6B675F]">BRIVA</div>
-                  </div>
-                </button>
-
-                {/* 4. Mandiri VA */}
-                <button
-                  type="button"
-                  onClick={() => setActiveMethod('mandiri_va')}
-                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    activeMethod === 'mandiri_va'
-                      ? 'border-[#3F5A46] bg-[#EAF2ED] text-[#3F5A46] shadow-xs'
-                      : 'border-[rgba(42,40,35,0.1)] hover:bg-[#FAF7F1] text-[#2A2823]'
-                  }`}
-                >
-                  <CreditCard className="w-5 h-5 shrink-0 text-[#3F5A46]" />
-                  <div>
-                    <div className="text-xs font-bold">Mandiri VA</div>
-                    <div className="text-[10px] text-[#6B675F]">Bill Payment</div>
-                  </div>
-                </button>
+              {/* Dynamic Grid of Enabled Methods */}
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-0.5 overscroll-contain">
+                {activeMethods.map((method) => {
+                  const isSelected = activeMethod === method.id;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setActiveMethod(method.id)}
+                      className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-[#3F5A46] bg-[#EAF2ED] text-[#3F5A46] shadow-xs'
+                          : 'border-[rgba(42,40,35,0.1)] hover:bg-[#FAF7F1] text-[#2A2823]'
+                      }`}
+                    >
+                      {getMethodIcon(method.iconType)}
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate">{method.name}</div>
+                        <div className="text-[10px] text-[#6B675F] truncate">{method.badge}</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -493,27 +476,18 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                   </button>
                 </div>
               ) : !currentCharge ? (
-                /* Unrevealed State / Lazy Load On-Demand */
+                /* Unrevealed State */
                 <div className="py-6 px-4 space-y-3.5 flex flex-col items-center justify-center max-w-sm mx-auto text-center animate-in fade-in">
                   <div className="w-12 h-12 rounded-2xl bg-[#EAF2ED] text-[#3F5A46] flex items-center justify-center shadow-xs">
-                    {activeMethod === 'qris' && <QrCode className="w-6 h-6" />}
-                    {activeMethod === 'bca_va' && <Building className="w-6 h-6" />}
-                    {activeMethod === 'bri_va' && <Building className="w-6 h-6" />}
-                    {activeMethod === 'mandiri_va' && <CreditCard className="w-6 h-6" />}
+                    {getMethodIcon(currentMethodConfig?.iconType || 'creditcard')}
                   </div>
 
                   <div>
                     <h4 className="text-xs font-bold text-[#2A2823]">
-                      {activeMethod === 'qris' && 'Pembayaran QRIS Midtrans'}
-                      {activeMethod === 'bca_va' && 'Virtual Account BCA'}
-                      {activeMethod === 'bri_va' && 'Virtual Account BRI (BRIVA)'}
-                      {activeMethod === 'mandiri_va' && 'Mandiri Bill Payment'}
+                      {currentMethodConfig?.name || 'Metode Pembayaran Midtrans'}
                     </h4>
                     <p className="text-[10.5px] text-[#6B675F] mt-1 leading-relaxed">
-                      {activeMethod === 'qris' && 'Klik tombol di bawah untuk menampilkan kode QRIS resmi. Berlaku untuk GoPay, OVO, Dana, ShopeePay & m-Banking.'}
-                      {activeMethod === 'bca_va' && 'Klik tombol di bawah untuk mendapatkan Nomor Rekening Virtual Account BCA resmi.'}
-                      {activeMethod === 'bri_va' && 'Klik tombol di bawah untuk mendapatkan Nomor BRIVA resmi untuk pembayaran via BRImo / ATM.'}
-                      {activeMethod === 'mandiri_va' && 'Klik tombol di bawah untuk mendapatkan Kode Biller dan Bill Key Mandiri.'}
+                      {currentMethodConfig?.description || 'Klik tombol di bawah untuk menampilkan kode pembayaran resmi.'}
                     </p>
                   </div>
 
@@ -523,37 +497,14 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                     onClick={() => fetchChargeDetails(activeMethod)}
                     className="w-full py-2.5 px-4 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {activeMethod === 'qris' && (
-                      <>
-                        <QrCode className="w-4 h-4" />
-                        <span>Tampilkan Kode QRIS</span>
-                      </>
-                    )}
-                    {activeMethod === 'bca_va' && (
-                      <>
-                        <Building className="w-4 h-4" />
-                        <span>Tampilkan Nomor BCA Virtual Account</span>
-                      </>
-                    )}
-                    {activeMethod === 'bri_va' && (
-                      <>
-                        <Building className="w-4 h-4" />
-                        <span>Tampilkan Nomor BRI Virtual Account</span>
-                      </>
-                    )}
-                    {activeMethod === 'mandiri_va' && (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>Tampilkan Kode Pembayaran Mandiri</span>
-                      </>
-                    )}
+                    <span>Tampilkan Kode {currentMethodConfig?.name || 'Pembayaran'}</span>
                   </button>
                   <p className="text-[9.5px] text-[#6B675F]">
                     Kode resmi berlaku 15 menit setelah tombol ditekan.
                   </p>
                 </div>
               ) : isCurrentExpired ? (
-                /* Expired Invalidation Overlay: Blocks user from forcing old data */
+                /* Expired Overlay */
                 <div className="py-6 space-y-3 flex flex-col items-center justify-center max-w-xs mx-auto">
                   <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6" />
@@ -574,7 +525,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                     <span>Buat Kode Pembayaran Baru</span>
                   </button>
                 </div>
-              ) : activeMethod === 'qris' ? (
+              ) : activeMethod === 'qris' || currentCharge.qrCodeUrl || currentCharge.qrString ? (
                 /* QRIS Card */
                 <div className="w-full space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold text-[#2A2823] px-1">
@@ -605,95 +556,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                     Buka GoPay, OVO, DANA, ShopeePay, BCA Mobile, Livin' Mandiri, BRImo, atau m-Banking Anda, lalu arahkan kamera ke QRIS di atas.
                   </p>
                 </div>
-              ) : activeMethod === 'bca_va' ? (
-                /* BCA VA Card */
-                <div className="w-full space-y-3 text-left">
-                  <div className="flex items-center justify-between text-xs font-bold text-[#2A2823]">
-                    <span>Bank Central Asia (BCA)</span>
-                    <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
-                      Virtual Account
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 bg-white rounded-xl border border-[rgba(42,40,35,0.12)] space-y-2">
-                    <div className="text-[10px] text-[#6B675F] uppercase font-bold">
-                      Nomor BCA Virtual Account
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-base sm:text-lg font-black text-[#2A2823] tracking-wider select-all">
-                        {currentCharge?.vaNumber || '7001281234567890'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(currentCharge?.vaNumber || '7001281234567890', 'bca')}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#FAF7F1] hover:bg-[#eae6dc] text-[11px] font-bold text-[#2A2823] border border-gray-300 flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedKey === 'bca' ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-700">Tersalin!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5 text-[#6B675F]" />
-                            <span>Salin Nomor VA</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="text-[10.5px] text-[#6B675F] space-y-1 bg-white/60 p-2.5 rounded-xl border border-gray-200/60">
-                    <div className="font-bold text-[#2A2823]">Panduan Transfer m-BCA / KlikBCA:</div>
-                    <p>1. Buka m-BCA &gt; Pilih <strong>m-Transfer</strong> &gt; <strong>BCA Virtual Account</strong>.</p>
-                    <p>2. Masukkan nomor VA di atas &gt; Konfirmasi nama siswa &amp; nominal bayar.</p>
-                  </div>
-                </div>
-              ) : activeMethod === 'bri_va' ? (
-                /* BRI VA Card */
-                <div className="w-full space-y-3 text-left">
-                  <div className="flex items-center justify-between text-xs font-bold text-[#2A2823]">
-                    <span>Bank Rakyat Indonesia (BRI)</span>
-                    <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
-                      BRIVA
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 bg-white rounded-xl border border-[rgba(42,40,35,0.12)] space-y-2">
-                    <div className="text-[10px] text-[#6B675F] uppercase font-bold">
-                      Nomor BRI Virtual Account (BRIVA)
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-base sm:text-lg font-black text-[#2A2823] tracking-wider select-all">
-                        {currentCharge?.vaNumber || '8578000012345678'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(currentCharge?.vaNumber || '8578000012345678', 'bri')}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#FAF7F1] hover:bg-[#eae6dc] text-[11px] font-bold text-[#2A2823] border border-gray-300 flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedKey === 'bri' ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-700">Tersalin!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5 text-[#6B675F]" />
-                            <span>Salin Nomor VA</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="text-[10.5px] text-[#6B675F] space-y-1 bg-white/60 p-2.5 rounded-xl border border-gray-200/60">
-                    <div className="font-bold text-[#2A2823]">Panduan Transfer BRImo / ATM BRI:</div>
-                    <p>1. Buka BRImo &gt; Pilih <strong>Tagihan</strong> &gt; <strong>BRIVA</strong>.</p>
-                    <p>2. Masukkan nomor BRIVA di atas &gt; Konfirmasi transaksi hingga selesai.</p>
-                  </div>
-                </div>
-              ) : (
+              ) : activeMethod === 'mandiri_va' || currentCharge.billerCode ? (
                 /* Mandiri VA (Bill Payment) Card */
                 <div className="w-full space-y-2.5 text-left">
                   <div className="flex items-center justify-between text-xs font-bold text-[#2A2823]">
@@ -741,75 +604,145 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
                     <p>Buka Livin' Mandiri &gt; <strong>Bayar</strong> &gt; <strong>Multipayment</strong> &gt; Cari <strong>70012 (Midtrans)</strong> &gt; Masukkan Bill Key.</p>
                   </div>
                 </div>
+              ) : activeMethod === 'indomaret' || activeMethod === 'alfamart' ? (
+                /* Convenience Store Card */
+                <div className="w-full space-y-3 text-left">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#2A2823]">
+                    <span>{currentMethodConfig?.name || 'Gerai Ritel'}</span>
+                    <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                      Tunai Kasir
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-white rounded-xl border border-[rgba(42,40,35,0.12)] space-y-2">
+                    <div className="text-[10px] text-[#6B675F] uppercase font-bold">
+                      Kode Pembayaran di Kasir
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-base sm:text-lg font-black text-[#2A2823] tracking-wider select-all">
+                        {String(currentCharge?.paymentCode || currentCharge?.vaNumber || 'BF-KASIR-98821')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(String(currentCharge?.paymentCode || currentCharge?.vaNumber || 'BF-KASIR-98821'), 'cstore')}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#FAF7F1] hover:bg-[#eae6dc] text-[11px] font-bold text-[#2A2823] border border-gray-300 flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedKey === 'cstore' ? '✓ Tersalin!' : 'Salin Kode'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10.5px] text-[#6B675F] bg-white/60 p-2.5 rounded-xl border border-gray-200/60">
+                    Sampaikan kepada kasir ingin membayar transaksi <strong>Midtrans / Bright Future</strong> dan tunjukkan kode pembayaran di atas.
+                  </p>
+                </div>
+              ) : (
+                /* Generic Virtual Account Card (BCA, BRI, BNI, Permata, CIMB) */
+                <div className="w-full space-y-3 text-left">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#2A2823]">
+                    <span>{currentMethodConfig?.name || 'Virtual Account'}</span>
+                    <span className="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                      Virtual Account
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-white rounded-xl border border-[rgba(42,40,35,0.12)] space-y-2">
+                    <div className="text-[10px] text-[#6B675F] uppercase font-bold">
+                      Nomor Virtual Account Resmi
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-base sm:text-lg font-black text-[#2A2823] tracking-wider select-all">
+                        {currentCharge?.vaNumber || (activeMethod === 'bri_va' ? '8578000012345678' : activeMethod === 'bni_va' ? '8808123456789012' : '7001281234567890')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(currentCharge?.vaNumber || (activeMethod === 'bri_va' ? '8578000012345678' : activeMethod === 'bni_va' ? '8808123456789012' : '7001281234567890'), activeMethod)}
+                        className="px-2.5 py-1.5 rounded-lg bg-[#FAF7F1] hover:bg-[#eae6dc] text-[11px] font-bold text-[#2A2823] border border-gray-300 flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedKey === activeMethod ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-700">Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-[#6B675F]" />
+                            <span>Salin Nomor VA</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-[10.5px] text-[#6B675F] space-y-1 bg-white/60 p-2.5 rounded-xl border border-gray-200/60">
+                    <p>Transfer melalui m-Banking, Internet Banking, atau ATM ke nomor Virtual Account di atas. Transaksi otomatis terverifikasi lunas.</p>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Status Notice Feedback (If user clicks check status and still pending) */}
+            {/* Status Notice Feedback */}
             {statusNotice && (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed text-center animate-in fade-in">
                 {statusNotice}
               </div>
             )}
 
-            {/* Action Button: Cek Status Pembayaran (Official / Manual) */}
-            <div className="pt-1">
+            {/* Bottom Controls */}
+            <div className="space-y-2 pt-1">
               <button
                 type="button"
-                disabled={isCheckingStatus || isLoading}
+                disabled={isCheckingStatus}
                 onClick={handleCheckStatus}
-                className="w-full py-3 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+                className="w-full py-3 px-4 rounded-xl bg-white hover:bg-[#FAF7F1] border border-[rgba(42,40,35,0.15)] text-[#2A2823] text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
               >
-                {isCheckingStatus ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Memeriksa Status ke Midtrans...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    <span>Cek Status Pembayaran</span>
-                  </>
-                )}
+                <RefreshCw className={`w-3.5 h-3.5 text-[#3F5A46] ${isCheckingStatus ? 'animate-spin' : ''}`} />
+                <span>{isCheckingStatus ? 'Memeriksa ke Midtrans...' : 'Cek Status Pembayaran (Real-time)'}</span>
               </button>
-            </div>
 
-            <p className="text-[10px] text-center text-[#6B675F]">
-              Pembayaran otomatis diverifikasi sistem. Jika baru saja transfer, tekan tombol <strong>Cek Status Pembayaran</strong> di atas.
-            </p>
+              <div className="text-center">
+                <span className="text-[10.5px] text-[#6B675F]">
+                  Setelah bayar, status otomatis lunas dalam hitungan detik.
+                </span>
+              </div>
+            </div>
           </div>
         ) : (
-          /* Success / Paid State */
-          <div className="p-8 text-center space-y-5">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle2 className="w-10 h-10" />
+          /* Payment Success State */
+          <div className="p-6 sm:p-8 space-y-5 text-center animate-in fade-in">
+            <div className="w-16 h-16 rounded-3xl bg-[#EAF2ED] text-[#3F5A46] flex items-center justify-center mx-auto shadow-sm">
+              <Check className="w-8 h-8 stroke-[3]" />
             </div>
 
-            <div>
-              <h3 className="text-xl font-extrabold text-[#2A2823]">
-                Pembayaran Sukses Terverifikasi!
+            <div className="space-y-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-extrabold uppercase">
+                Otomatis Terverifikasi Lunas
+              </span>
+              <h3 className="text-xl font-bold text-[#2A2823] font-display">
+                Pembayaran Berhasil!
               </h3>
-              <p className="text-xs text-[#6B675F] mt-1">
-                Tagihan {submission.invoiceNumber} sebesar Rp {submission.totalAmount.toLocaleString('id-ID')} telah lunas via Midtrans Gateway.
+              <p className="text-xs text-[#6B675F]">
+                Tagihan invoice <strong>{submission.invoiceNumber}</strong> telah diselesaikan secara real-time via Midtrans.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] text-left text-xs space-y-1.5">
+            <div className="p-4 rounded-2xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] text-xs text-left space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-[#6B675F]">Status Transaksi:</span>
-                <span className="font-bold text-emerald-700">LUNAS (Settlement)</span>
+                <span className="text-[#6B675F]">Nomor Transaksi:</span>
+                <span className="font-mono font-bold text-[#2A2823]">
+                  {currentCharge?.transactionId || `TX-${submission.invoiceNumber}`}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B675F]">Metode:</span>
-                <span className="font-bold text-[#2A2823]">{activeMethod.toUpperCase()}</span>
+                <span className="text-[#6B675F]">Total Dibayar:</span>
+                <span className="font-bold text-[#3F5A46]">
+                  Rp {feeCalculation.grandTotal.toLocaleString('id-ID')}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B675F]">Siswa:</span>
-                <span className="font-bold text-[#2A2823]">{submission.studentName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#6B675F]">Waktu:</span>
-                <span className="font-mono text-[11px] text-[#2A2823]">
-                  {new Date().toLocaleTimeString('id-ID')} WIB
+                <span className="text-[#6B675F]">Waktu Selesai:</span>
+                <span className="font-medium text-[#2A2823]">
+                  {new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
               </div>
             </div>
@@ -817,9 +750,9 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+              className="w-full py-3 px-4 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              Selesai &amp; Kembali ke Halaman Utama
+              Tutup &amp; Lihat Kuitansi
             </button>
           </div>
         )}
