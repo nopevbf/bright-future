@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Calculator, ArrowRight, LogIn } from 'lucide-react';
+import { AuthRole } from '../utils/sessionToken';
 
 interface NavbarProps {
   onOpenLogin: () => void;
   onOpenCalculator: () => void;
   onSelectRegister: () => void;
+  currentUser?: {
+    name: string;
+    role: AuthRole;
+    identifier?: string;
+  } | null;
+  onOpenDashboard?: () => void;
 }
+
+const roleBadgeMap: Record<AuthRole, { label: string; bg: string; text: string }> = {
+  admin: { label: 'Admin', bg: 'bg-[#EAF2ED]', text: 'text-[#284230]' },
+  tutor: { label: 'Tutor', bg: 'bg-[#FDF3EE]', text: 'text-[#C1683F]' },
+  siswa: { label: 'Siswa', bg: 'bg-[#EAF2ED]', text: 'text-[#284230]' },
+  orang_tua: { label: 'Wali', bg: 'bg-[#FDF3EE]', text: 'text-[#C1683F]' },
+};
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenLogin,
   onOpenCalculator,
   onSelectRegister,
+  currentUser,
+  onOpenDashboard,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -108,14 +124,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Kalkulator</span>
           </button>
 
-          {/* Login Portal modal button */}
-          <button
-            onClick={onOpenLogin}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#3F5A46] hover:bg-white/80 transition-all border border-transparent hover:border-[rgba(42,40,35,0.08)]"
-          >
-            <LogIn className="w-3.5 h-3.5 text-[#6F8F76]" />
-            <span>Login Portal</span>
-          </button>
+          {/* Login Portal / Active User Account Button */}
+          {currentUser ? (
+            <button
+              onClick={onOpenDashboard}
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-[#3F5A46] bg-[#EAF2ED] hover:bg-[#d8e8dc] transition-all border border-[#3F5A46]/20 shadow-xs cursor-pointer"
+              title={`Akun aktif: ${currentUser.name}. Klik untuk buka dashboard`}
+            >
+              <span className="w-6 h-6 rounded-full bg-[#3F5A46] text-white flex items-center justify-center text-[10px] font-bold">
+                {currentUser.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="max-w-[120px] sm:max-w-[150px] truncate">{currentUser.name}</span>
+              <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-md font-semibold text-[#6F8F76] border border-[#3F5A46]/10">
+                {roleBadgeMap[currentUser.role]?.label || 'User'}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLogin}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#3F5A46] hover:bg-white/80 transition-all border border-transparent hover:border-[rgba(42,40,35,0.08)] cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5 text-[#6F8F76]" />
+              <span>Login Portal</span>
+            </button>
+          )}
 
           {/* Registration CTA */}
           <button
@@ -162,16 +194,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Calculator className="w-4 h-4 text-[#6F8F76]" />
                 <span>Kalkulator</span>
               </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenLogin();
-                }}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white border border-[rgba(42,40,35,0.08)] text-xs font-bold text-[#3F5A46]"
-              >
-                <LogIn className="w-4 h-4 text-[#6F8F76]" />
-                <span>Login Portal</span>
-              </button>
+              {currentUser ? (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (onOpenDashboard) onOpenDashboard();
+                  }}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#EAF2ED] border border-[#3F5A46]/20 text-xs font-bold text-[#3F5A46] cursor-pointer"
+                  title={`Akun aktif: ${currentUser.name}. Klik untuk buka dashboard`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-[#3F5A46] text-white flex items-center justify-center text-[10px] font-bold">
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="truncate">{currentUser.name}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenLogin();
+                  }}
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white border border-[rgba(42,40,35,0.08)] text-xs font-bold text-[#3F5A46] cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4 text-[#6F8F76]" />
+                  <span>Login Portal</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

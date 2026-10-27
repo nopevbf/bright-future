@@ -36,6 +36,9 @@ import {
   updatePortalAccountInFirestore,
   deletePortalAccountFromFirestore,
   updateUserRoleInFirestore,
+  saveManagedStudentToFirestore,
+  getLocalManagedStudents,
+  subscribeToManagedStudents,
 } from '../firebase';
 import { AccountManagementSubTab } from './admin/AccountManagementSubTab';
 import { StudentVerificationSubTab } from './admin/StudentVerificationSubTab';
@@ -404,7 +407,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [portalAccounts, setPortalAccounts] = useState<PortalCredentialDoc[]>([]);
 
   // Master managed students & tutor assignments state
-  const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>([]);
+  const [managedStudents, setManagedStudents] = useState<ManagedStudent[]>(() => getLocalManagedStudents());
   const [tutorAssignments, setTutorAssignments] = useState<FirestoreTutorAssignmentDoc[]>([]);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<ManagedStudent | null>(null);
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<ManagedStudent | null>(null);
@@ -843,7 +846,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const handleSaveStudent = (savedStudent: ManagedStudent) => {
+  const handleSaveStudent = async (savedStudent: ManagedStudent) => {
     setManagedStudents((prev) => {
       const idx = prev.findIndex((s) => s.id === savedStudent.id);
       if (idx >= 0) {
@@ -853,7 +856,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
       return [savedStudent, ...prev];
     });
-    setActionFeedback(`Data siswa ${savedStudent.studentName} berhasil disimpan!`);
+
+    try {
+      await saveManagedStudentToFirestore(savedStudent);
+      setActionFeedback(`Data siswa ${savedStudent.studentName} berhasil disimpan ke sistem & database!`);
+    } catch (err) {
+      console.warn('Gagal menyimpan perubahan siswa ke database:', err);
+      setActionFeedback(`Data siswa ${savedStudent.studentName} berhasil disimpan!`);
+    }
     setTimeout(() => setActionFeedback(null), 3500);
   };
 
@@ -2478,48 +2488,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {managedStudents.length} Siswa
                     </span>
                   </button>
-                </div>
-
-                {/* Sub Menu Info Tag & Quick Portal Links */}
-                <div className="flex items-center gap-2 px-3 text-xs text-[#6B675F] flex-wrap">
-                  <a
-                    href="#siswa"
-                    onClick={() => {
-                      saveAuthSession('siswa', {
-                        name: 'Rayhan Kusuma (Simulasi Admin)',
-                        identifier: 'BF-2026-09-8812',
-                      });
-                      window.location.hash = '#siswa';
-                      window.location.reload();
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-[#284230] text-white text-[11px] font-bold hover:bg-[#3F5A46] shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-                    title="Buka Portal Siswa Magelang"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">school</span>
-                    <span>Portal Siswa</span>
-                  </a>
-                  <a
-                    href="#orangtua"
-                    onClick={() => {
-                      saveAuthSession('orang_tua', {
-                        name: 'Bunda Ratna Dewi (Simulasi Admin)',
-                        identifier: '081298765432',
-                      });
-                      window.location.hash = '#orangtua';
-                      window.location.reload();
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-[#C1683F] text-white text-[11px] font-bold hover:bg-[#A85530] shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-                    title="Buka Portal Orang Tua / Wali"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">family_restroom</span>
-                    <span>Portal Orang Tua</span>
-                  </a>
-                  <span className="material-symbols-outlined text-[16px] text-[#3F5A46] hidden sm:inline">cloud_sync</span>
-                  <span className="font-semibold hidden lg:inline">
-                    {studentSubTab === 'verifikasi'
-                      ? 'Sinkronisasi Firestore'
-                      : 'Database Induk'}
-                  </span>
                 </div>
               </div>
 

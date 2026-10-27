@@ -169,4 +169,36 @@ describe('StudentVerificationSubTab Enhancement (ISTQB & TDD)', () => {
     expect(screen.queryByText('Siswa Kadaluarsa')).toBeNull();
     expect(screen.queryByText('BF-202610-EXPIRED')).toBeNull();
   });
+
+  it('TC-SVT-007: Registration that has been smart dispatched (assignedTutor present) should disappear from verification table', () => {
+    const dispatchedReg: FirestoreRegistrationDoc = {
+      studentId: 'BF-202610-DISPATCHED',
+      studentName: 'Bima Satria (Sudah Dispatch)',
+      parentName: 'Ibu Bima',
+      whatsapp: '081255556666',
+      homeAddress: 'Jl. Pemuda Secang No. 8',
+      level: 'sd',
+      selectedSchedule: ['Senin - Rabu'],
+      totalAmount: 280000,
+      invoiceNumber: 'INV-202610-DISP',
+      paymentMethod: 'midtrans',
+      paymentStatus: 'verified',
+      createdAt: new Date().toISOString(),
+      appliedDiscount: 0,
+      totalSessions: 8,
+      assignedTutor: 'Kak Anindya, S.Pd.', // Dispatched via Smart Dispatch!
+      assignedAt: new Date().toISOString(),
+    };
+
+    render(
+      <StudentVerificationSubTab
+        {...defaultProps}
+        registrations={[...defaultProps.registrations, dispatchedReg]}
+      />
+    );
+
+    // The dispatched student must NOT be rendered in the verification table
+    expect(screen.queryByText(/Bima Satria \(Sudah Dispatch\)/i)).toBeNull();
+    expect(screen.queryByText('BF-202610-DISPATCHED')).toBeNull();
+  });
 });

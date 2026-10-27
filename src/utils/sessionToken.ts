@@ -220,6 +220,27 @@ export function saveAuthSession(
 }
 
 /**
+ * Retrieve current active session payload regardless of role
+ */
+export function getCurrentSession(): SessionTokenPayload | null {
+  const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const data = JSON.parse(raw);
+    const result = validateSessionToken(data.token);
+    if (!result.valid || !result.payload) {
+      clearActiveSession();
+      return null;
+    }
+    return result.payload;
+  } catch {
+    clearActiveSession();
+    return null;
+  }
+}
+
+/**
  * Retrieve active session if valid for the given role
  */
 export function getActiveSession(expectedRole: AuthRole): SessionTokenPayload | null {

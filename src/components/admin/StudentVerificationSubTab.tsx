@@ -32,7 +32,10 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
     r.paymentStatus === 'verified' || r.paymentStatus === 'paid';
 
   // Otomatis kecualikan pendaftaran yang kadaluarsa (> 24 jam belum ada pembaharuan status)
-  const validRegistrations = registrations.filter((r) => !isRegistrationExpired(r));
+  // serta kecualikan pendaftaran yang telah selesai dilakukan Smart Dispatch (sudah dipasangkan tutor)
+  const validRegistrations = registrations
+    .filter((r) => !isRegistrationExpired(r))
+    .filter((r) => !r.assignedTutor);
 
   // Computed metrics
   const totalRegistrations = validRegistrations.length;

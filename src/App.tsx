@@ -34,6 +34,7 @@ import { AuthTransitionOverlay } from './components/AuthTransitionOverlay';
 import {
   AuthRole,
   getActiveSession,
+  getCurrentSession,
   saveAuthSession,
   clearActiveSession,
 } from './utils/sessionToken';
@@ -362,6 +363,29 @@ export default function App() {
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenCalculator={() => setIsCalculatorModalOpen(true)}
         onSelectRegister={scrollToRegistration}
+        currentUser={
+          (() => {
+            const session = getCurrentSession();
+            return session ? { name: session.name, role: session.role, identifier: session.identifier } : null;
+          })()
+        }
+        onOpenDashboard={() => {
+          const session = getCurrentSession();
+          if (!session) return;
+          if (session.role === 'admin') {
+            setIsAdminLoggedIn(true);
+            window.location.hash = '#admin';
+          } else if (session.role === 'tutor') {
+            setIsTutorLoggedIn(true);
+            window.location.hash = '#tutor';
+          } else if (session.role === 'siswa') {
+            setIsSiswaLoggedIn(true);
+            window.location.hash = '#siswa';
+          } else if (session.role === 'orang_tua') {
+            setIsOrangTuaLoggedIn(true);
+            window.location.hash = '#orangtua';
+          }
+        }}
       />
 
       {/* Main Landing Sections */}
