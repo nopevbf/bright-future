@@ -60,6 +60,7 @@ import {
 } from './admin/studentData';
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 import { enableMaintenanceMode, isMaintenanceActive } from '../utils/maintenanceManager';
+import { saveMaintenanceStatusToFirestore } from '../firebase';
 import {
   isRegistrationExpired,
   isInvoiceExpired,
@@ -3161,6 +3162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     data-testid="btn-activate-maintenance"
                     onClick={() => {
                       enableMaintenanceMode(7);
+                      saveMaintenanceStatusToFirestore(true, 7).catch(console.warn);
                       onLogout();
                     }}
                     className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-[#C1683F] hover:bg-[#a8552f] text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"

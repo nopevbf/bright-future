@@ -14,6 +14,11 @@ import {
   MAINTENANCE_STORAGE_KEY,
   MAINTENANCE_TARGET_KEY,
 } from '../utils/maintenanceManager';
+import {
+  saveMaintenanceStatusToFirestore,
+  fetchMaintenanceStatusFromFirestore,
+  subscribeToMaintenanceStatus,
+} from '../firebase';
 import { MaintenanceModal } from '../components/MaintenanceModal';
 import { AdminDashboard } from '../components/AdminDashboard';
 import App from '../App';
@@ -255,6 +260,44 @@ describe('Maintenance Mode & Easter Egg Test Suite (ISTQB Grounded & TDD)', () =
       expect(isMaintenanceActive()).toBe(false);
       // Modal should be gone
       expect(screen.queryByText(/Sedang Dalam Pemeliharaan/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('5. Firestore Maintenance Status Synchronization (ISTQB Integration Tests)', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('TC-MNT-FS-001: Should save maintenance mode to Firestore and update local storage', async () => {
+      const now = 1775640000000;
+      vi.spyOn(Date, 'now').mockReturnValue(now);
+
+      await saveMaintenanceStatusToFirestore(true, 7, 'Uji Pemeliharaan');
+
+      expect(isMaintenanceActive()).toBe(true);
+      expect(localStorage.getItem(MAINTENANCE_STORAGE_KEY)).toBe('true');
+      const expectedTarget = now + 7 * 24 * 60 * 60 * 1000;
+      expect(localStorage.getItem(MAINTENANCE_TARGET_KEY)).toBe(expectedTarget.toString());
+    });
+
+    it('TC-MNT-FS-002: Should deactivate maintenance mode via Firestore helper and clean storage', async () => {
+      // First enable
+      await saveMaintenanceStatusToFirestore(true, 7);
+      expect(isMaintenanceActive()).toBe(true);
+
+      // Then deactivate
+      await saveMaintenanceStatusToFirestore(false, 0);
+      expect(isMaintenanceActive()).toBe(false);
+      expect(localStorage.getItem(MAINTENANCE_STORAGE_KEY)).toBeNull();
+      expect(localStorage.getItem(MAINTENANCE_TARGET_KEY)).toBeNull();
+    });
+
+    it('TC-MNT-FS-003: Should attach Firestore real-time listener without throwing', () => {
+      const mockCallback = vi.fn();
+      const unsubscribe = subscribeToMaintenanceStatus(mockCallback);
+
+      expect(typeof unsubscribe).toBe('function');
+      unsubscribe();
     });
   });
 });

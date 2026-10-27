@@ -114,6 +114,14 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isValidId(studentId);
     }
+
+    match /system_settings/{settingId} {
+      // Allows public reading of maintenance status & system settings
+      allow read: if true;
+      // Allows admin to create and update system settings
+      allow create, update: if isValidId(settingId);
+      allow delete: if false;
+    }
   }
 }
 

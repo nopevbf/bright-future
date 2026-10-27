@@ -27,6 +27,7 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 import { SubmittedRegistration, TutorRegistrationData } from './types';
 import { ManagedStudent } from './components/admin/studentData';
+import { MAINTENANCE_STORAGE_KEY, MAINTENANCE_TARGET_KEY } from './utils/maintenanceManager';
 
 export enum OperationType {
   CREATE = 'create',
@@ -1920,6 +1921,121 @@ export function subscribeToManagedStudents(
     return () => {};
   }
 }
+
+export interface FirestoreMaintenanceDoc {
+  isActive: boolean;
+  targetTimestamp: number;
+  days?: number;
+  reason?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export async function saveMaintenanceStatusToFirestore(
+  isActive: boolean,
+  days: number = 7,
+  reason: string = 'Pemeliharaan sistem berkala'
+): Promise<void> {
+  const docPath = 'system_settings/maintenance';
+  const targetTime = isActive ? Date.now() + days * 24 * 60 * 60 * 1000 : 0;
+  const payload: FirestoreMaintenanceDoc = {
+    isActive,
+    targetTimestamp: targetTime,
+    days,
+    reason,
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'admin',
+  };
+
+  try {
+    const docRef = doc(db, 'system_settings', 'maintenance');
+    await setDoc(docRef, payload, { merge: true });
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (isActive) {
+        localStorage.setItem(MAINTENANCE_STORAGE_KEY, 'true');
+        localStorage.setItem(MAINTENANCE_TARGET_KEY, targetTime.toString());
+      } else {
+        localStorage.removeItem(MAINTENANCE_STORAGE_KEY);
+        localStorage.removeItem(MAINTENANCE_TARGET_KEY);
+      }
+      window.dispatchEvent(new Event('bf_maintenance_status_changed'));
+    }
+  } catch (error) {
+    console.warn(`Firestore save error for ${docPath}:`, error);
+    // Graceful fallback to localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (isActive) {
+        localStorage.setItem(MAINTENANCE_STORAGE_KEY, 'true');
+        localStorage.setItem(MAINTENANCE_TARGET_KEY, targetTime.toString());
+      } else {
+        localStorage.removeItem(MAINTENANCE_STORAGE_KEY);
+        localStorage.removeItem(MAINTENANCE_TARGET_KEY);
+      }
+      window.dispatchEvent(new Event('bf_maintenance_status_changed'));
+    }
+  }
+}
+
+export async function fetchMaintenanceStatusFromFirestore(): Promise<FirestoreMaintenanceDoc | null> {
+  try {
+    const docRef = doc(db, 'system_settings', 'maintenance');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as FirestoreMaintenanceDoc;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (data.isActive) {
+          localStorage.setItem(MAINTENANCE_STORAGE_KEY, 'true');
+          localStorage.setItem(MAINTENANCE_TARGET_KEY, (data.targetTimestamp || 0).toString());
+        } else {
+          localStorage.removeItem(MAINTENANCE_STORAGE_KEY);
+          localStorage.removeItem(MAINTENANCE_TARGET_KEY);
+        }
+        window.dispatchEvent(new Event('bf_maintenance_status_changed'));
+      }
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Could not fetch maintenance status from Firestore, using local cache:', error);
+    return null;
+  }
+}
+
+export function subscribeToMaintenanceStatus(
+  onUpdate: (data: FirestoreMaintenanceDoc) => void,
+  onError?: (err: unknown) => void
+): () => void {
+  try {
+    const docRef = doc(db, 'system_settings', 'maintenance');
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as FirestoreMaintenanceDoc;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            if (data.isActive) {
+              localStorage.setItem(MAINTENANCE_STORAGE_KEY, 'true');
+              localStorage.setItem(MAINTENANCE_TARGET_KEY, (data.targetTimestamp || 0).toString());
+            } else {
+              localStorage.removeItem(MAINTENANCE_STORAGE_KEY);
+              localStorage.removeItem(MAINTENANCE_TARGET_KEY);
+            }
+            window.dispatchEvent(new Event('bf_maintenance_status_changed'));
+          }
+          onUpdate(data);
+        }
+      },
+      (error) => {
+        console.warn('subscribeToMaintenanceStatus error:', error);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err) {
+    console.warn('Failed to attach subscribeToMaintenanceStatus listener:', err);
+    return () => {};
+  }
+}
+
 
 
 

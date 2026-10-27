@@ -30,6 +30,10 @@ import {
   getMaintenanceTargetTimestamp,
   disableMaintenanceMode,
 } from './utils/maintenanceManager';
+import {
+  subscribeToMaintenanceStatus,
+  saveMaintenanceStatusToFirestore,
+} from './firebase';
 import { AuthTransitionOverlay } from './components/AuthTransitionOverlay';
 import {
   AuthRole,
@@ -110,9 +114,18 @@ export default function App() {
     };
     window.addEventListener('bf_maintenance_status_changed', handleMaintenanceChange);
     window.addEventListener('storage', handleMaintenanceChange);
+
+    const unsubscribe = subscribeToMaintenanceStatus((data) => {
+      setIsMaintenanceMode(Boolean(data.isActive));
+      setMaintenanceTargetTime(data.targetTimestamp || 0);
+    });
+
     return () => {
       window.removeEventListener('bf_maintenance_status_changed', handleMaintenanceChange);
       window.removeEventListener('storage', handleMaintenanceChange);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, []);
 
@@ -502,6 +515,7 @@ export default function App() {
           targetTimestamp={maintenanceTargetTime}
           onDeactivate={() => {
             disableMaintenanceMode();
+            saveMaintenanceStatusToFirestore(false, 0).catch(console.warn);
             setIsMaintenanceMode(false);
           }}
         />
