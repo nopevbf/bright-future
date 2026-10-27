@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FirestoreRegistrationDoc } from '../../firebase';
+import { isRegistrationExpired } from '../../utils/registrationExpiry';
 
 interface StudentVerificationSubTabProps {
   registrations: FirestoreRegistrationDoc[];
@@ -30,14 +31,17 @@ export const StudentVerificationSubTab: React.FC<StudentVerificationSubTabProps>
   const isRegistrationVerified = (r: FirestoreRegistrationDoc) =>
     r.paymentStatus === 'verified' || r.paymentStatus === 'paid';
 
+  // Otomatis kecualikan pendaftaran yang kadaluarsa (> 24 jam belum ada pembaharuan status)
+  const validRegistrations = registrations.filter((r) => !isRegistrationExpired(r));
+
   // Computed metrics
-  const totalRegistrations = registrations.length;
-  const pendingRegistrations = registrations.filter((r) => !isRegistrationVerified(r));
-  const verifiedRegistrations = registrations.filter((r) => isRegistrationVerified(r));
-  const totalNominal = registrations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+  const totalRegistrations = validRegistrations.length;
+  const pendingRegistrations = validRegistrations.filter((r) => !isRegistrationVerified(r));
+  const verifiedRegistrations = validRegistrations.filter((r) => isRegistrationVerified(r));
+  const totalNominal = validRegistrations.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
 
   // Filtered registrations
-  const filteredList = registrations.filter((item) => {
+  const filteredList = validRegistrations.filter((item) => {
     const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
       (item.studentName || '').toLowerCase().includes(q) ||

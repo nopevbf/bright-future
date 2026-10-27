@@ -3,6 +3,7 @@ import {
   fetchRegistrationsFromFirestore,
   subscribeToRegistrations,
   updateRegistrationStatusInFirestore,
+  deleteRegistrationFromFirestore,
   FirestoreRegistrationDoc,
   fetchAdminCredentialFromFirestore,
   updateAdminPasswordInFirestore,
@@ -54,6 +55,11 @@ import {
 } from './admin/studentData';
 import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 import { enableMaintenanceMode, isMaintenanceActive } from '../utils/maintenanceManager';
+import {
+  isRegistrationExpired,
+  isInvoiceExpired,
+  purgeExpiredRegistrationsAndInvoices,
+} from '../utils/registrationExpiry';
 
 export interface AdminDashboardProps {
   onLogout: () => void;
@@ -556,16 +562,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   useEffect(() => {
+    let isMounted = true;
     loadAdminCredentialsFromDb();
     setIsLoadingFirestore(true);
 
     // Real-time live listener for registrations
     const unsubscribeRegistrations = subscribeToRegistrations(
       (data) => {
+        if (!isMounted) return;
         setFirestoreRegistrations(data);
         setIsLoadingFirestore(false);
       },
       (err) => {
+        if (!isMounted) return;
         console.warn('Real-time listener warning, executing fallback fetch:', err);
         loadFirestoreData();
       }
@@ -574,17 +583,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Initial load and real-time live listener for Invoices from Firestore
     seedInitialInvoicesIfEmpty()
       .then((data) => {
+        if (!isMounted) return;
         setInvoices(data || []);
       })
       .catch((err) => {
+        if (!isMounted) return;
         console.error('Error fetching invoices from Firestore:', err);
       });
 
     const unsubscribeInvoices = subscribeToInvoices(
       (data) => {
+        if (!isMounted) return;
         setInvoices(data || []);
       },
       (err) => {
+        if (!isMounted) return;
         console.warn('Real-time invoice listener warning:', err);
       }
     );
@@ -593,20 +606,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsLoadingTutorRegistrations(true);
     seedInitialTutorRegistrationsIfEmpty()
       .then((data) => {
+        if (!isMounted) return;
         setTutorRegistrations(data || []);
         setIsLoadingTutorRegistrations(false);
       })
       .catch((err) => {
+        if (!isMounted) return;
         console.error('Error fetching tutor registrations from Firestore:', err);
         setIsLoadingTutorRegistrations(false);
       });
 
     const unsubscribeTutors = subscribeToTutorRegistrations(
       (data) => {
+        if (!isMounted) return;
         setTutorRegistrations(data || []);
         setIsLoadingTutorRegistrations(false);
       },
       (err) => {
+        if (!isMounted) return;
         console.warn('Real-time tutor registrations listener warning:', err);
         setIsLoadingTutorRegistrations(false);
       }
@@ -644,6 +661,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
 
     return () => {
+      isMounted = false;
       if (typeof unsubscribeRegistrations === 'function') {
         unsubscribeRegistrations();
       }
@@ -661,6 +679,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     };
   }, []);
+
+  // Auto-purge pendaftaran dan tagihan kadaluarsa (> 24 jam belum ada pembaharuan status)
+  useEffect(() => {
+    if (firestoreRegistrations.length === 0 && invoices.length === 0) return;
+
+    const timer = setTimeout(() => {
+      purgeExpiredRegistrationsAndInvoices({
+        registrations: firestoreRegistrations,
+        invoices,
+        deleteRegistration: deleteRegistrationFromFirestore,
+        deleteInvoice: deleteInvoiceFromFirestore,
+      }).catch((err) => {
+        console.warn('[Auto-Purge 24h] Kendala saat pembersihan kadaluarsa:', err);
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [firestoreRegistrations, invoices]);
+
+  // Interval pembersihan berkala setiap 5 menit ketika Admin Dashboard aktif
+  useEffect(() => {
+    const interval = setInterval(() => {
+      purgeExpiredRegistrationsAndInvoices({
+        registrations: firestoreRegistrations,
+        invoices,
+        deleteRegistration: deleteRegistrationFromFirestore,
+        deleteInvoice: deleteInvoiceFromFirestore,
+      }).catch((err) => {
+        console.warn('[Auto-Purge 24h Interval] Kendala saat pembersihan berkala:', err);
+      });
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [firestoreRegistrations, invoices]);
 
   const handleVerifyStudent = async (studentId: string) => {
     try {
@@ -1044,7 +1096,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const isRegVerified = (r: FirestoreRegistrationDoc) => r.paymentStatus === 'verified' || r.paymentStatus === 'paid';
-  const pendingCount = firestoreRegistrations.filter((r) => !isRegVerified(r)).length;
+  const pendingCount = firestoreRegistrations.filter((r) => !isRegistrationExpired(r) && !isRegVerified(r)).length;
   const pendingTutorCount = tutorRegistrations.filter((r) => r.status === 'pending_review').length;
   const acceptedTutorApplicants = tutorRegistrations.filter((r) => r.status === 'accepted');
 
@@ -2671,7 +2723,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           )}
 
           {/* TAB: TAGIHAN & MIDTRANS */}
-          {(activeTab === 'tagihan' || activeTab === 'midtrans' || activeTab === 'terlambat') && (
+          {(activeTab === 'tagihan' || activeTab === 'midtrans' || activeTab === 'terlambat') && (() => {
+            const validInvoices = invoices.filter((i) => !isInvoiceExpired(i));
+            return (
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2823]/10">
                 <div>
@@ -2710,22 +2764,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Total Invoice</span>
-                  <span className="text-xl font-extrabold text-[#2A2823] mt-1 block">{invoices.length} Tagihan</span>
+                  <span className="text-xl font-extrabold text-[#2A2823] mt-1 block">{validInvoices.length} Tagihan</span>
                   <span className="text-[10px] text-[#3F5A46] font-bold mt-1 block">
-                    {invoices.filter((i) => i.packageType === 'non_paket').length} Non-Paket Terdaftar
+                    {validInvoices.filter((i) => i.packageType === 'non_paket').length} Non-Paket Terdaftar
                   </span>
                 </div>
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Invoice Lunas</span>
                   <span className="text-xl font-extrabold text-emerald-700 mt-1 block">
-                    {invoices.filter((i) => calculateInvoiceDynamicStatus(i).isPaid).length} Lunas
+                    {validInvoices.filter((i) => calculateInvoiceDynamicStatus(i).isPaid).length} Lunas
                   </span>
                   <span className="text-[10px] text-[#6B675F] mt-1 block">Midtrans Terverifikasi</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Menunggu Bayar</span>
                   <span className="text-xl font-extrabold text-amber-700 mt-1 block">
-                    {invoices.filter((i) => {
+                    {validInvoices.filter((i) => {
                       const st = calculateInvoiceDynamicStatus(i);
                       return !st.isPaid && !st.isOverdue;
                     }).length} Pending
@@ -2735,7 +2789,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="p-4 rounded-2xl bg-white border border-[#2A2823]/10 shadow-xs">
                   <span className="text-[11px] text-[#6B675F] font-semibold block">Tagihan Terlambat</span>
                   <span className="text-xl font-extrabold text-rose-600 mt-1 block">
-                    {invoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length} Terlambat
+                    {validInvoices.filter((i) => calculateInvoiceDynamicStatus(i).isOverdue).length} Terlambat
                   </span>
                   <span className="text-[10px] text-rose-600 font-bold mt-1 block">Lewat Batas 3 Hari</span>
                 </div>
@@ -2750,7 +2804,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {activeTab === 'terlambat' ? 'Daftar Tagihan Terlambat (Lewat Batas 3 Hari)' : 'Data Rekapitulasi Tagihan & Invoice'}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-[#284230] text-white text-[10px] font-bold">
-                      {invoices.filter((row) => (activeTab === 'terlambat' ? calculateInvoiceDynamicStatus(row).isOverdue : true)).length} Item
+                      {validInvoices.filter((row) => (activeTab === 'terlambat' ? calculateInvoiceDynamicStatus(row).isOverdue : true)).length} Item
                     </span>
                   </div>
                 </div>
@@ -2769,7 +2823,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#2A2823]/8">
-                      {invoices
+                      {validInvoices
                         .filter((row) => (activeTab === 'terlambat' ? calculateInvoiceDynamicStatus(row).isOverdue : true))
                         .map((inv, idx) => {
                           const statusInfo = calculateInvoiceDynamicStatus(inv);
@@ -2952,7 +3006,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* TAB: AKUN & HAK AKSES */}
           {activeTab === 'akun' && (
@@ -3077,7 +3132,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           )}
-
 
           {/* Quick Fallback for Other Tabs */}
           {['mapel', 'presensi', 'nilai', 'lkpd', 'bank_soal', 'video', 'laporan', 'promo', 'sertifikat'].includes(

@@ -1126,6 +1126,19 @@ export async function updateRegistrationStatusInFirestore(
   }
 }
 
+/**
+ * Deletes a student registration from Firestore.
+ */
+export async function deleteRegistrationFromFirestore(studentId: string): Promise<void> {
+  const docPath = `registrations/${studentId}`;
+  try {
+    const docRef = doc(db, 'registrations', studentId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, docPath);
+  }
+}
+
 export interface FirestoreInvoiceDoc {
   inv: string;
   parent: string;

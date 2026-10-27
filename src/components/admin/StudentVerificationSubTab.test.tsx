@@ -17,7 +17,7 @@ describe('StudentVerificationSubTab Enhancement (ISTQB & TDD)', () => {
     invoiceNumber: 'INV-202610-001',
     paymentMethod: 'manual_transfer',
     paymentStatus: 'pending',
-    createdAt: '2026-10-24T08:00:00.000Z',
+    createdAt: new Date().toISOString(), // Newly created registration (< 24h)
     appliedDiscount: 0,
     totalSessions: 8,
   };
@@ -138,5 +138,35 @@ describe('StudentVerificationSubTab Enhancement (ISTQB & TDD)', () => {
     // Quick verify button should NOT exist in Sarah's row
     const verifyInSarahRow = sarahRow?.querySelector('button[title="Setujui dan Verifikasi Pendaftaran"]');
     expect(verifyInSarahRow).toBeNull();
+  });
+
+  it('TC-SVT-006: Pending registration older than 24h without status update should be excluded from display', () => {
+    const expiredPendingReg: FirestoreRegistrationDoc = {
+      studentId: 'BF-202610-EXPIRED',
+      studentName: 'Siswa Kadaluarsa',
+      parentName: 'Ortu Kadaluarsa',
+      whatsapp: '081299998888',
+      homeAddress: 'Jl. Kadaluarsa No. 1',
+      level: 'sd',
+      selectedSchedule: ['Senin'],
+      totalAmount: 280000,
+      invoiceNumber: 'INV-202610-EXPIRED',
+      paymentMethod: 'midtrans',
+      paymentStatus: 'pending',
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), // 25 hours ago
+      appliedDiscount: 0,
+      totalSessions: 8,
+    };
+
+    render(
+      <StudentVerificationSubTab
+        {...defaultProps}
+        registrations={[...defaultProps.registrations, expiredPendingReg]}
+      />
+    );
+
+    // Siswa Kadaluarsa should NOT be rendered in the table
+    expect(screen.queryByText('Siswa Kadaluarsa')).toBeNull();
+    expect(screen.queryByText('BF-202610-EXPIRED')).toBeNull();
   });
 });
