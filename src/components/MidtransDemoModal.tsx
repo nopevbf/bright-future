@@ -19,6 +19,7 @@ import {
   subscribeToInvoice,
 } from '../firebase';
 import { CoreChargeResult } from '../utils/midtransService';
+import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
 import {
   getMidtransSettings,
   calculateMidtransFee,
@@ -320,6 +321,33 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
   };
 
   const currentMethodConfig = activeMethods.find((m) => m.id === activeMethod) || activeMethods[0];
+  const hasDownloadedReceiptRef = useRef<boolean>(false);
+
+  const handleClose = () => {
+    if (isPaid && submission && !hasDownloadedReceiptRef.current) {
+      hasDownloadedReceiptRef.current = true;
+      try {
+        generateAndDownloadInvoicePdf({
+          inv: submission.invoiceNumber || `INV-${Date.now()}`,
+          parent: submission.parentName
+            ? `${submission.parentName} (${submission.studentName})`
+            : submission.studentName,
+          studentName: submission.studentName,
+          packageType: 'paket',
+          package: `Paket Bimbel Privat ${(submission.level || 'SD').toUpperCase()} (${submission.selectedSchedule?.length || 2} Sesi/Mgg)`,
+          channel: 'Midtrans Gateway Real-time',
+          amount: feeCalculation.grandTotal || submission.totalAmount,
+          status: 'LUNAS',
+          date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+          whatsapp: submission.whatsapp,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error('[MidtransModal] Gagal mengunduh kuitansi otomatis:', err);
+      }
+    }
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -343,7 +371,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 rounded-full hover:bg-white/10 text-gray-300 transition-colors cursor-pointer"
             aria-label="Tutup"
           >
@@ -749,7 +777,7 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-3 px-4 rounded-xl bg-[#3F5A46] hover:bg-[#2e4233] text-white text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               Tutup &amp; Lihat Kuitansi

@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MidtransDemoModal } from './MidtransDemoModal';
 import { SubmittedRegistration } from '../types';
+import { generateAndDownloadInvoicePdf } from '../utils/generateInvoicePdf';
+
+vi.mock('../utils/generateInvoicePdf', () => ({
+  generateAndDownloadInvoicePdf: vi.fn(),
+}));
 
 describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
   const dummySubmission: SubmittedRegistration = {
@@ -484,5 +489,148 @@ describe('MidtransDemoModal Component (Direct Core API Checkout)', () => {
     // Dummy submission amount is 350.000 + 4.000 fee = 354.000
     expect(screen.getByText(/Biaya Layanan/i)).toBeInTheDocument();
     expect(screen.getByText(/354\.000/)).toBeInTheDocument();
+  });
+
+  it('TC-MDT-RCPT-001: closing modal after verified settlement triggers automatic invoice receipt PDF download', async () => {
+    const handleClose = vi.fn();
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/midtrans/status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            isPaid: true,
+            invoiceStatus: 'LUNAS',
+            transactionStatus: 'settlement',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ status: 'success' }) };
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={handleClose}
+      />
+    );
+
+    // 1. Check status to transition to paid
+    const checkBtn = await screen.findByRole('button', { name: /cek status pembayaran/i });
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pembayaran Berhasil!')).toBeInTheDocument();
+    });
+
+    // 2. Click "Tutup & Lihat Kuitansi"
+    const closeAndReceiptBtn = screen.getByRole('button', { name: /tutup & lihat kuitansi/i });
+    fireEvent.click(closeAndReceiptBtn);
+
+    expect(generateAndDownloadInvoicePdf).toHaveBeenCalledTimes(1);
+    expect(generateAndDownloadInvoicePdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inv: 'INV-2026-001',
+        studentName: 'Rayhan Kusuma',
+        status: 'LUNAS',
+      })
+    );
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('TC-MDT-RCPT-002: closing modal via header X button when paid also downloads invoice receipt', async () => {
+    const handleClose = vi.fn();
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/midtrans/status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            isPaid: true,
+            invoiceStatus: 'LUNAS',
+            transactionStatus: 'settlement',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ status: 'success' }) };
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={handleClose}
+      />
+    );
+
+    const checkBtn = await screen.findByRole('button', { name: /cek status pembayaran/i });
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pembayaran Berhasil!')).toBeInTheDocument();
+    });
+
+    const closeHeaderBtn = screen.getByRole('button', { name: 'Tutup' });
+    fireEvent.click(closeHeaderBtn);
+
+    expect(generateAndDownloadInvoicePdf).toHaveBeenCalledTimes(1);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('TC-MDT-RCPT-003: closing modal when payment is not paid does NOT trigger receipt download', async () => {
+    const handleClose = vi.fn();
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={handleClose}
+      />
+    );
+
+    // Close before paying
+    const closeHeaderBtn = screen.getByRole('button', { name: 'Tutup' });
+    fireEvent.click(closeHeaderBtn);
+
+    expect(generateAndDownloadInvoicePdf).not.toHaveBeenCalled();
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('TC-MDT-RCPT-004: rapid double click on close button when paid triggers receipt download only once', async () => {
+    const handleClose = vi.fn();
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/midtrans/status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'success',
+            isPaid: true,
+            invoiceStatus: 'LUNAS',
+            transactionStatus: 'settlement',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ status: 'success' }) };
+    }) as any;
+
+    render(
+      <MidtransDemoModal
+        submission={dummySubmission}
+        onClose={handleClose}
+      />
+    );
+
+    const checkBtn = await screen.findByRole('button', { name: /cek status pembayaran/i });
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pembayaran Berhasil!')).toBeInTheDocument();
+    });
+
+    const closeBtn = screen.getByRole('button', { name: /tutup & lihat kuitansi/i });
+    // Rapid double click
+    fireEvent.click(closeBtn);
+    fireEvent.click(closeBtn);
+
+    expect(generateAndDownloadInvoicePdf).toHaveBeenCalledTimes(1);
+    expect(handleClose).toHaveBeenCalledTimes(2);
   });
 });
