@@ -211,4 +211,56 @@ describe('Admin Account Management RBAC Test Suite (ISTQB Grounded)', () => {
       expect(onDeleteAccountMock).toHaveBeenCalledWith('portal_tutor_1');
     });
   });
+
+  // TC-RBAC-007 (Deduplication): Verifikasi akun tutor tidak terduplikasi antara portal_credentials dan acceptedTutors fallback
+  it('TC-RBAC-007 (Deduplication): Should NOT duplicate tutor accounts between portal_credentials and acceptedTutors fallback', () => {
+    const props: AccountManagementSubTabProps = {
+      adminCredential: mockAdminCredential,
+      portalAccounts: [
+        {
+          id: 'tutor_TR-2026-001',
+          name: 'Budi Santoso, S.Pd.',
+          role: 'tutor',
+          identifier: '081234567890',
+          whatsapp: '081234567890',
+          password: '123456789',
+          summary: 'Tutor Matematika',
+          tutorId: 'TR-2026-001',
+        },
+      ],
+      verifiedRegistrations: [],
+      acceptedTutors: [
+        {
+          id: 'TR-2026-001',
+          fullName: 'Budi Santoso, S.Pd.',
+          whatsapp: '081234567890',
+          status: 'accepted',
+          district: 'Mertoyudan',
+          subjects: 'Matematika',
+          education: 'S1 Pendidikan Matematika',
+          createdAt: '2026-10-01T10:00:00Z',
+        },
+      ],
+      isSyncingDb: false,
+      currentUserRole: 'super_admin',
+      onSyncDatabase: onSyncDatabaseMock,
+      onUpdateAdminPassword: onUpdateAdminPasswordMock,
+      onUpdatePortalPassword: onUpdatePortalPasswordMock,
+      onCreateAccount: onCreateAccountMock,
+      onEditAccount: onEditAccountMock,
+      onDeleteAccount: onDeleteAccountMock,
+      onUpdateRole: onUpdateRoleMock,
+      onLogout: onLogoutMock,
+    };
+
+    render(<AccountManagementSubTab {...props} />);
+
+    // Budi Santoso hanya boleh muncul 1 kali di tabel
+    const tutorNames = screen.getAllByText('Budi Santoso, S.Pd.');
+    expect(tutorNames.length).toBe(1);
+
+    // Sumbernya harus dari portal_credentials, TIDAK boleh duplikat dengan tutor_registrations (Live DB)
+    expect(screen.queryByText(/tutor_registrations \(Live DB\)/i)).toBeNull();
+    expect(screen.getByText('portal_credentials')).toBeDefined();
+  });
 });

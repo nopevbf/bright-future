@@ -6,14 +6,14 @@ import {
   SessionReportParams,
 } from './whatsapp';
 
-describe('WhatsApp Click-to-Chat Generator (REQ-05)', () => {
+describe('WhatsApp Click-to-Chat Generator (REQ-05 & ISTQB Encoding Standards)', () => {
   it('menstandarisasi nomor telepon lokal 08xx ke format internasional 628xx', () => {
     expect(formatWhatsAppNumber('0851-7323-0198')).toBe('6285173230198');
     expect(formatWhatsAppNumber('+62 812 3456 7890')).toBe('6281234567890');
     expect(formatWhatsAppNumber('6285173230198')).toBe('6285173230198');
   });
 
-  it('menghasilkan tautan wa.me yang valid untuk draf laporan evaluasi 70 menit', () => {
+  it('TC-WA-ENC-001 (Happy Path): menghasilkan tautan wa.me yang valid dan bebas dari karakter rusak , ZWJ, dan VS16', () => {
     const report: SessionReportParams = {
       parentPhone: '085173230198',
       parentName: 'Ibu Ratna Dewi',
@@ -33,17 +33,51 @@ describe('WhatsApp Click-to-Chat Generator (REQ-05)', () => {
 
     const url = generateSessionReportWhatsAppUrl(report);
     expect(url).toContain('https://wa.me/6285173230198?text=');
-    expect(url).toContain(encodeURIComponent('Rayhan Pratama'));
-    expect(url).toContain(encodeURIComponent('70 Menit'));
-    expect(url).toContain(encodeURIComponent('Pecahan Senilai'));
+    
+    const decodedMessage = decodeURIComponent(url.split('?text=')[1]);
+    // Tidak boleh mengandung karakter replacement  (U+FFFD)
+    expect(decodedMessage).not.toContain('\uFFFD');
+    // checked via \uFFFD below
+    // Tidak boleh mengandung Zero Width Joiner (ZWJ) yang pecah jadi  di WA Web
+    expect(decodedMessage).not.toContain('\u200D');
+    // Tidak boleh mengandung Variation Selector (VS16) yang pecah jadi  di WA Web
+    expect(decodedMessage).not.toContain('\uFE0F');
+
+    expect(decodedMessage).toContain('Rayhan Pratama');
+    expect(decodedMessage).toContain('70 Menit');
+    expect(decodedMessage).toContain('Pecahan Senilai');
   });
 
-  it('menghasilkan tautan wa.me untuk penagihan invoice SPP bulanan', () => {
+  it('TC-WA-ENC-002 (Edge Case - Dirty Inputs): membersihkan input yang mengandung karakter  atau mojibake', () => {
+    const dirtyReport: SessionReportParams = {
+      parentPhone: '085173230198',
+      parentName: 'Ibu Ratna  Dewi',
+      studentName: 'Rayhan â€œKusumaâ€  ',
+      tutorName: 'Kak Anindya S.Pd. ',
+      dateStr: '2 â€“ 3 Oktober 2026',
+      durationMinutes: 70,
+      topic: 'IPAS â€” Rotasi Bumi ',
+      affectiveScores: { fokus: 5, dayaJuang: 4, kerapian: 5, adab: 5 },
+      tutorNotes: 'Catatan afektif: â€œSangat mandiri 5.0 â˜…â€ ',
+    };
+
+    const url = generateSessionReportWhatsAppUrl(dirtyReport);
+    const decodedMessage = decodeURIComponent(url.split('?text=')[1]);
+
+    // checked via \uFFFD below
+    expect(decodedMessage).not.toContain('\uFFFD');
+    expect(decodedMessage).not.toContain('â€œ');
+    expect(decodedMessage).not.toContain('â€”');
+    expect(decodedMessage).toContain('“Kusuma”');
+    expect(decodedMessage).toContain('IPAS — Rotasi Bumi');
+  });
+
+  it('TC-WA-ENC-003: menghasilkan tautan wa.me tagihan SPP bulanan bebas karakter rusak , ZWJ, dan VS16', () => {
     const url = generateInvoiceWhatsAppUrl({
       parentPhone: '08123456789',
       parentName: 'Bpk. Bambang',
       invoiceNumber: 'INV-2026-10-001',
-      studentNames: ['Rayhan', 'Kayla'],
+      studentNames: ['Rayhan ', 'Kayla'],
       totalSessions: 16,
       subtotal: 560000,
       discountAmount: 84000,
@@ -51,9 +85,13 @@ describe('WhatsApp Click-to-Chat Generator (REQ-05)', () => {
       dueDateStr: '10 Oktober 2026',
     });
 
-    expect(url).toContain('https://wa.me/628123456789?text=');
-    expect(url).toContain(encodeURIComponent('INV-2026-10-001'));
-    expect(url).toContain(encodeURIComponent('Rp 476.000'));
-    expect(url).toContain(encodeURIComponent('Diskon Saudara Kandung 15%'));
+    const decodedMessage = decodeURIComponent(url.split('?text=')[1]);
+    // checked via \uFFFD below
+    expect(decodedMessage).not.toContain('\uFFFD');
+    expect(decodedMessage).not.toContain('\u200D');
+    expect(decodedMessage).not.toContain('\uFE0F');
+    expect(decodedMessage).toContain('INV-2026-10-001');
+    expect(decodedMessage).toContain('Rp 476.000');
+    expect(decodedMessage).toContain('Diskon Saudara Kandung 15%');
   });
 });

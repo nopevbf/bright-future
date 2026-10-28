@@ -356,8 +356,13 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
     if (!localDeletedIds.has(docId)) {
       const merged = applyOverrides(acc);
       const rawId = (merged.identifier || '').toLowerCase();
+      const cleanWa = (merged.whatsapp || '').replace(/[^0-9]/g, '');
       if (rawId && !knownIds.has(rawId)) {
         knownIds.add(rawId);
+        knownIds.add(docId.toLowerCase());
+        if (cleanWa) knownIds.add(cleanWa);
+        if (acc.tutorId) knownIds.add(acc.tutorId.toLowerCase());
+        if (acc.studentId) knownIds.add(acc.studentId.toLowerCase());
         allAccounts.push({
           id: docId,
           role: merged.role || 'siswa',
@@ -420,9 +425,15 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
       const tWa = (tutor.whatsapp || '').replace(/[^0-9]/g, '');
       const tId = (tutor.id || '').toLowerCase();
       const tDocId = `tutor_${tutor.id}`;
-      if (((tWa && !knownIds.has(tWa)) || (tId && !knownIds.has(tId))) && !localDeletedIds.has(tDocId)) {
+      const isAlreadyKnown =
+        (tWa && knownIds.has(tWa)) ||
+        (tId && knownIds.has(tId)) ||
+        knownIds.has(tDocId.toLowerCase());
+
+      if (!isAlreadyKnown && !localDeletedIds.has(tDocId)) {
         if (tWa) knownIds.add(tWa);
         if (tId) knownIds.add(tId);
+        knownIds.add(tDocId.toLowerCase());
         const override = localUpdatedAccounts[tDocId] || {};
         allAccounts.push({
           id: tDocId,

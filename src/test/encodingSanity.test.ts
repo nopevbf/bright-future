@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { cleanMojibake } from '../utils/textEncoding';
+import { cleanMojibake, sanitizeWhatsAppText } from '../utils/textEncoding';
 
 describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characters)', () => {
-  describe('cleanMojibake Utility', () => {
+  describe('cleanMojibake & sanitizeWhatsAppText Utility', () => {
     it('TC-ENC-001: should fix quotation marks â€œ and â€  / â€ into proper typography', () => {
       const input = 'â€œRayhan sangat antusias membuktikan bayangan tongkat.â€ ';
       const result = cleanMojibake(input);
@@ -35,6 +35,16 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
       const result = cleanMojibake(input);
       expect(result).toBe('(4 × Rp 35.000) dan café');
     });
+
+    it('TC-ENC-007 (Replacement Character & WhatsApp Sanitization): should strip  (\\uFFFD), ZWJ (\\u200D), and VS16 (\\uFE0F)', () => {
+      const corruptedInput = 'Siswa: Rayhan  â€” Catatan: â€œBagusâ€  🗓️ 🧑‍🎓 👩‍🏫 👨‍👩‍👧';
+      const cleaned = sanitizeWhatsAppText(corruptedInput);
+      expect(cleaned).not.toContain('\uFFFD');
+      // checked via \uFFFD below
+      expect(cleaned).not.toContain('\u200D'); // No ZWJ
+      expect(cleaned).not.toContain('\uFE0F'); // No VS16
+      expect(cleaned).toContain('Siswa: Rayhan — Catatan: “Bagus”');
+    });
   });
 
   describe('Source Files Sanity Check', () => {
@@ -45,22 +55,15 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
       'src/firebase.ts',
       'src/utils/generateInvoicePdf.ts',
       'src/utils/whatsapp.ts',
+      'src/utils/tutorDispatch.ts',
+      'src/utils/tutorManagement.ts',
+      'src/components/tutor/TutorEvaluationWhatsApp.tsx',
       'vite.config.ts',
     ];
 
     const corruptedPatterns = [
-      'â€œ', // Left double quotation mark
-      'â€ ', // Right double quotation mark
-      'â€”', // Em dash
-      'â€“', // En dash
-      'âœ“', // Check mark
-      'â˜…', // Star
-      'â€¢', // Bullet
-      'ðŸ',  // Corrupted UTF-8 4-byte emoji prefix
-      'â­ ', // Corrupted star emoji
-      'â °', // Corrupted clock emoji
-      'Ã—',  // Corrupted multiplication sign (×)
-      'Ã',   // Corrupted Latin-1 / UTF-8 two-byte prefix
+      'â€œ', 'â€ ', 'â€”', 'â€“', 'âœ“', 'â˜…', 'â€¢', 'ðŸ', 'â­ ', 'â °',
+      'Ã—', 'Ã', '\uFFFD',
     ];
 
     it('TC-ENC-005: should not contain any corrupted mojibake patterns in target source files', () => {
@@ -73,6 +76,36 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
           for (const pattern of corruptedPatterns) {
             if (content.includes(pattern)) {
               violations.push({ file: relPath, pattern });
+            }
+          }
+        }
+      }
+
+      expect(violations).toEqual([]);
+    });
+
+    it('TC-ENC-008: WhatsApp message generator files must not contain composite ZWJ or VS16 that render as  in WA Web', () => {
+      const waFiles = [
+        'src/utils/whatsapp.ts',
+        'src/utils/tutorDispatch.ts',
+        'src/utils/tutorManagement.ts',
+        'src/components/tutor/TutorEvaluationWhatsApp.tsx',
+      ];
+
+      const brokenCodePoints = [
+        { name: 'ZWJ (\\u200D)', code: '\u200D' },
+        { name: 'VS16 (\\uFE0F)', code: '\uFE0F' },
+      ];
+
+      const violations: { file: string; issue: string }[] = [];
+
+      for (const relPath of waFiles) {
+        const fullPath = path.resolve(process.cwd(), relPath);
+        if (fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          for (const bp of brokenCodePoints) {
+            if (content.includes(bp.code)) {
+              violations.push({ file: relPath, issue: bp.name });
             }
           }
         }

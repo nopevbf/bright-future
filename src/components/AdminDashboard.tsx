@@ -1,3 +1,4 @@
+import { sanitizeWhatsAppText } from '../utils/textEncoding';
 import React, { useState, useEffect } from 'react';
 import {
   fetchRegistrationsFromFirestore,
@@ -1209,7 +1210,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         `📄 *No. Invoice:* ${inv.inv}\n` +
         `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
         `📚 *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
-        `🗓️ *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
+        `📅 *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
         `📅 *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
         `Tanggal: ${inv.meetingDatesRaw || inv.meetingDates?.join(', ') || '-'}\n` +
         `💰 *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
@@ -1229,7 +1230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Terima kasih!`;
     }
 
-    window.open(`https://wa.me/${phoneTarget}?text=${encodeURIComponent(text)}`, '_blank');
+    window.open(`https://wa.me/${phoneTarget}?text=${encodeURIComponent(sanitizeWhatsAppText(text))}`, '_blank');
   };
 
   const handleDownloadInvoicePdf = (inv: AdminInvoiceItem) => {

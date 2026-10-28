@@ -1,4 +1,5 @@
 import { formatWhatsAppNumber } from './whatsapp';
+import { sanitizeWhatsAppText } from './textEncoding';
 
 export type TutorApplicationStatus =
   | 'pending_review'
@@ -64,7 +65,7 @@ export function generateTutorInterviewWhatsAppUrl(
     `Berkas pendaftaran Anda telah kami review dan Anda kami undang untuk mengikuti tahap selanjutnya:`,
     '',
     `📌 *Agenda:* Wawancara & Microteaching SOP 70 Menit`,
-    `🗓️ *Hari/Tanggal:* ${details.date}`,
+    `📅 *Hari/Tanggal:* ${details.date}`,
     `⏰ *Pukul:* ${details.time}`,
     `📍 *Lokasi:* ${details.location}`,
     '',
@@ -76,7 +77,8 @@ export function generateTutorInterviewWhatsAppUrl(
     `Mohon konfirmasi kesediaan kehadiran Anda dengan membalas pesan ini. Terima kasih! 🙏`,
   ].join('\n');
 
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const cleanMessage = sanitizeWhatsAppText(message);
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(cleanMessage)}`;
 }
 
 /**
@@ -100,7 +102,8 @@ export function generateTutorAcceptanceWhatsAppUrl(tutor: TutorApplication): str
     `Selamat bergabung di keluarga besar Bright Future. Mari bersama mendampingi anak-anak Magelang meraih masa depan gemilang! 🌟`,
   ].join('\n');
 
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const cleanMessage = sanitizeWhatsAppText(message);
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(cleanMessage)}`;
 }
 
 /**
@@ -121,5 +124,6 @@ export function generateTutorRejectionWhatsAppUrl(tutor: TutorApplication): stri
     `Apresiasi setinggi-tingginya kami sampaikan atas dedikasi dan kualifikasi Anda di dunia pendidikan. Sukses selalu dalam karier Anda! 🌿`,
   ].join('\n');
 
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const cleanMessage = sanitizeWhatsAppText(message);
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(cleanMessage)}`;
 }

@@ -1,4 +1,5 @@
 import { formatRupiah } from './pricing';
+import { sanitizeWhatsAppText } from './textEncoding';
 
 export interface AffectiveScores {
   fokus: number;
@@ -62,9 +63,9 @@ export function generateSessionReportWhatsAppUrl(params: SessionReportParams): s
     `Assalamu'alaikum / Selamat Pagi/Sore ${params.parentName},`,
     '',
     `Berikut laporan berkala sesi belajar Bright Future house-to-house:`,
-    `🧑‍🎓 *Siswa:* ${params.studentName}`,
-    `👩‍🏫 *Tutor:* ${params.tutorName}`,
-    `🗓️ *Waktu:* ${params.dateStr} (Durasi: ${params.durationMinutes} Menit Tatap Muka Murni)`,
+    `🎓 *Siswa:* ${params.studentName}`,
+    `📚 *Tutor:* ${params.tutorName}`,
+    `📅 *Waktu:* ${params.dateStr} (Durasi: ${params.durationMinutes} Menit Tatap Muka Murni)`,
     `📖 *Materi Pokok:* ${params.topic}`,
     '',
     `*Evaluasi 4 Pilar Karakter Meja Belajar:*`,
@@ -79,7 +80,8 @@ export function generateSessionReportWhatsAppUrl(params: SessionReportParams): s
     `Terima kasih atas kepercayaan Ayah/Bunda mendampingi ananda belajar bersama Bright Future Magelang.`,
   ].join('\n');
 
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const cleanMessage = sanitizeWhatsAppText(message);
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(cleanMessage)}`;
 }
 
 /**
@@ -110,5 +112,6 @@ export function generateInvoiceWhatsAppUrl(params: InvoiceReportParams): string 
     `Terima kasih atas kerja samanya. 🙏`,
   ].join('\n');
 
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const cleanMessage = sanitizeWhatsAppText(message);
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(cleanMessage)}`;
 }

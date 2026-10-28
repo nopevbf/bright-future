@@ -31,9 +31,9 @@ const MOJIBAKE_REPLACEMENTS: ReadonlyArray<[pattern: RegExp, replacement: string
   [/\u00e2\u008f\u00b0/g, '⏰'],
 
   // 4. Broken UTF-8 Emojis (Corrupted 4-byte sequences)
-  [/\u00f0\u0178\u00a7\u2018\u00e2\u20ac\u008d\u00f0\u0178\u017d\u201c/g, '🧑‍🎓'],
-  [/\u00f0\u0178\u2018\u00a9\u00e2\u20ac\u008d\u00f0\u0178\u008f\u00ab/g, '👩‍🏫'],
-  [/\u00f0\u0178\u2014\u201c\u00ef\u00b8\u008f/g, '🗓️'],
+  [/\u00f0\u0178\u00a7\u2018\u00e2\u20ac\u008d\u00f0\u0178\u017d\u201c/g, '🎓'],
+  [/\u00f0\u0178\u2018\u00a9\u00e2\u20ac\u008d\u00f0\u0178\u008f\u00ab/g, '📚'],
+  [/\u00f0\u0178\u2014\u201c\u00ef\u00b8\u008f/g, '📅'],
   [/\u00f0\u0178\u201c\u2013/g, '📖'],
   [/\u00f0\u0178\u201c\u009d/g, '📝'],
   [/\u00f0\u0178\u201c\u00a0/g, '📝'],
@@ -77,6 +77,9 @@ const MOJIBAKE_REPLACEMENTS: ReadonlyArray<[pattern: RegExp, replacement: string
   [/â€\s*$/g, '”'],
   [/â€\s+/g, '” '],
   [/â€/g, '”'],
+
+  // 7. Replacement characters (U+FFFD)
+  [/\uFFFD/g, ''],
 ];
 
 /**
@@ -96,4 +99,42 @@ export function cleanMojibake(text: string): string {
   }
 
   return sanitized;
+}
+
+/**
+ * Sanitasi komprehensif teks pesan WhatsApp untuk mencegah kemunculan karakter  (U+FFFD)
+ * akibat Zero Width Joiner (ZWJ), Variation Selectors (VS16/VS15), dan composite emojis yang tidak didukung.
+ *
+ * @param text - Teks pesan WhatsApp (template atau draf)
+ * @returns Teks WhatsApp yang aman dan 100% kompatibel di semua platform/perangkat
+ */
+export function sanitizeWhatsAppText(text: string): string {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  // 1. Bersihkan mojibake standar terlebih dahulu
+  let res = cleanMojibake(text);
+
+  // 2. Normalisasi composite emoji problematik yang sering pecah menjadi  di WhatsApp Web
+  res = res
+    .replace(/\uD83E\uDDD1\u200D\uD83C\uDF93/g, '🎓') // 🧑‍🎓 -> 🎓
+    .replace(/\uD83D\uDC69\u200D\uD83C\uDFEB/g, '📚') // 👩‍🏫 -> 📚
+    .replace(/\uD83D\uDC69\u200D\uD83D\uDCBC/g, '📚') // 👩‍💼 -> 📚
+    .replace(/\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67/g, '👪') // 👨‍👩‍👧 -> 👪
+    .replace(/\uD83D\uDDD3\uFE0F?/g, '📅') // 🗓️ -> 📅
+    .replace(/\uD83C\uDF27\uFE0F?/g, '🌧'); // 🌧️ -> 🌧
+
+  // 3. Buang sisa Zero Width Joiner, Variation Selectors, Zero Width Spaces, & BOM
+  res = res
+    .replace(/\u200D/g, '') // ZWJ
+    .replace(/[\uFE00-\uFE0F]/g, '') // Variation Selectors (VS1 - VS16)
+    .replace(/[\u200B-\u200F]/g, '') // Zero Width Space, Non-Joiner, Directional marks
+    .replace(/\uFEFF/g, '') // Byte Order Mark
+    .replace(/\uFFFD/g, ''); // Replacement Character
+
+  // 4. Normalisasi spasi ganda yang timbul akibat penghapusan karakter
+  res = res.replace(/[ \t]{2,}/g, ' ');
+
+  return res;
 }

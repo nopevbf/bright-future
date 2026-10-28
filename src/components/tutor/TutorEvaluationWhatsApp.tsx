@@ -1,3 +1,4 @@
+import { sanitizeWhatsAppText } from '../../utils/textEncoding';
 import React, { useState } from 'react';
 import { AssignedStudentSummary } from '../../utils/tutorPairingResolver';
 import { FirestoreTutorVisitDoc } from '../../firebase';
@@ -158,7 +159,7 @@ Bright Future Magelang`;
     if (selectedTemplate === 'hujan') {
       return `Selamat sore, ${parentNameDisplay}. 🌿
 
-Sehubungan cuaca hujan sore ini di Magelang, tutor Bright Future tetap berkomitmen hadir tepat waktu dengan perlengkapan berkendara aman. Terima kasih atas pengertiannya! 🌧️✨
+Sehubungan cuaca hujan sore ini di Magelang, tutor Bright Future tetap berkomitmen hadir tepat waktu dengan perlengkapan berkendara aman. Terima kasih atas pengertiannya! 🌧✨
 
 Salam hangat,
 *${tutorName}*`;
@@ -188,7 +189,7 @@ Salam hangat,
 Tutor Pendamping Bright Future Magelang`;
   };
 
-  const fullWaMessage = generateWhatsAppMessage();
+  const fullWaMessage = sanitizeWhatsAppText(generateWhatsAppMessage());
 
   // Handler Salin Draf
   const handleCopyDraft = () => {
