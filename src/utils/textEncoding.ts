@@ -118,23 +118,48 @@ export function sanitizeWhatsAppText(text: string): string {
 
   // 2. Normalisasi composite emoji problematik yang sering pecah menjadi  di WhatsApp Web
   res = res
-    .replace(/\uD83E\uDDD1\u200D\uD83C\uDF93/g, '🎓') // 🧑‍🎓 -> 🎓
-    .replace(/\uD83D\uDC69\u200D\uD83C\uDFEB/g, '📚') // 👩‍🏫 -> 📚
-    .replace(/\uD83D\uDC69\u200D\uD83D\uDCBC/g, '📚') // 👩‍💼 -> 📚
-    .replace(/\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67/g, '👪') // 👨‍👩‍👧 -> 👪
-    .replace(/\uD83D\uDDD3\uFE0F?/g, '📅') // 🗓️ -> 📅
-    .replace(/\uD83C\uDF27\uFE0F?/g, '🌧'); // 🌧️ -> 🌧
+    .replace(/\uD83E\uDDD1\u200D\uD83C\uDF93/g, '•') // 🧑‍🎓 -> •
+    .replace(/\uD83D\uDC69\u200D\uD83C\uDFEB/g, '•') // 👩‍🏫 -> •
+    .replace(/\uD83D\uDC69\u200D\uD83D\uDCBC/g, '•') // 👩‍💼 -> •
+    .replace(/\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67/g, '•') // 👨‍👩‍👧 -> •
+    .replace(/\uD83D\uDDD3\uFE0F?/g, '•') // 🗓️ -> •
+    .replace(/\uD83C\uDF27\uFE0F?/g, ''); // 🌧️ -> ''
 
-  // 3. Buang sisa Zero Width Joiner, Variation Selectors, Zero Width Spaces, & BOM
+  // 3. Konversi emoji-emoji yang sering rusak menjadi  di WhatsApp URL/browser menjadi bullet •
+  res = res
+    .replace(/🎓\s*/g, '• ')
+    .replace(/🏫\s*/g, '• ')
+    .replace(/📖\s*/g, '• ')
+    .replace(/⏰\s*/g, '• ')
+    .replace(/📍\s*/g, '• ')
+    .replace(/👤\s*/g, '• ')
+    .replace(/📚\s*/g, '• ')
+    .replace(/🏠\s*/g, '• ')
+    .replace(/👪\s*/g, '• ')
+    .replace(/📄\s*/g, '• ')
+    .replace(/👶\s*/g, '• ')
+    .replace(/🎯\s*/g, '• ')
+    .replace(/💵\s*/g, '• ')
+    .replace(/💳\s*/g, '• ')
+    .replace(/📌\s*/g, '• ')
+    .replace(/💡\s*/g, '• ')
+    .replace(/🌸\s*/g, '')
+    .replace(/✨\s*/g, '')
+    .replace(/🌟\s*/g, '')
+    .replace(/🎉\s*/g, '')
+    .replace(/🌿\s*/g, '')
+    .replace(/🙏\s*/g, '');
+
+  // 4. Buang sisa Zero Width Joiner, Variation Selectors, Zero Width Spaces, BOM, & Replacement Character
   res = res
     .replace(/\u200D/g, '') // ZWJ
     .replace(/[\uFE00-\uFE0F]/g, '') // Variation Selectors (VS1 - VS16)
     .replace(/[\u200B-\u200F]/g, '') // Zero Width Space, Non-Joiner, Directional marks
     .replace(/\uFEFF/g, '') // Byte Order Mark
-    .replace(/\uFFFD/g, ''); // Replacement Character
+    .replace(/\uFFFD/g, ''); // Replacement Character ()
 
-  // 4. Normalisasi spasi ganda yang timbul akibat penghapusan karakter
+  // 5. Normalisasi spasi ganda yang timbul akibat penghapusan karakter
   res = res.replace(/[ \t]{2,}/g, ' ');
 
-  return res;
+  return res.trim();
 }

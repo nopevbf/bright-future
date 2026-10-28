@@ -170,19 +170,19 @@ Salam hangat,
 
 Alhamdulillah, sesi bimbingan visit rumah bersama *${studentNameDisplay}* hari ini (${currentVisit?.time || '13.30 - 14.40 WIB'}) telah selesai dengan lancar dan antusias.
 
-📌 *Ringkasan Belajar Hari Ini:*
+• *Ringkasan Belajar Hari Ini:*
 • Materi: ${currentVisit?.subject || currentStudent?.subject || 'IPAS Sains (Gerak Rotasi & Revolusi Bumi)'}
 • Nilai LKPD Praktik: ${lkpdScore} / 100 (${getLkpdLabel(lkpdScore)})
 • Kuis Kilat (5 Soal): ${kuisScore} / 100 (${(kuisScore / 20).toFixed(1)} / 5 Benar)
 • Durasi Efektif: Sesi Tatap Muka Tuntas
 
-🌟 *Observasi Karakter & Afektif:*
+• *Observasi Karakter & Afektif:*
 ${narrativeNotes}
 
-💡 *Rekomendasi di Rumah:*
+• *Rekomendasi di Rumah:*
 Bisa diajak mengulang santai catatan materi dan tabel perbedaan waktu di lembar kerja sebelum tidur malam ini.
 
-Terima kasih banyak atas keramahan dan meja belajar yang nyaman di rumah sore ini. Sampai jumpa di sesi berikutnya! 🌸
+Terima kasih banyak atas keramahan dan meja belajar yang nyaman di rumah sore ini. Sampai jumpa di sesi berikutnya!
 
 Salam hangat,
 *${tutorName}*

@@ -143,6 +143,17 @@ describe('Smart Tutor Dispatch & Pairing System (SQA-ISTQB & TDD)', () => {
       expect(url).toContain(encodeURIComponent(studentMertoyudanSD.parentName));
       expect(url).toContain(encodeURIComponent(tutor.name));
       expect(url).toContain(encodeURIComponent('Bright Future'));
+
+      const decodedText = decodeURIComponent(url.split('text=')[1] || '');
+      expect(decodedText).not.toContain('\uFFFD');
+      expect(decodedText).not.toContain('🎓');
+      expect(decodedText).not.toContain('🏫');
+      expect(decodedText).not.toContain('📖');
+      expect(decodedText).not.toContain('⏰');
+      expect(decodedText).not.toContain('📍');
+      expect(decodedText).not.toContain('✨');
+      expect(decodedText).toContain('• *Nama Tutor:*');
+      expect(decodedText).toContain('• *Latar Belakang:*');
     });
   });
 });

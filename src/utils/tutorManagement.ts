@@ -64,17 +64,17 @@ export function generateTutorInterviewWhatsAppUrl(
     `Terima kasih telah mendaftar sebagai Calon Pengajar Bimbel House-to-House Bright Future.`,
     `Berkas pendaftaran Anda telah kami review dan Anda kami undang untuk mengikuti tahap selanjutnya:`,
     '',
-    `📌 *Agenda:* Wawancara & Microteaching SOP 70 Menit`,
-    `📅 *Hari/Tanggal:* ${details.date}`,
-    `⏰ *Pukul:* ${details.time}`,
-    `📍 *Lokasi:* ${details.location}`,
+    `• *Agenda:* Wawancara & Microteaching SOP 70 Menit`,
+    `• *Hari/Tanggal:* ${details.date}`,
+    `• *Pukul:* ${details.time}`,
+    `• *Lokasi:* ${details.location}`,
     '',
     `*Hal yang perlu disiapkan:*`,
     `1. Rencana pembelajaran mikro (Microteaching) 15 menit untuk mapel: ${tutor.subjects}`,
     `2. KTP & Ijazah/Transkrip Nilai asli`,
     `3. Pakaian rapi sopan khas pendidik`,
     '',
-    `Mohon konfirmasi kesediaan kehadiran Anda dengan membalas pesan ini. Terima kasih! 🙏`,
+    `Mohon konfirmasi kesediaan kehadiran Anda dengan membalas pesan ini. Terima kasih!`,
   ].join('\n');
 
   const cleanMessage = sanitizeWhatsAppText(message);
@@ -90,7 +90,7 @@ export function generateTutorAcceptanceWhatsAppUrl(tutor: TutorApplication): str
   const message = [
     `Assalamu'alaikum / Selamat Pagi/Sore ${tutor.fullName},`,
     '',
-    `🎉 *Selamat! Anda Diterima sebagai Tutor Resmi Bright Future Magelang!*`,
+    `*Selamat! Anda Diterima sebagai Tutor Resmi Bright Future Magelang!*`,
     '',
     `Berdasarkan hasil seleksi berkas dan microteaching SOP 70 Menit, profil Anda dinyatakan terakreditasi untuk mengajar siswa di zonasi: *${tutor.district}*.`,
     '',

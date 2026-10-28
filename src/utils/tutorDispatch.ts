@@ -247,17 +247,17 @@ export function generateTutorDispatchWhatsAppUrl(
     `*PENUGASAN RESMI TUTOR BRIGHT FUTURE*\n` +
     `Halo ${tutor.name},\n\n` +
     `Anda telah dipasangkan & ditugaskan sebagai tutor privat untuk siswa baru berikut:\n\n` +
-    `👤 *Nama Siswa:* ${student.studentName}\n` +
-    `📚 *Jenjang / Kelas:* ${student.level} (${student.grade || 'Reguler'})\n` +
-    `📍 *Wilayah / Kecamatan:* Kec. ${student.district}\n` +
-    `🏠 *Alamat Kunjungan:* ${student.address}\n` +
-    `⏰ *Jadwal Belajar:* ${scheduleLine}\n` +
-    `👪 *Wali Murid:* ${student.parentName} (${student.whatsapp})\n\n` +
+    `• *Nama Siswa:* ${student.studentName}\n` +
+    `• *Jenjang / Kelas:* ${student.level} (${student.grade || 'Reguler'})\n` +
+    `• *Wilayah / Kecamatan:* Kec. ${student.district}\n` +
+    `• *Alamat Kunjungan:* ${student.address}\n` +
+    `• *Jadwal Belajar:* ${scheduleLine}\n` +
+    `• *Wali Murid:* ${student.parentName} (${student.whatsapp})\n\n` +
     `*SOP Kunjungan Meja Belajar Bright Future:*\n` +
     `1. Validasi presensi GPS Geofence (< 25m) setibanya di rumah siswa.\n` +
     `2. Terapkan SOP Meja Belajar 70 Menit Tatap Muka Murni (Kantong HP Anti-Distraksi).\n` +
     `3. Isi evaluasi 4 Pilar Karakter & kirim draf laporan ke wali murid.\n\n` +
-    `Mohon konfirmasi kesiapan penugasan ini dengan membalas pesan ini. Semangat membimbing! 🌟`;
+    `Mohon konfirmasi kesiapan penugasan ini dengan membalas pesan ini. Semangat membimbing!`;
 
   const cleanMessage = sanitizeWhatsAppText(message);
   return `https://wa.me/${tutorPhone}?text=${encodeURIComponent(cleanMessage)}`;
@@ -280,13 +280,13 @@ export function generateParentDispatchConfirmationWhatsAppUrl(
     `*KONFIRMASI PENUGASAN TUTOR BRIGHT FUTURE*\n` +
     `Halo Bapak/Ibu ${student.parentName},\n\n` +
     `Kabar baik! Kami telah memasangkan tutor terdekat & terakreditasi untuk mendampingi bimbingan belajar Ananda *${student.studentName}*:\n\n` +
-    `🎓 *Nama Tutor:* ${tutor.name}\n` +
-    `🏫 *Latar Belakang:* ${tutor.univ || 'Tenaga Pendidik Terakreditasi Bright Future'}\n` +
-    `📖 *Keahlian:* ${tutor.spec}\n` +
-    `⏰ *Jadwal Kunjungan:* ${scheduleLine}\n` +
-    `📍 *Alamat Kunjungan:* ${student.address}\n\n` +
+    `• *Nama Tutor:* ${tutor.name}\n` +
+    `• *Latar Belakang:* ${tutor.univ || 'Tenaga Pendidik Terakreditasi Bright Future'}\n` +
+    `• *Keahlian:* ${tutor.spec}\n` +
+    `• *Jadwal Kunjungan:* ${scheduleLine}\n` +
+    `• *Alamat Kunjungan:* ${student.address}\n\n` +
     `Tutor kami akan segera menghubungi Bapak/Ibu untuk koordinasi sesi perdana dengan SOP 70 Menit Meja Belajar Bebas Distraksi.\n\n` +
-    `Terima kasih telah mempercayakan pendidikan ananda bersama Bright Future Magelang! ✨`;
+    `Terima kasih telah mempercayakan pendidikan ananda bersama Bright Future Magelang!`;
 
   const cleanMessage = sanitizeWhatsAppText(message);
   return `https://wa.me/${parentPhone}?text=${encodeURIComponent(cleanMessage)}`;

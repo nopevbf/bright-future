@@ -45,6 +45,26 @@ describe('Encoding & Mojibake Sanity Suite (TDD - Eliminating Corrupted Characte
       expect(cleaned).not.toContain('\uFE0F'); // No VS16
       expect(cleaned).toContain('Siswa: Rayhan — Catatan: “Bagus”');
     });
+
+    it('TC-ENC-009: should sanitize problematic emojis into clean bullet points • and strip  characters', () => {
+      const userExample = 'KONFIRMASI PENUGASAN TUTOR BRIGHT FUTURE Halo Bapak/Ibu Monica, Kabar baik! Kami telah memasangkan tutor terdekat & terakreditasi untuk mendampingi bimbingan belajar Ananda Siswa Tes: \uFFFD Nama Tutor: Monica Yuliana \uFFFD Latar Belakang: S1 \uFFFD Keahlian: SD \uFFFD Jadwal Kunjungan: senin, kamis, jumat, rabu \uFFFD Alamat Kunjungan: Kajoran Tutor kami akan segera menghubungi Bapak/Ibu untuk koordinasi sesi perdana dengan SOP 70 Menit Meja Belajar Bebas Distraksi. Terima kasih telah mempercayakan pendidikan ananda bersama Bright Future Magelang! \uFFFD';
+      const cleaned = sanitizeWhatsAppText(userExample);
+      expect(cleaned).not.toContain('\uFFFD');
+
+      const emojiTemplate = '🎓 *Nama Tutor:* Monica\n🏫 *Latar Belakang:* S1\n📖 *Keahlian:* SD\n⏰ *Jadwal Kunjungan:* Senin\n📍 *Alamat Kunjungan:* Kajoran\nTerima kasih! ✨';
+      const safeSanitized = sanitizeWhatsAppText(emojiTemplate);
+      expect(safeSanitized).not.toContain('🎓');
+      expect(safeSanitized).not.toContain('🏫');
+      expect(safeSanitized).not.toContain('📖');
+      expect(safeSanitized).not.toContain('⏰');
+      expect(safeSanitized).not.toContain('📍');
+      expect(safeSanitized).not.toContain('✨');
+      expect(safeSanitized).toContain('• *Nama Tutor:* Monica');
+      expect(safeSanitized).toContain('• *Latar Belakang:* S1');
+      expect(safeSanitized).toContain('• *Keahlian:* SD');
+      expect(safeSanitized).toContain('• *Jadwal Kunjungan:* Senin');
+      expect(safeSanitized).toContain('• *Alamat Kunjungan:* Kajoran');
+    });
   });
 
   describe('Source Files Sanity Check', () => {

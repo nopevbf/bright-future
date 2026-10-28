@@ -1208,22 +1208,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
         `📄 *No. Invoice:* ${inv.inv}\n` +
-        `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
+        `• *Siswa:* ${inv.studentName || inv.parent}\n` +
         `📚 *Paket Belajar:* Non Paket (Sesi Fleksibel)\n` +
         `📅 *Periode Bulan:* ${inv.periodMonth || 'September 2026'}\n` +
         `📅 *Tanggal Pertemuan (${inv.totalMeetings || inv.meetingDates?.length || 0} sesi):*\n` +
         `Tanggal: ${inv.meetingDatesRaw || inv.meetingDates?.join(', ') || '-'}\n` +
         `💰 *Biaya per Pertemuan:* Rp ${(inv.costPerMeeting || 0).toLocaleString('id-ID')}\n` +
-        `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
-        `💳 *Kanal Bayar:* ${inv.channel}\n` +
-        `📌 *Status:* ${inv.status}\n\n` +
+        `• *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
+        `• *Kanal Bayar:* ${inv.channel}\n` +
+        `• *Status:* ${inv.status}\n\n` +
         `Pembayaran dapat ditransfer via Midtrans (QRIS/Virtual Account). Bukti pembayaran otomatis terverifikasi di sistem kami. Terima kasih!`;
     } else {
       text =
         `Halo Bapak/Ibu ${inv.parent}, kami dari Lembaga Bimbel Privat Bright Future Magelang menginformasikan tagihan bimbingan belajar:\n\n` +
         `📄 *No. Invoice:* ${inv.inv}\n` +
         `👤 *Siswa:* ${inv.studentName || inv.parent}\n` +
-        `📚 *Paket:* ${inv.package}\n` +
+        `• *Paket:* ${inv.package}\n` +
         `💵 *Total Tagihan:* Rp ${inv.amount.toLocaleString('id-ID')}\n` +
         `💳 *Kanal Bayar:* ${inv.channel}\n` +
         `📌 *Status:* ${inv.status}\n\n` +
