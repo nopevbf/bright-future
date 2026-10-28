@@ -263,4 +263,52 @@ describe('Admin Account Management RBAC Test Suite (ISTQB Grounded)', () => {
     expect(screen.queryByText(/tutor_registrations \(Live DB\)/i)).toBeNull();
     expect(screen.getByText('portal_credentials')).toBeDefined();
   });
+
+  // TC-RBAC-008 (Student & Parent Coexistence): Akun siswa dan akun orang tua tidak boleh saling meniadakan meskipun berbagi nomor WhatsApp & studentId yang sama
+  it('TC-RBAC-008 (Student & Parent Coexistence): Should display both student and parent accounts when sharing same WhatsApp and studentId', () => {
+    const props: AccountManagementSubTabProps = {
+      adminCredential: mockAdminCredential,
+      portalAccounts: [
+        {
+          id: 'ortu_BF-2026-001',
+          name: 'Ibu Ratna (Wali Rayhan)',
+          role: 'orang_tua',
+          identifier: '085173230198',
+          whatsapp: '085173230198',
+          password: '123456789',
+          studentId: 'BF-2026-001',
+          summary: 'Wali dari Rayhan Kusuma (SD)',
+        },
+        {
+          id: 'siswa_BF-2026-001',
+          name: 'Rayhan Kusuma',
+          role: 'siswa',
+          identifier: 'BF-2026-001',
+          whatsapp: '085173230198',
+          password: '123456789',
+          studentId: 'BF-2026-001',
+          summary: 'Siswa Kelas 4 SD',
+        },
+      ],
+      verifiedRegistrations: [],
+      acceptedTutors: [],
+      isSyncingDb: false,
+      currentUserRole: 'super_admin',
+      onSyncDatabase: onSyncDatabaseMock,
+      onUpdateAdminPassword: onUpdateAdminPasswordMock,
+      onUpdatePortalPassword: onUpdatePortalPasswordMock,
+      onCreateAccount: onCreateAccountMock,
+      onEditAccount: onEditAccountMock,
+      onDeleteAccount: onDeleteAccountMock,
+      onUpdateRole: onUpdateRoleMock,
+      onLogout: onLogoutMock,
+    };
+
+    render(<AccountManagementSubTab {...props} />);
+
+    // Verifikasi kedua akun (Orang Tua dan Siswa) harus muncul di tabel hak akses
+    expect(screen.getByText('Ibu Ratna (Wali Rayhan)')).toBeDefined();
+    expect(screen.getByText('Rayhan Kusuma')).toBeDefined();
+    expect(screen.getByText('BF-2026-001')).toBeDefined();
+  });
 });

@@ -314,10 +314,7 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
   }> = [];
 
   // 1. Akun master disembunyikan dari tabel pengguna
-  const knownIds = new Set<string>();
-  if (adminCredential?.email) {
-    knownIds.add(adminCredential.email.toLowerCase());
-  }
+  const adminEmail = adminCredential?.email?.toLowerCase();
 
   // Helper for applying local edits
   const applyOverrides = (acc: PortalCredentialDoc) => {
@@ -328,16 +325,45 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
     };
   };
 
+  // Pelacak deduplikasi terisolasi per peran (mencegah tabrakan antara siswa, orang tua, & tutor)
+  const knownDocIds = new Set<string>();
+  const knownRoleAccounts = new Set<string>(); // key: `${role}:${identifier}`
+  const knownStudentIds = new Set<string>();
+  const knownParentIds = new Set<string>();
+  const knownTutorIds = new Set<string>();
+  const knownTutorWas = new Set<string>();
+
+  const registerTrackedAccount = (docId: string, role: string, identifier: string, wa?: string, tutorId?: string, studentId?: string) => {
+    knownDocIds.add(docId.toLowerCase());
+    knownRoleAccounts.add(`${role}:${identifier.toLowerCase()}`);
+    const cleanWa = (wa || '').replace(/[^0-9]/g, '');
+
+    if (role === 'siswa') {
+      knownStudentIds.add(identifier.toLowerCase());
+      if (studentId) knownStudentIds.add(studentId.toLowerCase());
+    } else if (role === 'orang_tua') {
+      if (cleanWa) knownParentIds.add(cleanWa);
+      if (studentId) knownParentIds.add(studentId.toLowerCase());
+    } else if (role === 'tutor') {
+      if (tutorId) knownTutorIds.add(tutorId.toLowerCase());
+      if (cleanWa) knownTutorWas.add(cleanWa);
+    }
+  };
+
   // 2. Newly Created Accounts locally
   localCreatedAccounts.forEach((acc) => {
-    if (!localDeletedIds.has(acc.id || '')) {
+    const docId = acc.id || 'new_acc';
+    if (!localDeletedIds.has(docId)) {
       const merged = applyOverrides(acc);
       const rawId = (merged.identifier || '').toLowerCase();
-      if (rawId && !knownIds.has(rawId)) {
-        knownIds.add(rawId);
+      const role = merged.role || 'siswa';
+      const roleKey = `${role}:${rawId}`;
+
+      if (rawId && rawId !== adminEmail && !knownRoleAccounts.has(roleKey) && !knownDocIds.has(docId.toLowerCase())) {
+        registerTrackedAccount(docId, role, rawId, merged.whatsapp, acc.tutorId, acc.studentId);
         allAccounts.push({
-          id: merged.id || 'new_acc',
-          role: merged.role || 'siswa',
+          id: docId,
+          role,
           name: merged.name || 'Pengguna',
           identifier: merged.identifier || '',
           password: merged.password || '123456789',
@@ -355,21 +381,19 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
     const docId = acc.id || acc.identifier || 'acc';
     if (!localDeletedIds.has(docId)) {
       const merged = applyOverrides(acc);
+      const role = merged.role || 'siswa';
       const rawId = (merged.identifier || '').toLowerCase();
-      const cleanWa = (merged.whatsapp || '').replace(/[^0-9]/g, '');
-      if (rawId && !knownIds.has(rawId)) {
-        knownIds.add(rawId);
-        knownIds.add(docId.toLowerCase());
-        if (cleanWa) knownIds.add(cleanWa);
-        if (acc.tutorId) knownIds.add(acc.tutorId.toLowerCase());
-        if (acc.studentId) knownIds.add(acc.studentId.toLowerCase());
+      const roleKey = `${role}:${rawId}`;
+
+      if (rawId && rawId !== adminEmail && !knownRoleAccounts.has(roleKey) && !knownDocIds.has(docId.toLowerCase())) {
+        registerTrackedAccount(docId, role, rawId, merged.whatsapp, acc.tutorId, acc.studentId);
         allAccounts.push({
           id: docId,
-          role: merged.role || 'siswa',
+          role,
           name: merged.name || 'Pengguna',
           identifier: merged.identifier || '',
           password: merged.password || '123456789',
-          summary: merged.summary || `Akun ${(merged.role || 'pengguna').toUpperCase()} Terhubung`,
+          summary: merged.summary || `Akun ${role.toUpperCase()} Terhubung`,
           whatsapp: merged.whatsapp || '',
           source: 'portal_credentials',
           isDefaultPwd: merged.password === '123456789',
@@ -383,8 +407,8 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
     if (reg.paymentStatus === 'verified') {
       const sId = (reg.studentId || '').toLowerCase();
       const sDocId = `siswa_${reg.studentId}`;
-      if (sId && !knownIds.has(sId) && !localDeletedIds.has(sDocId)) {
-        knownIds.add(sId);
+      if (sId && !knownStudentIds.has(sId) && !knownDocIds.has(sDocId.toLowerCase()) && !localDeletedIds.has(sDocId)) {
+        registerTrackedAccount(sDocId, 'siswa', sId, reg.whatsapp, undefined, sId);
         const override = localUpdatedAccounts[sDocId] || {};
         allAccounts.push({
           id: sDocId,
@@ -401,8 +425,9 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
 
       const pWa = (reg.whatsapp || '').replace(/[^0-9]/g, '');
       const oDocId = `ortu_${reg.studentId}`;
-      if (pWa && !knownIds.has(pWa) && !localDeletedIds.has(oDocId)) {
-        knownIds.add(pWa);
+      const isParentKnown = (pWa && knownParentIds.has(pWa)) || (sId && knownParentIds.has(sId)) || knownDocIds.has(oDocId.toLowerCase());
+      if (pWa && !isParentKnown && !localDeletedIds.has(oDocId)) {
+        registerTrackedAccount(oDocId, 'orang_tua', pWa, reg.whatsapp, undefined, sId);
         const override = localUpdatedAccounts[oDocId] || {};
         allAccounts.push({
           id: oDocId,
@@ -426,14 +451,12 @@ export const AccountManagementSubTab: React.FC<AccountManagementSubTabProps> = (
       const tId = (tutor.id || '').toLowerCase();
       const tDocId = `tutor_${tutor.id}`;
       const isAlreadyKnown =
-        (tWa && knownIds.has(tWa)) ||
-        (tId && knownIds.has(tId)) ||
-        knownIds.has(tDocId.toLowerCase());
+        (tWa && knownTutorWas.has(tWa)) ||
+        (tId && knownTutorIds.has(tId)) ||
+        knownDocIds.has(tDocId.toLowerCase());
 
       if (!isAlreadyKnown && !localDeletedIds.has(tDocId)) {
-        if (tWa) knownIds.add(tWa);
-        if (tId) knownIds.add(tId);
-        knownIds.add(tDocId.toLowerCase());
+        registerTrackedAccount(tDocId, 'tutor', tWa || tId, tutor.whatsapp, tId);
         const override = localUpdatedAccounts[tDocId] || {};
         allAccounts.push({
           id: tDocId,
