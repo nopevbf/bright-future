@@ -110,11 +110,25 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
       setAssignedStudents(resolved);
 
       const built = buildTutorVisitsFromAssignedStudents(resolved, dbVisits);
-      setVisits(built);
+      // Merge any direct visits for this tutor from dbVisits
+      const cleanTutorName = (tutorName || '').toLowerCase().trim();
+      const combined = [...built];
+      for (const dv of dbVisits) {
+        const dvTutor = (dv.tutorName || '').toLowerCase().trim();
+        const matchesTutor = !dvTutor || dvTutor.includes(cleanTutorName) || cleanTutorName.includes(dvTutor);
+        const alreadyIn = combined.some(
+          (c) => c.id === dv.id || (c.studentName && dv.studentName && c.studentName.toLowerCase() === dv.studentName.toLowerCase())
+        );
+        if (matchesTutor && !alreadyIn) {
+          combined.push(dv);
+        }
+      }
+
+      setVisits(combined);
 
       setActiveSessionId((prevId) => {
-        if (built.some((v) => v.id === prevId)) return prevId;
-        return built[0]?.id || '';
+        if (combined.some((v) => v.id === prevId)) return prevId;
+        return combined[0]?.id || '';
       });
     };
 
@@ -244,7 +258,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
     setFeedbackMessage('Draf laporan WhatsApp berhasil disalin ke clipboard!');
     setTimeout(() => {
       setCopiedDraft(false);
-      setFeedbackMessage(null), 3000;
+      setFeedbackMessage(null);
     }, 3000);
   };
 
@@ -252,6 +266,48 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
     const url = `https://wa.me/${cleanPhoneTarget}?text=${encodeURIComponent(waDraftText)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+
+  const handleStartSession = async (targetVisit?: FirestoreTutorVisitDoc) => {
+    const visitToStart = targetVisit || visits.find((v) => v.status !== 'selesai') || visits[0];
+    if (!visitToStart) return;
+
+    try {
+      await updateTutorVisitInFirestore({
+        id: visitToStart.id,
+        status: 'berlangsung',
+        elapsedMinutes: 0,
+      });
+      setVisits((prev) =>
+        prev.map((v) =>
+          v.id === visitToStart.id ? { ...v, status: 'berlangsung', elapsedMinutes: 0 } : v
+        )
+      );
+      setActiveSessionId(visitToStart.id);
+      setIsTimerRunning(true);
+      setElapsedMinutes(0);
+      setFeedbackMessage(
+        `Sesi tatap muka bersama ${visitToStart.studentName} resmi dimulai! Pemantauan GPS aktif.`
+      );
+    } catch (err) {
+      console.error('Error starting session:', err);
+      setVisits((prev) =>
+        prev.map((v) =>
+          v.id === visitToStart.id ? { ...v, status: 'berlangsung' } : v
+        )
+      );
+      setActiveSessionId(visitToStart.id);
+      setIsTimerRunning(true);
+      setFeedbackMessage('Sesi dimulai secara offline!');
+    }
+    setTimeout(() => setFeedbackMessage(null), 3500);
+  };
+
+  const currentMonthName = new Date().toLocaleDateString('id-ID', { month: 'short' });
+  const completedVisits = visits.filter((v) => v.status === 'selesai');
+  const completedVisitsCount = completedVisits.length;
+  const ratePerVisit = 40000;
+  const dynamicAccumulatedHonor = completedVisitsCount * ratePerVisit;
+  const formattedHonor = `Rp ${new Intl.NumberFormat('id-ID').format(dynamicAccumulatedHonor)}`;
 
   return (
     <div className="bg-[#fcf9f3] text-[#1c1c18] font-sans min-h-screen selection:bg-[#c8ebce] selection:text-[#284230]">
@@ -576,6 +632,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                     focusRating: evalData.focusRating,
                     independenceRating: evalData.independenceRating,
                     notes: evalData.notes,
+                    isSentToParent: evalData.isSentToParent,
                   });
                   setVisits((prev) =>
                     prev.map((v) =>
@@ -586,6 +643,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                             focusRating: evalData.focusRating,
                             independenceRating: evalData.independenceRating,
                             notes: evalData.notes,
+                            isSentToParent: evalData.isSentToParent !== undefined ? evalData.isSentToParent : v.isSentToParent,
                           }
                         : v
                     )
@@ -619,11 +677,7 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsTimerRunning(true);
-                    setFeedbackMessage('Sesi tatap muka berjalan aktif dengan geofence GPS!');
-                    setTimeout(() => setFeedbackMessage(null), 3000);
-                  }}
+                  onClick={() => handleStartSession()}
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold shadow-xs hover:bg-[#3F5A46] cursor-pointer transition-all"
                 >
                   <span className="material-symbols-outlined text-[18px]">play_arrow</span>
@@ -708,23 +762,33 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Card 3 */}
+              {/* Card 3: Honor Akumulasi Dinamis */}
               <div className="rounded-2xl bg-white p-5 shadow-[0_1px_12px_rgba(42,40,35,0.06)] flex flex-col justify-between hover:shadow-md transition-all gap-4 border border-[rgba(42,40,35,0.08)]">
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[11px] text-[#6B675F] uppercase tracking-wider font-semibold">
-                      Honor Akumulasi (Sep)
+                      Honor Akumulasi ({currentMonthName})
                     </span>
-                    <span className="text-2xl font-extrabold text-[#284230]">Rp 3.840.000</span>
+                    <span
+                      data-testid="dynamic-tutor-honor"
+                      className="text-2xl font-extrabold text-[#284230]"
+                    >
+                      {formattedHonor}
+                    </span>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#f6f3ed] flex items-center justify-center text-[#3F5A46]">
                     <span className="material-symbols-outlined text-[22px]">payments</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-xs pt-2">
-                  <span className="text-[#6B675F]">96 Sesi (Rp 40k/visit)</span>
+                  <span
+                    data-testid="dynamic-tutor-session-count"
+                    className="text-[#6B675F]"
+                  >
+                    {completedVisitsCount} Sesi ({`Rp ${new Intl.NumberFormat('id-ID').format(ratePerVisit)}`}/visit)
+                  </span>
                   <span className="text-[#1c1c18] font-bold text-[11px] bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                    Cair 25 Sep
+                    Cair 25 {currentMonthName}
                   </span>
                 </div>
               </div>
@@ -905,6 +969,25 @@ export const TutorDashboard: React.FC<TutorDashboardProps> = ({
                               {item.subject}
                             </span>
                           </div>
+
+                          {!isSelesai && !isLive && (
+                            <div className="pl-9 flex items-center justify-between pt-1 border-t border-[rgba(42,40,35,0.06)]">
+                              <span className="text-[11px] text-[#6B675F] italic">
+                                Sesi siap dimulai (verifikasi GPS otomatis)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartSession(item);
+                                }}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#284230] text-white hover:bg-[#3F5A46] text-xs font-bold shadow-xs cursor-pointer transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">play_arrow</span>
+                                <span>Mulai Sesi</span>
+                              </button>
+                            </div>
+                          )}
 
                           {/* Specific live session controls if live */}
                           {isLive && (

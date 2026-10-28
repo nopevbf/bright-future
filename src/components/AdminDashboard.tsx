@@ -61,6 +61,7 @@ import { TutorVerificationSubTab } from './admin/TutorVerificationSubTab';
 import { TutorManagementSubTab, BASE_ACTIVE_TUTORS, ActiveTutorItem } from './admin/TutorManagementSubTab';
 import { TutorApplicantDetailModal } from './admin/TutorApplicantDetailModal';
 import { TutorDispatchModal } from './admin/TutorDispatchModal';
+import { ModuleReviewSubTab } from './admin/ModuleReviewSubTab';
 import { saveAuthSession } from '../utils/sessionToken';
 import { DispatchableStudent, DispatchableTutor } from '../utils/tutorDispatch';
 import {
@@ -3317,8 +3318,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
+          {/* Materi & LKPD Fisik Review SubTab */}
+          {activeTab === 'lkpd' && (
+            <ModuleReviewSubTab adminName={adminName} />
+          )}
+
           {/* Quick Fallback for Other Tabs */}
-          {['mapel', 'presensi', 'nilai', 'lkpd', 'bank_soal', 'video', 'laporan', 'promo', 'sertifikat'].includes(
+          {['mapel', 'presensi', 'nilai', 'bank_soal', 'video', 'laporan', 'promo', 'sertifikat'].includes(
             activeTab
           ) && (
             <div className="max-w-4xl mx-auto p-8 rounded-3xl bg-white border border-[#2A2823]/10 shadow-sm text-center space-y-4">

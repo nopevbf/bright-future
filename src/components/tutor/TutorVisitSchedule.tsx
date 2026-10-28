@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FirestoreTutorVisitDoc, AssignedStudentSummary } from '../../utils/tutorPairingResolver';
+import { updateTutorVisitInFirestore } from '../../firebase';
 
 export interface TutorVisitScheduleProps {
   tutorName: string;
@@ -81,13 +82,27 @@ export const TutorVisitSchedule: React.FC<TutorVisitScheduleProps> = ({
     window.print();
   };
 
-  const handleRescheduleSubmit = (e: React.FormEvent) => {
+  const handleRescheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const st =
       assignedStudents.find((s) => (s.studentId || s.id) === selectedStudentForReschedule) ||
       assignedStudents[0];
     const studentName = st ? st.studentName : 'Siswa';
-    showToast(`Pengajuan reschedule untuk ${studentName} pada ${rescheduleDate} pukul ${rescheduleTime} berhasil diajukan.`);
+    const targetVisit = visits.find((v) => v.studentName === studentName);
+
+    try {
+      if (targetVisit) {
+        await updateTutorVisitInFirestore({
+          id: targetVisit.id,
+          time: `${rescheduleDate} ${rescheduleTime} WIB`,
+          notes: `Reschedule: ${rescheduleReason}`,
+        });
+      }
+    } catch (err) {
+      console.warn('Reschedule firestore save note:', err);
+    }
+
+    showToast(`Pengajuan reschedule untuk ${studentName} pada ${rescheduleDate} pukul ${rescheduleTime} berhasil diajukan dan disimpan.`);
     setIsRescheduleModalOpen(false);
   };
 

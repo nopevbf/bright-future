@@ -204,4 +204,81 @@ describe('TutorEvaluationWhatsApp Component (SQA-ISTQB & TDD)', () => {
     expect((checkSent as HTMLInputElement).checked).toBe(true);
     expect(screen.getByText(/Terkirim ke Ortu/i)).toBeInTheDocument();
   });
+
+  it('TC-EWA-007: saves evaluation to database via handleLockAndSync', async () => {
+    const mockUpdateEval = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TutorEvaluationWhatsApp
+        tutorName="Kak Anindya, S.Pd."
+        assignedStudents={mockStudents}
+        visits={mockVisits}
+        onUpdateVisitEvaluation={mockUpdateEval}
+      />
+    );
+
+    const lockBtn = screen.getByRole('button', {
+      name: /Kunci Nilai & Sinkronkan ke Draf WA/i,
+    });
+    fireEvent.click(lockBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateEval).toHaveBeenCalledWith(
+        'visit-1',
+        expect.objectContaining({
+          score: 88,
+          notes: expect.any(String),
+        })
+      );
+    });
+  });
+
+  it('TC-EWA-008: saves session draft via handleSaveDraft and persists to callback', async () => {
+    const mockUpdateEval = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TutorEvaluationWhatsApp
+        tutorName="Kak Anindya, S.Pd."
+        assignedStudents={mockStudents}
+        visits={mockVisits}
+        onUpdateVisitEvaluation={mockUpdateEval}
+      />
+    );
+
+    const saveDraftBtn = screen.getByRole('button', { name: /Simpan Draf Sesi/i });
+    fireEvent.click(saveDraftBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateEval).toHaveBeenCalledWith(
+        'visit-1',
+        expect.objectContaining({
+          score: 88,
+        })
+      );
+    });
+  });
+
+  it('TC-EWA-009: updates isSentToParent in database when tutor marks as sent', async () => {
+    const mockUpdateEval = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TutorEvaluationWhatsApp
+        tutorName="Kak Anindya, S.Pd."
+        assignedStudents={mockStudents}
+        visits={mockVisits}
+        onUpdateVisitEvaluation={mockUpdateEval}
+      />
+    );
+
+    const checkSent = screen.getByRole('checkbox', {
+      name: /Tandai Sudah Dikirim ke Orang Tua/i,
+    });
+    fireEvent.click(checkSent);
+
+    await waitFor(() => {
+      expect(mockUpdateEval).toHaveBeenCalledWith(
+        'visit-1',
+        expect.objectContaining({
+          isSentToParent: true,
+        })
+      );
+    });
+  });
 });

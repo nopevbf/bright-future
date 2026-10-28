@@ -97,7 +97,7 @@ describe('TutorGpsAttendance Component (SQA-ISTQB & TDD)', { timeout: 15000 }, (
 
     // Active session details
     expect(screen.getByText('Sesi Aktif Saat Ini')).toBeDefined();
-    expect(screen.getByText('Rayhan Kusuma')).toBeDefined();
+    expect(screen.getAllByText('Rayhan Kusuma')[0]).toBeDefined();
     expect(screen.getByText(/Radius 8m • Geofence Sah/i)).toBeDefined();
     expect(screen.getByText(/Durasi Tatap Muka Berjalan/i)).toBeDefined();
   });

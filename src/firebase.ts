@@ -1333,6 +1333,9 @@ export interface FirestoreTutorVisitDoc {
   durationMinutes?: number;
   elapsedMinutes?: number;
   updatedAt?: string;
+  isSentToParent?: boolean;
+  tutorName?: string;
+  hasPhoto?: boolean;
 }
 
 export const INITIAL_TUTOR_VISITS: FirestoreTutorVisitDoc[] = [

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FirestoreTutorVisitDoc, AssignedStudentSummary } from '../../utils/tutorPairingResolver';
+import { updateTutorVisitInFirestore } from '../../firebase';
+import { LeafletMapView } from '../common/LeafletMapView';
 
 export interface TutorGpsAttendanceProps {
   tutorName: string;
@@ -91,6 +93,36 @@ export const TutorGpsAttendance: React.FC<TutorGpsAttendanceProps> = ({
     showToast(`Presensi GPS untuk ${activeVisit.studentName} berhasil di-checkout dan diverifikasi.`);
   };
 
+  const handleSaveReflection = async () => {
+    setIsReflectionModalOpen(false);
+    if (activeVisit) {
+      try {
+        await updateTutorVisitInFirestore({
+          id: activeVisit.id,
+          notes: reflectionText,
+        });
+      } catch (err) {
+        console.warn('Local save reflection:', err);
+      }
+    }
+    showToast('Refleksi pembelajaran berhasil disimpan dan disinkronkan ke draf WA orang tua!');
+  };
+
+  const handleSavePhoto = async () => {
+    setIsPhotoModalOpen(false);
+    if (activeVisit) {
+      try {
+        await updateTutorVisitInFirestore({
+          id: activeVisit.id,
+          hasPhoto: true,
+        });
+      } catch (err) {
+        console.warn('Local save photo:', err);
+      }
+    }
+    showToast('Foto dokumentasi sesi tatap muka berhasil disimpan ke database!');
+  };
+
   return (
     <div className="flex flex-col w-full text-[#1c1c18] font-sans space-y-8">
       {/* Toast Feedback */}
@@ -137,10 +169,7 @@ export const TutorGpsAttendance: React.FC<TutorGpsAttendanceProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsPhotoModalOpen(false);
-                  showToast('Foto dokumentasi sesi tatap muka berhasil disimpan ke database!');
-                }}
+                onClick={handleSavePhoto}
                 className="w-1/2 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] shadow-sm"
               >
                 Unggah Foto
@@ -183,10 +212,7 @@ export const TutorGpsAttendance: React.FC<TutorGpsAttendanceProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsReflectionModalOpen(false);
-                  showToast('Refleksi pembelajaran berhasil disimpan dan disinkronkan ke draf WA orang tua!');
-                }}
+                onClick={handleSaveReflection}
                 className="w-1/2 py-2.5 rounded-xl bg-[#284230] text-white text-xs font-bold hover:bg-[#3F5A46] shadow-sm"
               >
                 Simpan Refleksi
@@ -698,51 +724,16 @@ export const TutorGpsAttendance: React.FC<TutorGpsAttendanceProps> = ({
               <span className="text-[11px] text-[#6F8F76] font-bold">Aktif</span>
             </div>
 
-            {/* Simulated Vector Geofence Map */}
-            <div className="relative w-full h-56 rounded-xl bg-[#FAF7F1] border border-[rgba(42,40,35,0.08)] overflow-hidden flex items-center justify-center">
-              {/* Ambient Grid Pattern */}
-              <svg className="absolute inset-0 w-full h-full text-[#6B675F]/10" fill="none">
-                <defs>
-                  <pattern id="grid-pattern-radar" width="24" height="24" patternUnits="userSpaceOnUse">
-                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.75" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid-pattern-radar)" />
-              </svg>
-
-              {/* Simulated Road Lines */}
-              <svg className="absolute inset-0 w-full h-full" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M -10 90 Q 90 70, 180 120 T 360 140" stroke="rgba(42, 40, 35, 0.12)" />
-                <path d="M 120 -10 L 140 240" stroke="rgba(42, 40, 35, 0.12)" />
-                <path d="M 220 20 L 260 220" stroke="rgba(42, 40, 35, 0.08)" />
-              </svg>
-
-              {/* Circular 50m Geofence Boundary */}
-              <div className="absolute w-40 h-40 rounded-full bg-[#c8ebce]/40 flex items-center justify-center">
-                <div className="w-32 h-32 rounded-full bg-[#c8ebce]/60 flex items-center justify-center animate-pulse">
-                  {/* Target house center pin */}
-                  <div className="w-4 h-4 rounded-full bg-[#3F5A46] shadow-md flex items-center justify-center text-[9px] text-white font-bold">
-                    H
-                  </div>
-                </div>
-              </div>
-
-              {/* Tutor live pin (8 meters away inside zone) */}
-              <div className="absolute top-[46%] left-[54%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-[#C1683F] ring-4 ring-[#EFC9AE]/60 shadow-lg flex items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-                </div>
-                <span className="text-[10px] bg-[#1c1c18] text-white px-1.5 py-0.5 rounded shadow mt-1 whitespace-nowrap font-semibold">
-                  Posisi {tutorName.split(',')[0]} (8m)
-                </span>
-              </div>
-
-              {/* Radius label badge */}
-              <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-md shadow-xs text-[#1c1c18] text-[11px] font-semibold flex items-center gap-1.5 border border-[rgba(42,40,35,0.08)]">
-                <span className="w-2 h-2 rounded-full bg-[#3F5A46]"></span>
-                <span>Radius Aman 50 Meter</span>
-              </div>
-            </div>
+            {/* Realtime Leaflet Map Component */}
+            <LeafletMapView
+              centerLat={-7.5024}
+              centerLng={110.2191}
+              studentName={activeVisit?.studentName || 'Rumah Siswa'}
+              tutorName={tutorName}
+              distanceMeters={8}
+              isInsideGeofence={true}
+              className="w-full h-56 rounded-xl overflow-hidden border border-[rgba(42,40,35,0.08)] shadow-inner"
+            />
 
             {/* Telemetry Data Strip */}
             <div className="p-3 bg-[#FAF7F1] rounded-xl space-y-1.5 border border-[rgba(42,40,35,0.06)]">

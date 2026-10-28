@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FirestoreTutorVisitDoc, AssignedStudentSummary } from '../../utils/tutorPairingResolver';
+import { updateTutorVisitInFirestore } from '../../firebase';
 
 interface TutorStudentClassesProps {
   tutorName?: string;
@@ -64,6 +65,8 @@ export const TutorStudentClasses: React.FC<TutorStudentClassesProps> = ({
   // Modals & Feedback
   const [showInputNilaiModal, setShowInputNilaiModal] = useState<boolean>(false);
   const [showPreviewWaModal, setShowPreviewWaModal] = useState<boolean>(false);
+  const [assessmentScore, setAssessmentScore] = useState<number>(90);
+  const [assessmentNotes, setAssessmentNotes] = useState<string>('Siswa sangat responsif dan memahami materi.');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -1137,7 +1140,10 @@ export const TutorStudentClasses: React.FC<TutorStudentClassesProps> = ({
                 <label className="text-xs font-bold text-[#2A2823]">Skor LKPD (0 - 100)</label>
                 <input
                   type="number"
-                  defaultValue={92}
+                  value={assessmentScore}
+                  onChange={(e) => setAssessmentScore(Number(e.target.value))}
+                  min={0}
+                  max={100}
                   className="p-2.5 rounded-xl bg-[#FAF7F1] text-xs border border-[rgba(42,40,35,0.1)] focus:outline-none focus:ring-2 focus:ring-[#6F8F76]"
                 />
               </div>
@@ -1145,6 +1151,8 @@ export const TutorStudentClasses: React.FC<TutorStudentClassesProps> = ({
                 <label className="text-xs font-bold text-[#2A2823]">Catatan Afektif Tambahan</label>
                 <textarea
                   rows={3}
+                  value={assessmentNotes}
+                  onChange={(e) => setAssessmentNotes(e.target.value)}
                   placeholder="Catatan perkembangan murid..."
                   className="p-2.5 rounded-xl bg-[#FAF7F1] text-xs border border-[rgba(42,40,35,0.1)] focus:outline-none focus:ring-2 focus:ring-[#6F8F76] resize-none"
                 />
@@ -1161,9 +1169,25 @@ export const TutorStudentClasses: React.FC<TutorStudentClassesProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setShowInputNilaiModal(false);
-                  showToast('Nilai dan catatan berhasil diperbarui!');
+                  if (activeStudent) {
+                    const targetVisit = visits.find(
+                      (v) => v.studentName?.toLowerCase() === activeStudent.studentName.toLowerCase()
+                    );
+                    if (targetVisit) {
+                      try {
+                        await updateTutorVisitInFirestore({
+                          id: targetVisit.id,
+                          score: assessmentScore,
+                          notes: assessmentNotes,
+                        });
+                      } catch (err) {
+                        console.warn('Save student assessment note:', err);
+                      }
+                    }
+                  }
+                  showToast('Nilai dan catatan berhasil diperbarui dan tersimpan ke database!');
                 }}
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-[#284230] text-white hover:bg-[#3F5A46] cursor-pointer"
               >

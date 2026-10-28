@@ -1,5 +1,5 @@
 import { sanitizeWhatsAppText } from '../../utils/textEncoding';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AssignedStudentSummary } from '../../utils/tutorPairingResolver';
 import { FirestoreTutorVisitDoc } from '../../firebase';
 
@@ -15,8 +15,19 @@ interface TutorEvaluationWhatsAppProps {
       focusRating: number;
       independenceRating: number;
       notes: string;
+      isSentToParent?: boolean;
     }
   ) => Promise<void> | void;
+}
+
+interface StudentOptionItem {
+  name: string;
+  short: string;
+  meta: string;
+  status: string;
+  isSent: boolean;
+  visit?: FirestoreTutorVisitDoc;
+  student?: AssignedStudentSummary;
 }
 
 export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = ({
@@ -26,6 +37,53 @@ export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = (
   onNavigateTab,
   onUpdateVisitEvaluation,
 }) => {
+  // Opsi siswa dinamis dari visits atau assignedStudents
+  const studentOptions: StudentOptionItem[] = useMemo(() => {
+    if (visits && visits.length > 0) {
+      return visits.map((v) => {
+        const studentPair = assignedStudents.find((s) => s.studentName === v.studentName);
+        const nameParts = v.studentName.split(' ');
+        const shortName =
+          nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1][0]}.` : v.studentName;
+        return {
+          name: v.studentName,
+          short: shortName,
+          meta: `${v.level} • ${v.address ? v.address.split(',')[0] : 'Magelang'}`,
+          status: v.isSentToParent
+            ? 'WA Terkirim'
+            : v.status === 'selesai'
+            ? 'Sedang Dinilai'
+            : v.time || 'Antrean',
+          isSent: !!v.isSentToParent,
+          visit: v,
+          student: studentPair,
+        };
+      });
+    }
+    if (assignedStudents && assignedStudents.length > 0) {
+      return assignedStudents.map((s) => {
+        const nameParts = s.studentName.split(' ');
+        const shortName =
+          nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1][0]}.` : s.studentName;
+        return {
+          name: s.studentName,
+          short: shortName,
+          meta: `${s.level} • ${s.address ? s.address.split(',')[0] : 'Magelang'}`,
+          status: 'Sedang Dinilai',
+          isSent: false,
+          visit: undefined,
+          student: s,
+        };
+      });
+    }
+    return [
+      { name: 'Rayhan Kusuma', short: 'Rayhan K.', meta: 'SD 5 • Mertoyudan', status: 'Sedang Dinilai', isSent: false },
+      { name: 'Kevin Pratama', short: 'Kevin P.', meta: 'SD 4 • Magelang', status: 'WA Terkirim', isSent: true },
+      { name: 'Kayla Putri', short: 'Kayla P.', meta: 'SD 2 • Jurangombo', status: '15:30 WIB', isSent: false },
+      { name: 'Dimas Pratama', short: 'Dimas P.', meta: 'SMP 7 • Secang', status: '17:00 WIB', isSent: false },
+    ];
+  }, [visits, assignedStudents]);
+
   // Pilih murid pertama sebagai default atau cari yang ada di visits
   const [selectedStudentId, setSelectedStudentId] = useState<string>(() => {
     if (visits.length > 0) return visits[0].studentName;
@@ -39,7 +97,9 @@ export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = (
 
   // State penilaian kognitif
   const [lkpdScore, setLkpdScore] = useState<number>(() => currentVisit?.score || 88);
-  const [kuisScore, setKuisScore] = useState<number>(90);
+  const [kuisScore, setKuisScore] = useState<number>(() =>
+    currentVisit?.score ? Math.min(100, currentVisit.score + 2) : 90
+  );
 
   // Quick tagging rubrik
   const [selectedTags, setSelectedTags] = useState<string[]>([
@@ -50,9 +110,9 @@ export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = (
 
   // State 4 pilar afektif
   const [starRatings, setStarRatings] = useState<{ [key: string]: number }>({
-    focus: 5,
+    focus: currentVisit?.focusRating || 5,
     enthusiasm: 5,
-    independence: 4,
+    independence: currentVisit?.independenceRating || 4,
     manners: 5,
   });
 
@@ -64,9 +124,33 @@ export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = (
 
   // WhatsApp Hub states
   const [selectedTemplate, setSelectedTemplate] = useState<string>('laporan-sesi');
-  const [isSentToParent, setIsSentToParent] = useState<boolean>(false);
+  const [isSentToParent, setIsSentToParent] = useState<boolean>(() => !!currentVisit?.isSentToParent);
   const [copiedDraft, setCopiedDraft] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Dynamic Bento KPIs
+  const totalVisitsCount = visits.length > 0 ? visits.length : 4;
+  const assessedVisitsCount =
+    visits.length > 0
+      ? visits.filter((v) => (v.score !== undefined && v.score > 0) || v.isSentToParent).length
+      : 2;
+  const scoredVisits = visits.filter((v) => v.score !== undefined && v.score > 0);
+  const averageScore =
+    scoredVisits.length > 0
+      ? (
+          scoredVisits.reduce((acc, v) => acc + (v.score || 0), 0) /
+          scoredVisits.length
+        ).toFixed(1)
+      : '90.0';
+  const pendingWaQueueCount =
+    visits.length > 0
+      ? visits.filter((v) => !v.isSentToParent).length
+      : 2;
+  const completedVisits = visits.filter((v) => v.status === 'selesai');
+  const verifiedSessionsPercent =
+    visits.length > 0
+      ? Math.round((completedVisits.length / visits.length) * 100)
+      : 100;
 
   // Helper trigger toast
   const showToast = (msg: string) => {
@@ -83,12 +167,20 @@ export const TutorEvaluationWhatsApp: React.FC<TutorEvaluationWhatsAppProps> = (
     if (targetVisit) {
       setLkpdScore(targetVisit.score || 85);
       setKuisScore(targetVisit.score ? Math.min(100, targetVisit.score + 2) : 88);
+      setStarRatings({
+        focus: targetVisit.focusRating || 5,
+        enthusiasm: 5,
+        independence: targetVisit.independenceRating || 4,
+        manners: 5,
+      });
       setNarrativeNotes(
         targetVisit.notes ||
           `${studentName} mengikuti sesi bimbingan dengan fokus dan menyelesaikan latihan secara bertahap.`
       );
+      setIsSentToParent(!!targetVisit.isSentToParent);
+    } else {
+      setIsSentToParent(false);
     }
-    setIsSentToParent(false);
     showToast(`Beralih ke evaluasi ${studentName}`);
   };
 
@@ -212,9 +304,43 @@ Tutor Pendamping Bright Future Magelang`;
         focusRating: starRatings.focus,
         independenceRating: starRatings.independence,
         notes: narrativeNotes,
+        isSentToParent,
       });
     }
     showToast('Nilai kognitif & observasi afektif berhasil disimpan ke database!');
+  };
+
+  // Handler Simpan Draf Sesi
+  const handleSaveDraft = async () => {
+    if (onUpdateVisitEvaluation && currentVisit) {
+      await onUpdateVisitEvaluation(currentVisit.id, {
+        score: lkpdScore,
+        focusRating: starRatings.focus,
+        independenceRating: starRatings.independence,
+        notes: narrativeNotes,
+        isSentToParent,
+      });
+    }
+    showToast('Draf sesi tersimpan secara lokal!');
+  };
+
+  // Handler Toggle Sent Status
+  const handleToggleSent = async (checked: boolean) => {
+    setIsSentToParent(checked);
+    if (onUpdateVisitEvaluation && currentVisit) {
+      await onUpdateVisitEvaluation(currentVisit.id, {
+        score: lkpdScore,
+        focusRating: starRatings.focus,
+        independenceRating: starRatings.independence,
+        notes: narrativeNotes,
+        isSentToParent: checked,
+      });
+    }
+    showToast(
+      checked
+        ? 'Status diperbarui: Laporan telah terkirim!'
+        : 'Status diperbarui: Belum terkirim'
+    );
   };
 
   return (
@@ -276,7 +402,7 @@ Tutor Pendamping Bright Future Magelang`;
                 Sesi Dinilai Hari Ini
               </span>
               <div className="text-2xl font-black text-[#284230] mt-1">
-                2 <span className="text-base font-semibold text-[#6B675F]">/ 4 Sesi</span>
+                {assessedVisitsCount} <span className="text-base font-semibold text-[#6B675F]">/ {totalVisitsCount} Sesi</span>
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#F1ECE1] flex items-center justify-center text-[#284230]">
@@ -285,7 +411,9 @@ Tutor Pendamping Bright Future Magelang`;
           </div>
           <div className="mt-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#6F8F76]"></span>
-            <span className="text-xs text-[#6B675F]">Kevin &amp; Rayhan siap kirim</span>
+            <span className="text-xs text-[#6B675F] truncate">
+              {studentOptions.filter((s) => s.isSent || s.visit?.score).map((s) => s.short).join(' & ') || 'Semua sesi terjadwal'} siap kirim
+            </span>
           </div>
         </div>
 
@@ -297,7 +425,7 @@ Tutor Pendamping Bright Future Magelang`;
                 Rerata Skor Kognitif
               </span>
               <div className="text-2xl font-black text-[#284230] mt-1">
-                90.0 <span className="text-base font-semibold text-[#6B675F]">/ 100</span>
+                {averageScore} <span className="text-base font-semibold text-[#6B675F]">/ 100</span>
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#F1ECE1] flex items-center justify-center text-[#47654f]">
@@ -306,7 +434,7 @@ Tutor Pendamping Bright Future Magelang`;
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-[#47654f] font-semibold">
             <span className="material-symbols-outlined text-[16px]">north_east</span>
-            <span>+4.2 poin dari pekan lalu</span>
+            <span>Rerata capaian belajar murid</span>
           </div>
         </div>
 
@@ -317,7 +445,7 @@ Tutor Pendamping Bright Future Magelang`;
               <span className="text-[10px] text-[#6B675F] uppercase tracking-wider font-semibold">
                 Antrean Draf WA
               </span>
-              <div className="text-2xl font-black text-[#C1683F] mt-1">2 Draf</div>
+              <div className="text-2xl font-black text-[#C1683F] mt-1">{pendingWaQueueCount} Draf</div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#EFC9AE]/50 flex items-center justify-center text-[#C1683F]">
               <span className="material-symbols-outlined text-[22px]">chat</span>
@@ -325,7 +453,9 @@ Tutor Pendamping Bright Future Magelang`;
           </div>
           <div className="mt-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#C1683F] animate-pulse"></span>
-            <span className="text-xs text-[#6B675F]">Rayhan &amp; Kayla (Antrean aktif)</span>
+            <span className="text-xs text-[#6B675F] truncate">
+              {studentOptions.filter((s) => !s.isSent).map((s) => s.short).slice(0, 2).join(' & ') || 'Draf terproses'}
+            </span>
           </div>
         </div>
 
@@ -336,7 +466,7 @@ Tutor Pendamping Bright Future Magelang`;
               <span className="text-[10px] text-[#6B675F] uppercase tracking-wider font-semibold">
                 Verifikasi Sesi
               </span>
-              <div className="text-2xl font-black text-[#3F5A46] mt-1">100%</div>
+              <div className="text-2xl font-black text-[#3F5A46] mt-1">{verifiedSessionsPercent}%</div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#c8ebce] flex items-center justify-center text-[#03210f]">
               <span className="material-symbols-outlined text-[22px]">verified_user</span>
@@ -359,15 +489,12 @@ Tutor Pendamping Bright Future Magelang`;
               <span className="text-[11px] font-bold text-[#6B675F] uppercase tracking-wider">
                 Pilih Sesi Siswa Hari Ini
               </span>
-              <span className="text-xs text-[#6B675F]">Rabu, 23 Okt 2026</span>
+              <span className="text-xs text-[#6B675F]">
+                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { name: 'Rayhan Kusuma', short: 'Rayhan K.', meta: 'SD 5 • Mertoyudan', status: 'Sedang Dinilai' },
-                { name: 'Kevin Pratama', short: 'Kevin P.', meta: 'SD 4 • Magelang', status: 'WA Terkirim' },
-                { name: 'Kayla Putri', short: 'Kayla P.', meta: 'SD 2 • Jurangombo', status: '15:30 WIB' },
-                { name: 'Dimas Pratama', short: 'Dimas P.', meta: 'SMP 7 • Secang', status: '17:00 WIB' },
-              ].map((item) => {
+              {studentOptions.map((item) => {
                 const isActive = selectedStudentId === item.name;
                 return (
                   <button
@@ -716,7 +843,7 @@ Tutor Pendamping Bright Future Magelang`;
             <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-[rgba(42,40,35,0.08)]">
               <button
                 type="button"
-                onClick={() => showToast('Draf sesi tersimpan secara lokal!')}
+                onClick={handleSaveDraft}
                 className="px-5 py-2.5 rounded-xl text-xs font-semibold text-[#1c1c18] bg-[#f0eee8] hover:bg-[#e5e2dc] transition-all cursor-pointer"
               >
                 Simpan Draf Sesi
@@ -928,14 +1055,7 @@ Tutor Pendamping Bright Future Magelang`;
                   <input
                     type="checkbox"
                     checked={isSentToParent}
-                    onChange={(e) => {
-                      setIsSentToParent(e.target.checked);
-                      showToast(
-                        e.target.checked
-                          ? 'Status diperbarui: Laporan telah terkirim!'
-                          : 'Status diperbarui: Belum terkirim'
-                      );
-                    }}
+                    onChange={(e) => handleToggleSent(e.target.checked)}
                     className="rounded text-[#3F5A46] focus:ring-0 w-4 h-4"
                   />
                   <span className="text-xs font-semibold text-[#1c1c18]">
