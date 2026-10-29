@@ -39,14 +39,27 @@ export interface TutorMatchEvaluation {
 }
 
 /**
+ * Menormalkan nama kecamatan dengan menghapus prefix kecamatan/kabupaten/kota serta spasi.
+ */
+export function normalizeDistrictName(district?: string | null): string {
+  if (!district) return '';
+  return district
+    .toLowerCase()
+    .replace(/^kec(amatan)?\.?\s*/i, '')
+    .replace(/,\s*(kab|kota)?\s*magelang.*$/i, '')
+    .trim();
+}
+
+/**
  * Menghitung jarak perkiraan dalam kilometer (km) antar dua kecamatan di Magelang
- * menggunakan rumus Haversine native.
+ * menggunakan rumus Haversine native dengan pencocokan nama wilayah eksak.
  */
 export function calculateDistrictDistanceKm(districtA?: string | null, districtB?: string | null): number {
-  const normA = (districtA || '').toLowerCase().trim();
-  const normB = (districtB || '').toLowerCase().trim();
+  const normA = normalizeDistrictName(districtA);
+  const normB = normalizeDistrictName(districtB);
 
-  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) {
+  // Hanya anggap sama jika nama kecamatan setelah normalisasi persis sama (exact equality)
+  if (normA && normB && normA === normB) {
     // Berada di kecamatan yang sama
     return 0.5;
   }

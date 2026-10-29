@@ -7,6 +7,7 @@ import {
   saveLearningMaterial,
   resubmitLearningMaterial,
   MaterialType,
+  GOOGLE_DRIVE_SHARED_FOLDER_URL,
 } from '../../utils/learningMaterials';
 
 interface TutorWorksheetsModulesProps {
@@ -207,6 +208,15 @@ export const TutorWorksheetsModules: React.FC<TutorWorksheetsModulesProps> = ({
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+            <a
+              href={GOOGLE_DRIVE_SHARED_FOLDER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FAF7F1] text-[#284230] hover:bg-[#ebe8e2] transition-all shadow-xs border border-[#3F5A46]/20 text-xs font-semibold cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] text-[#3F5A46]">folder_shared</span>
+              <span>Google Drive Bersama</span>
+            </a>
             <button
               type="button"
               onClick={() => setShowDownloadPackageModal(true)}

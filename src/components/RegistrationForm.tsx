@@ -29,6 +29,7 @@ import {
   Loader2,
   Building,
   ArrowLeft,
+  Navigation,
 } from 'lucide-react';
 
 interface RegistrationFormProps {
@@ -89,6 +90,33 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [firestoreSaved, setFirestoreSaved] = useState(false);
   const [firestoreError, setFirestoreError] = useState<string | null>(null);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+
+  const handleDetectGpsLocation = () => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      alert('Fitur deteksi lokasi GPS tidak didukung di perangkat ini.');
+      return;
+    }
+    setIsDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsDetectingGps(false);
+        const { latitude, longitude } = pos.coords;
+        const coordString = ` [Titik GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}]`;
+        setFormData((prev) => ({
+          ...prev,
+          homeAddress: prev.homeAddress
+            ? prev.homeAddress.replace(/\s*\[Titik GPS:.*?\]/, '') + coordString
+            : `Lokasi Rumah${coordString}`,
+        }));
+      },
+      () => {
+        setIsDetectingGps(false);
+        alert('Gagal mendeteksi lokasi GPS. Pastikan izin lokasi browser telah aktif.');
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   // Sync initial props if changed
   React.useEffect(() => {
@@ -452,10 +480,22 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
             {/* Row 3: Address & Notes */}
             <div>
-              <label className="block text-xs font-bold text-[#2A2823] uppercase mb-1.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#6F8F76]" />
-                <span>Alamat Lengkap Rumah (Lokasi Kunjungan Tutor di Magelang)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-[#2A2823] uppercase flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-[#6F8F76]" />
+                  <span>Alamat Lengkap Rumah (Lokasi Kunjungan)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleDetectGpsLocation}
+                  disabled={isDetectingGps}
+                  className="text-[11px] font-semibold text-[#3F5A46] hover:text-[#284230] flex items-center gap-1 cursor-pointer bg-[#FAF7F1] px-2 py-0.5 rounded-lg border border-[#6F8F76]/30 transition-colors disabled:opacity-50"
+                  title="Deteksi koordinat GPS rumah secara otomatis"
+                >
+                  <Navigation className={`w-3 h-3 ${isDetectingGps ? 'animate-spin' : ''}`} />
+                  <span>{isDetectingGps ? 'Mendeteksi...' : 'Gunakan GPS Saya'}</span>
+                </button>
+              </div>
               <textarea
                 required
                 rows={2}

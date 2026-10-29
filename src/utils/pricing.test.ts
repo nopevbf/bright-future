@@ -22,29 +22,29 @@ describe('Pricing & Sibling Bundling Calculator (REQ-01)', () => {
     expect(result.grandTotal).toBe(280000);
   });
 
-  it('mengaplikasikan diskon saudara kandung (sibling discount) 15% jika anak >= 2', () => {
-    // 16 sesi (2 anak @ 8 sesi) = 16 * 35.000 = 560.000, diskon 15% = 84.000, total = 476.000
+  it('mengaplikasikan diskon saudara kandung (sibling discount) 10% jika anak >= 2', () => {
+    // 16 sesi (2 anak @ 8 sesi) = 16 * 35.000 = 560.000, diskon 10% = 56.000, total = 504.000
     const result = calculateTutoringFee({
       totalSessions: 16,
       registeredChildrenCount: 2,
     });
 
     expect(result.subtotal).toBe(560000);
-    expect(result.discountPercentage).toBe(15);
-    expect(result.discountAmount).toBe(84000);
-    expect(result.grandTotal).toBe(476000);
+    expect(result.discountPercentage).toBe(10);
+    expect(result.discountAmount).toBe(56000);
+    expect(result.grandTotal).toBe(504000);
   });
 
-  it('mengaplikasikan diskon 15% untuk 3 anak atau lebih', () => {
-    // 24 sesi (3 anak @ 8 sesi) = 24 * 35.000 = 840.000, diskon 15% = 126.000, total = 714.000
+  it('mengaplikasikan diskon 10% untuk 3 anak atau lebih', () => {
+    // 24 sesi (3 anak @ 8 sesi) = 24 * 35.000 = 840.000, diskon 10% = 84.000, total = 756.000
     const result = calculateTutoringFee({
       totalSessions: 24,
       registeredChildrenCount: 3,
     });
 
-    expect(result.discountPercentage).toBe(15);
-    expect(result.discountAmount).toBe(126000);
-    expect(result.grandTotal).toBe(714000);
+    expect(result.discountPercentage).toBe(10);
+    expect(result.discountAmount).toBe(84000);
+    expect(result.grandTotal).toBe(756000);
   });
 
   it('menangani boundary value analysis (BVA): 0 sesi dan 0 anak', () => {

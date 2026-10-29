@@ -14,7 +14,7 @@ export interface TutoringFeeResult {
 }
 
 export const STANDARD_SESSION_RATE = 35000;
-export const SIBLING_DISCOUNT_PERCENT = 15;
+export const SIBLING_DISCOUNT_PERCENT = 10;
 
 export const LEVEL_PRICING: Record<string, number> = {
   tk: 35000,
@@ -116,7 +116,7 @@ export function calculateDynamicTutoringFee(
   const sessionsPerMonth = sessionsPerWeek * 4;
   const subtotal = sessionsPerMonth * sessionRate;
 
-  const discountPercentage = params.hasSiblingDiscount && subtotal > 0 ? 10 : 0;
+  const discountPercentage = params.hasSiblingDiscount && subtotal > 0 ? SIBLING_DISCOUNT_PERCENT : 0;
   const discountAmount = Math.round((subtotal * discountPercentage) / 100);
   const grandTotal = subtotal - discountAmount;
 

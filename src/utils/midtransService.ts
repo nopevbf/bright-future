@@ -53,9 +53,11 @@ export interface MidtransNotificationPayload {
   [key: string]: unknown;
 }
 
+import { PaymentStatus } from '../types';
+
 export interface MappedPaymentStatus {
   invoiceStatus: 'LUNAS' | 'PENDING' | 'TERLAMBAT' | 'TERLAMBAT (H+2)';
-  paymentStatus: 'paid' | 'pending' | 'verified';
+  paymentStatus: PaymentStatus;
   isPaid: boolean;
   message: string;
 }
@@ -298,7 +300,7 @@ export function mapMidtransStatus(
   if (normStatus === 'expire') {
     return {
       invoiceStatus: 'TERLAMBAT',
-      paymentStatus: 'pending',
+      paymentStatus: 'expired',
       isPaid: false,
       message: 'Batas waktu pembayaran telah kedaluwarsa (Expired)',
     };
@@ -307,7 +309,7 @@ export function mapMidtransStatus(
   if (normStatus === 'cancel' || normStatus === 'deny') {
     return {
       invoiceStatus: 'TERLAMBAT',
-      paymentStatus: 'pending',
+      paymentStatus: 'failed',
       isPaid: false,
       message: `Transaksi dibatalkan atau ditolak (${normStatus})`,
     };

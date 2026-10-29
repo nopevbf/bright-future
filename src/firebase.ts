@@ -13,6 +13,9 @@ export {
   onSnapshot,
 };
 import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   getFirestore,
   doc,
   getDoc,
@@ -60,7 +63,23 @@ export interface FirestoreErrorInfo {
 }
 
 export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+let firestoreInstance;
+try {
+  if (typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined') {
+    firestoreInstance = initializeFirestore(
+      app,
+      { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } else {
+    firestoreInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+} catch {
+  firestoreInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+}
+
+export const db = firestoreInstance;
 export const auth = getAuth(app);
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
@@ -111,7 +130,7 @@ export interface FirestoreRegistrationDoc {
   appliedDiscount: number;
   invoiceNumber: string;
   paymentMethod?: 'midtrans' | 'manual_transfer';
-  paymentStatus: 'pending' | 'paid' | 'verified';
+  paymentStatus: 'pending' | 'paid' | 'verified' | 'expired' | 'failed';
   createdAt: string;
   assignedTutor?: string;
   assignedAt?: string;

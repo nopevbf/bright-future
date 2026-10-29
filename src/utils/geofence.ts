@@ -10,7 +10,7 @@ export interface GeofenceValidationResult {
   statusMessage: string;
 }
 
-export const MAX_GEOFENCE_RADIUS_METERS = 25;
+export const MAX_GEOFENCE_RADIUS_METERS = 35;
 const EARTH_RADIUS_METERS = 6371000; // Radius rata-rata bumi dalam meter
 
 /**
@@ -84,6 +84,6 @@ export function validateGeofencePresence(
     maxRadiusMeters: maxRadius,
     statusMessage: isWithin
       ? `Tervalidasi di lokasi meja belajar murid (${Math.round(distanceMeters)}m dari titik rumah).`
-      : `Presensi gagal: Tutor berada di luar radius geofence (< 25m). Jarak saat ini: ${Math.round(distanceMeters)}m.`,
+      : `Presensi gagal: Tutor berada di luar radius geofence (< ${maxRadius}m). Jarak saat ini: ${Math.round(distanceMeters)}m.`,
   };
 }

@@ -143,12 +143,19 @@ describe('midtransService', () => {
       expect(status.isPaid).toBe(false);
     });
 
-    it('MDT-MAP-005: should map expire, cancel, deny to DIBATALKAN / GAGAL', () => {
-      expect(mapMidtransStatus('expire').invoiceStatus).toBe('TERLAMBAT');
-      expect(mapMidtransStatus('expire').isPaid).toBe(false);
+    it('MDT-MAP-005: should map expire, cancel, deny to terminal non-pending status (expired/failed)', () => {
+      const expireStatus = mapMidtransStatus('expire');
+      expect(expireStatus.invoiceStatus).toBe('TERLAMBAT');
+      expect(expireStatus.paymentStatus).toBe('expired');
+      expect(expireStatus.isPaid).toBe(false);
 
-      expect(mapMidtransStatus('cancel').isPaid).toBe(false);
-      expect(mapMidtransStatus('deny').isPaid).toBe(false);
+      const cancelStatus = mapMidtransStatus('cancel');
+      expect(cancelStatus.paymentStatus).toBe('failed');
+      expect(cancelStatus.isPaid).toBe(false);
+
+      const denyStatus = mapMidtransStatus('deny');
+      expect(denyStatus.paymentStatus).toBe('failed');
+      expect(denyStatus.isPaid).toBe(false);
     });
   });
 });

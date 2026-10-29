@@ -11,6 +11,9 @@ import {
 export type MaterialType = 'modul' | 'lembar_kerja';
 export type MaterialStatus = 'under_review' | 'published' | 'rejected';
 
+export const GOOGLE_DRIVE_SHARED_FOLDER_URL =
+  'https://drive.google.com/drive/folders/1_BrightFuture_Shared_Materials_Magelang?usp=sharing';
+
 export interface LearningMaterial {
   id: string;
   type: MaterialType;
@@ -25,6 +28,7 @@ export interface LearningMaterial {
   status: MaterialStatus;
   rejectionReason?: string;
   fileUrl?: string;
+  driveUrl?: string;
   fileName?: string;
   fileSize?: string;
   createdAt: string;
@@ -50,6 +54,7 @@ export const INITIAL_LEARNING_MATERIALS: LearningMaterial[] = [
     status: 'published',
     fileName: 'LKPD_Rotasi_Bumi_SD5.pdf',
     fileSize: '2.4 MB',
+    driveUrl: 'https://drive.google.com/drive/folders/1_BrightFuture_Shared_Materials_Magelang?usp=sharing',
     createdAt: '2026-09-01T08:00:00Z',
     updatedAt: '2026-09-01T10:00:00Z',
     reviewedBy: 'Super Admin',

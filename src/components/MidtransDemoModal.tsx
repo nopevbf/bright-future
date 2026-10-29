@@ -200,7 +200,14 @@ export const MidtransDemoModal: React.FC<MidtransDemoModalProps> = ({
           throw new Error(data.message || 'Gagal memuat detail transaksi Midtrans');
         }
 
-        const expiresAt = Date.now() + 15 * 60 * 1000;
+        let expiresAt = Date.now() + 15 * 60 * 1000;
+        if (data.expiryTime) {
+          const parsedServerTime = new Date(data.expiryTime).getTime();
+          if (!isNaN(parsedServerTime) && parsedServerTime > Date.now()) {
+            expiresAt = parsedServerTime;
+          }
+        }
+
         setChargeRecords((prev) => ({
           ...prev,
           [method]: {

@@ -59,12 +59,14 @@ export interface RegistrationFormData {
   paymentMethod?: 'midtrans' | 'manual_transfer';
 }
 
+export type PaymentStatus = 'pending' | 'paid' | 'verified' | 'expired' | 'failed';
+
 export interface SubmittedRegistration extends RegistrationFormData {
   studentId: string;
   invoiceNumber: string;
   totalAmount: number;
   submittedAt: string;
-  paymentStatus?: 'pending' | 'paid' | 'verified';
+  paymentStatus?: PaymentStatus;
 }
 
 export interface TutorRegistrationData {

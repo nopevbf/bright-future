@@ -14,10 +14,10 @@ describe('Geofence GPS Haversine (< 25m) (REQ-02)', () => {
 
     const validation = validateGeofencePresence(homeCoords, homeCoords);
     expect(validation.isWithinGeofence).toBe(true);
-    expect(validation.distanceMeters).toBeLessThan(25);
+    expect(validation.distanceMeters).toBeLessThan(35);
   });
 
-  it('memvalidasi kehadiran jika tutor berada dalam radius < 25 meter (misal ~15 meter)', () => {
+  it('memvalidasi kehadiran jika tutor berada dalam radius < 35 meter (misal ~15 meter)', () => {
     // Geser sedikit latitude (0.000135 derajat latitude ~ 15 meter)
     const tutorCoords: Coordinates = {
       latitude: homeCoords.latitude + 0.000135,
@@ -26,19 +26,19 @@ describe('Geofence GPS Haversine (< 25m) (REQ-02)', () => {
 
     const validation = validateGeofencePresence(tutorCoords, homeCoords);
     expect(validation.distanceMeters).toBeGreaterThan(10);
-    expect(validation.distanceMeters).toBeLessThan(25);
+    expect(validation.distanceMeters).toBeLessThan(35);
     expect(validation.isWithinGeofence).toBe(true);
   });
 
-  it('menolak kehadiran jika tutor berada di luar batas toleransi >= 25 meter (BVA: 25.1m - 35m)', () => {
+  it('menolak kehadiran jika tutor berada di luar batas toleransi >= 35 meter (BVA: 36m - 50m)', () => {
     // Geser latitude 0.0003 derajat (~33 meter)
     const outsideCoords: Coordinates = {
-      latitude: homeCoords.latitude + 0.0003,
+      latitude: homeCoords.latitude + 0.00045,
       longitude: homeCoords.longitude,
     };
 
     const validation = validateGeofencePresence(outsideCoords, homeCoords);
-    expect(validation.distanceMeters).toBeGreaterThanOrEqual(25);
+    expect(validation.distanceMeters).toBeGreaterThanOrEqual(35);
     expect(validation.isWithinGeofence).toBe(false);
     expect(validation.statusMessage).toContain('di luar radius');
   });

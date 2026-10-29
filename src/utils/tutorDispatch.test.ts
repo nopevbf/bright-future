@@ -89,6 +89,17 @@ describe('Smart Tutor Dispatch & Pairing System (SQA-ISTQB & TDD)', () => {
       expect(distance).toBeGreaterThan(8);
       expect(distance).toBeLessThan(25);
     });
+
+    it('TC-DISP-EXACT: does not falsely treat Salaman and Salam as the same district (bug regression)', () => {
+      // Salaman (Magelang Barat) vs Salam (Magelang Selatan/Sleman) distance is ~20 km
+      const distance = calculateDistrictDistanceKm('Salaman', 'Salam');
+      expect(distance).toBeGreaterThan(15);
+    });
+
+    it('TC-DISP-EXACT: does not falsely treat Magelang Utara and Magelang Selatan as the same district', () => {
+      const distance = calculateDistrictDistanceKm('Magelang Utara', 'Magelang Selatan');
+      expect(distance).toBeGreaterThan(3);
+    });
   });
 
   describe('2. TC-DISP-002: Tutor Match Scoring (Subject Fit & Proximity)', () => {
