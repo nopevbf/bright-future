@@ -203,6 +203,36 @@ describe('Student Data Resolver (TDD & SQA-ISTQB)', () => {
     expect(custom.dream).toBe('Ilmuwan Robotika & AI');
     expect(custom.hobby).toBe('Merakit Lego & Membaca Ensiklopedia Sains');
   });
+
+  it('TC-RES-006 (ISTQB Robustness): safely handles corrupt or partial Firestore documents with undefined studentName or level', () => {
+    // Incomplete or malformed documents from Firestore
+    const corruptVisits: any[] = [
+      { id: 'v-partial-1' }, // Missing studentName
+      { id: 'v-partial-2', studentName: null, score: 90 },
+      { id: 'v-partial-3', studentName: undefined, status: 'selesai' },
+    ];
+    const corruptStudents: any[] = [
+      { id: 's-partial-1' }, // Missing studentName
+      { id: 's-partial-2', studentName: undefined },
+    ];
+    const corruptMaterials: any[] = [
+      { id: 'm-partial-1', status: 'disetujui' }, // Missing level, subject, category
+      { id: 'm-partial-2', status: 'disetujui', subject: null },
+    ];
+
+    // None of these should throw TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+    expect(() => {
+      resolveStudentProfile('BF-ANY', 'Ahmad', corruptStudents);
+    }).not.toThrow();
+
+    expect(() => {
+      calculateStudentMetrics(mockStudents[0], corruptVisits, 1);
+    }).not.toThrow();
+
+    expect(() => {
+      filterLearningMaterialsForStudent(mockStudents[0], corruptMaterials);
+    }).not.toThrow();
+  });
 });
 
 describe('StudentDashboard Dynamic UI Integration (SQA-ISTQB)', () => {
@@ -326,5 +356,25 @@ describe('StudentDashboard Dynamic UI Integration (SQA-ISTQB)', () => {
 
     expect(screen.getByText(/Tutor terbaikmu sedang disiapkan oleh Admin/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Hubungi Admin Bright Future/i })).toBeInTheDocument();
+  });
+
+  it('TC-UI-004 (Crash Resilience): does not crash when login student data or visits have undefined properties', async () => {
+    // Malformed cache
+    const malformedVisits = [
+      { id: 'v1' }, // Missing studentName
+      { id: 'v2', studentName: undefined, status: 'berlangsung' },
+    ];
+    localStorage.setItem('bright_future_managed_students_cache', JSON.stringify([{ id: 'BF-NEW', studentName: undefined }]));
+
+    expect(() => {
+      render(
+        <StudentDashboard
+          studentId="BF-NEW"
+          studentName=""
+          onLogout={vi.fn()}
+          onViewLanding={vi.fn()}
+        />
+      );
+    }).not.toThrow();
   });
 });

@@ -26,19 +26,26 @@ export const StudentHomeTab: React.FC<StudentHomeTabProps> = ({
   onOpenLkpd,
   isQuizPassed,
 }) => {
+  const sName = (student?.studentName || '').trim().toLowerCase();
+  const safeVisits = Array.isArray(visits) ? visits : [];
+
   // Find upcoming or today visit
-  const upcomingVisit = visits.find(
+  const upcomingVisit = safeVisits.find(
     (v) =>
-      v.studentName.toLowerCase() === student.studentName.toLowerCase() &&
+      v &&
+      sName &&
+      (v.studentName || '').trim().toLowerCase() === sName &&
       (v.status === 'berlangsung' || v.status === 'berikutnya' || v.status === 'antre')
-  ) || visits.find(
-    (v) => v.studentName.toLowerCase() === student.studentName.toLowerCase()
+  ) || safeVisits.find(
+    (v) => v && sName && (v.studentName || '').trim().toLowerCase() === sName
   );
 
-  const tutorNotes = visits
+  const tutorNotes = safeVisits
     .filter(
       (v) =>
-        v.studentName.toLowerCase() === student.studentName.toLowerCase() &&
+        v &&
+        sName &&
+        (v.studentName || '').trim().toLowerCase() === sName &&
         Boolean(v.notes)
     )
     .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];

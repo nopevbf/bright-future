@@ -14,10 +14,15 @@ export const StudentAttendanceTab: React.FC<StudentAttendanceTabProps> = ({
   visits,
   metrics,
 }) => {
-  const studentVisits = visits.filter(
-    (v) =>
-      v.studentName.toLowerCase() === (student.studentName || '').toLowerCase()
-  );
+  const sName = (student?.studentName || '').trim().toLowerCase();
+  const studentVisits = Array.isArray(visits)
+    ? visits.filter(
+        (v) =>
+          Boolean(v) &&
+          sName &&
+          (v.studentName || '').trim().toLowerCase() === sName
+      )
+    : [];
 
   const completedVisits = studentVisits.filter((v) => v.status === 'selesai');
   const activeVisit = studentVisits.find((v) => v.status === 'berlangsung');

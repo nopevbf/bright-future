@@ -224,7 +224,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       const finalScoreCount = quizScore + (selectedOption === SAMPLE_QUIZ[currentQuestionIndex].correctAnswer ? 1 : 0);
       const scorePercentage = Math.round((finalScoreCount / SAMPLE_QUIZ.length) * 100);
 
-      const quizKey = `quiz-${activeQuizTitle.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      const quizKey = `quiz-${(activeQuizTitle || '').toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
       const isNewPass = recordStudentQuizPass(currentStudent.id, quizKey, scorePercentage);
 
       if (isNewPass) {
@@ -246,7 +246,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   };
 
   const isCurrentQuizPassed = passedQuizIds.includes(
-    `quiz-${activeQuizTitle.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+    `quiz-${(activeQuizTitle || '').toLowerCase().replace(/[^a-z0-9]/g, '-')}`
   );
 
   // Student Initials

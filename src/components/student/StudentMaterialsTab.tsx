@@ -20,9 +20,10 @@ export const StudentMaterialsTab: React.FC<StudentMaterialsTabProps> = ({
 
   const filteredMaterials = filterLearningMaterialsForStudent(student, materials);
 
-  const displayed = selectedSubject === 'semua'
+  const targetSubj = (selectedSubject || '').trim().toLowerCase();
+  const displayed = targetSubj === 'semua'
     ? filteredMaterials
-    : filteredMaterials.filter((m) => m.subject.toLowerCase() === selectedSubject.toLowerCase());
+    : filteredMaterials.filter((m) => (m?.subject || '').trim().toLowerCase() === targetSubj);
 
   // Collect unique subjects
   const availableSubjects = Array.from(

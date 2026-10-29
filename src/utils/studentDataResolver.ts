@@ -21,6 +21,10 @@ export interface StudentCustomProfile {
 const QUIZ_PASS_STORAGE_KEY_PREFIX = 'bf_student_quizzes_';
 const PROFILE_STORAGE_KEY_PREFIX = 'bf_student_custom_profile_';
 
+function safeLower(str?: string | null): string {
+  return (str || '').trim().toLowerCase();
+}
+
 /**
  * Resolves a student's profile from the list of managed students in Firestore / local cache.
  * Falls back to basic template if student is not yet recorded.
@@ -30,14 +34,17 @@ export function resolveStudentProfile(
   studentName?: string,
   managedStudents: ManagedStudent[] = []
 ): ManagedStudent {
-  const normalizedId = (studentId || '').trim().toLowerCase();
-  const normalizedName = (studentName || '').trim().toLowerCase();
+  const normalizedId = safeLower(studentId);
+  const normalizedName = safeLower(studentName);
 
-  const found = managedStudents.find((s) => {
-    const idMatch = s.id && s.id.toLowerCase() === normalizedId;
-    const nameMatch = normalizedName && s.studentName.toLowerCase() === normalizedName;
-    return idMatch || nameMatch;
-  });
+  const found = Array.isArray(managedStudents)
+    ? managedStudents.find((s) => {
+        if (!s) return false;
+        const idMatch = normalizedId && s.id && safeLower(s.id) === normalizedId;
+        const nameMatch = normalizedName && s.studentName && safeLower(s.studentName) === normalizedName;
+        return Boolean(idMatch || nameMatch);
+      })
+    : undefined;
 
   if (found) {
     return found;
@@ -75,15 +82,20 @@ export function calculateStudentMetrics(
 ): StudentMetrics {
   const packageSessions = Math.max(1, student?.packageSessions || 8);
   const completedSessions = student?.completedSessions ?? 0;
+  const targetName = safeLower(student?.studentName);
 
   // Calculate average evaluation score
-  const studentVisits = visits.filter(
-    (v) =>
-      v.studentName.toLowerCase() === (student?.studentName || '').toLowerCase() &&
-      v.status === 'selesai' &&
-      typeof v.score === 'number' &&
-      v.score > 0
-  );
+  const studentVisits = Array.isArray(visits)
+    ? visits.filter(
+        (v) =>
+          Boolean(v) &&
+          targetName &&
+          safeLower(v.studentName) === targetName &&
+          v.status === 'selesai' &&
+          typeof v.score === 'number' &&
+          v.score > 0
+      )
+    : [];
 
   let totalScoreSum = 0;
   let totalScoreCount = 0;
@@ -124,30 +136,30 @@ export function calculateStudentMetrics(
  * Filters learning materials strictly matching student level and grade.
  */
 export function filterLearningMaterialsForStudent(
-  student: ManagedStudent,
+  student?: ManagedStudent,
   materials: LearningMaterial[] = []
 ): LearningMaterial[] {
-  const studentLevelNorm = (student.level || '').toLowerCase();
-  const studentGradeNorm = (student.grade || '').toLowerCase();
+  const studentLevelNorm = safeLower(student?.level);
+  const studentGradeNorm = safeLower(student?.grade);
+
+  if (!Array.isArray(materials)) return [];
 
   return materials.filter((m) => {
-    // Only approved materials are visible to students
-    if (m.status !== 'disetujui') return false;
+    if (!m || m.status !== 'disetujui') return false;
 
-    const matLevelNorm = (m.level || '').toLowerCase();
-    const matCatNorm = (m.category || '').toLowerCase();
+    const matLevelNorm = safeLower(m.level);
+    const matCatNorm = safeLower(m.category);
 
     // Check level / grade matching
     const levelMatch =
-      matLevelNorm.includes(studentLevelNorm) ||
-      studentLevelNorm.includes(matLevelNorm) ||
+      (matLevelNorm && studentLevelNorm && (matLevelNorm.includes(studentLevelNorm) || studentLevelNorm.includes(matLevelNorm))) ||
       (studentLevelNorm.includes('sd') && (matCatNorm === 'sd' || matLevelNorm.includes('sd'))) ||
       (studentLevelNorm.includes('smp') && (matCatNorm === 'smp' || matLevelNorm.includes('smp'))) ||
       (studentLevelNorm.includes('sma') && (matCatNorm === 'sma' || matLevelNorm.includes('sma')));
 
-    const gradeMatch = studentGradeNorm ? matLevelNorm.includes(studentGradeNorm) : true;
+    const gradeMatch = studentGradeNorm && matLevelNorm ? matLevelNorm.includes(studentGradeNorm) : true;
 
-    return levelMatch || gradeMatch;
+    return Boolean(levelMatch || gradeMatch);
   });
 }
 

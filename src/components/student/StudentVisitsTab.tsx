@@ -15,10 +15,15 @@ export const StudentVisitsTab: React.FC<StudentVisitsTabProps> = ({
 }) => {
   const [filter, setFilter] = useState<'semua' | 'akan_datang' | 'selesai'>('semua');
 
-  const studentVisits = visits.filter(
-    (v) =>
-      v.studentName.toLowerCase() === (student.studentName || '').toLowerCase()
-  );
+  const sName = (student?.studentName || '').trim().toLowerCase();
+  const studentVisits = Array.isArray(visits)
+    ? visits.filter(
+        (v) =>
+          Boolean(v) &&
+          sName &&
+          (v.studentName || '').trim().toLowerCase() === sName
+      )
+    : [];
 
   const filteredVisits = studentVisits.filter((v) => {
     if (filter === 'akan_datang') {

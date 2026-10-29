@@ -14,11 +14,16 @@ export const StudentReportTab: React.FC<StudentReportTabProps> = ({
   visits,
   metrics,
 }) => {
-  const studentVisits = visits.filter(
-    (v) =>
-      v.studentName.toLowerCase() === (student.studentName || '').toLowerCase() &&
-      v.status === 'selesai'
-  );
+  const sName = (student?.studentName || '').trim().toLowerCase();
+  const studentVisits = Array.isArray(visits)
+    ? visits.filter(
+        (v) =>
+          Boolean(v) &&
+          sName &&
+          (v.studentName || '').trim().toLowerCase() === sName &&
+          v.status === 'selesai'
+      )
+    : [];
 
   // Calculate average ratings
   const visitsWithFocus = studentVisits.filter((v) => typeof v.focusRating === 'number');
