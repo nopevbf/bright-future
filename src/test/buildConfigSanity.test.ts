@@ -27,4 +27,12 @@ describe('Vercel Serverless & TypeScript Build Sanity (TDD / Regression)', () =>
 
     expect(pkg.dependencies['@types/node']).toBeDefined();
   });
+
+  it('TC-BUILD-004: .npmrc must configure loglevel=error and fund=false to suppress verbose CI warnings', () => {
+    const npmrcPath = path.join(rootDir, '.npmrc');
+    const npmrcContent = fs.readFileSync(npmrcPath, 'utf8');
+
+    expect(npmrcContent).toContain('loglevel=error');
+    expect(npmrcContent).toContain('fund=false');
+  });
 });
