@@ -8,8 +8,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 
-export type MaterialType = 'modul' | 'lembar_kerja';
-export type MaterialStatus = 'under_review' | 'published' | 'rejected';
+export type MaterialType = 'modul' | 'lembar_kerja' | 'modul_ajar';
+export type MaterialStatus = 'under_review' | 'published' | 'rejected' | 'disetujui' | 'menunggu_review';
 
 export const GOOGLE_DRIVE_SHARED_FOLDER_URL =
   'https://drive.google.com/drive/folders/1_BrightFuture_Shared_Materials_Magelang?usp=sharing';

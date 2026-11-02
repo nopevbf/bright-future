@@ -53,7 +53,7 @@ export interface MidtransNotificationPayload {
   [key: string]: unknown;
 }
 
-import { PaymentStatus } from '../types';
+import { PaymentStatus } from '../types.ts';
 
 export interface MappedPaymentStatus {
   invoiceStatus: 'LUNAS' | 'PENDING' | 'TERLAMBAT' | 'TERLAMBAT (H+2)';
