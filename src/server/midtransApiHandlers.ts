@@ -41,6 +41,19 @@ export async function handleWebhookRequest(
 
   const notification = body as MidtransNotificationPayload;
 
+  // Acknowledge Midtrans Dashboard Test Notification Ping immediately without modifying database
+  if (notification.order_id && notification.order_id.startsWith('payment_notif_test_')) {
+    return {
+      status: 200,
+      body: {
+        status: 'success',
+        message: 'Midtrans test notification ping acknowledged successfully',
+        orderId: notification.order_id,
+        invoiceStatus: 'PENDING',
+      },
+    };
+  }
+
   if (!serverKey) {
     return {
       status: 500,

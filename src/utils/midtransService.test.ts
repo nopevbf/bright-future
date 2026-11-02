@@ -114,6 +114,41 @@ describe('midtransService', () => {
       const result = verifyMidtransSignature(payload, dummyServerKey);
       expect(result).toBe(false);
     });
+
+    it('MDT-SEC-004: should return true when signature matches any key in multi-key array or comma string', () => {
+      const orderId = 'INV-MULTI-01';
+      const statusCode = '200';
+      const grossAmount = '250000.00';
+      const secondaryKey = 'Mid-server-SECONDARY-999';
+      const signature = crypto
+        .createHash('sha512')
+        .update(`${orderId}${statusCode}${grossAmount}${secondaryKey}`)
+        .digest('hex');
+
+      const payload: MidtransNotificationPayload = {
+        order_id: orderId,
+        status_code: statusCode,
+        gross_amount: grossAmount,
+        signature_key: signature,
+        transaction_status: 'settlement',
+      };
+
+      expect(verifyMidtransSignature(payload, [dummyServerKey, secondaryKey])).toBe(true);
+      expect(verifyMidtransSignature(payload, `${dummyServerKey}, ${secondaryKey}`)).toBe(true);
+    });
+
+    it('MDT-SEC-005: should return false when signature matches none of the keys in multi-key config', () => {
+      const payload: MidtransNotificationPayload = {
+        order_id: 'INV-MULTI-02',
+        status_code: '200',
+        gross_amount: '250000.00',
+        signature_key: 'unmatched_signature_hash',
+        transaction_status: 'settlement',
+      };
+
+      expect(verifyMidtransSignature(payload, [dummyServerKey, 'Mid-server-OTHER'])).toBe(false);
+      expect(verifyMidtransSignature(payload, `${dummyServerKey}, Mid-server-OTHER`)).toBe(false);
+    });
   });
 
   describe('mapMidtransStatus', () => {

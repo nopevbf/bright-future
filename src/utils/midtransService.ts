@@ -226,10 +226,11 @@ export function generateSnapPayload(
 /**
  * Validates the SHA-512 signature from Midtrans webhook notification.
  * Formula: SHA512(order_id + status_code + gross_amount + ServerKey)
+ * Supports single server key, comma-separated keys, or array of keys (e.g. sandbox & prod).
  */
 export function verifyMidtransSignature(
   notification: MidtransNotificationPayload,
-  serverKey: string
+  serverKey: string | string[]
 ): boolean {
   if (
     !notification ||
@@ -242,14 +243,25 @@ export function verifyMidtransSignature(
     return false;
   }
 
-  const rawString = `${notification.order_id}${notification.status_code}${notification.gross_amount}${serverKey}`;
-  const computedHash = crypto
-    .createHash('sha512')
-    .update(rawString)
-    .digest('hex')
-    .toLowerCase();
+  const keys = Array.isArray(serverKey)
+    ? serverKey
+    : serverKey.split(/[,;]/).map((k) => k.trim()).filter(Boolean);
 
-  return computedHash === notification.signature_key.toLowerCase();
+  if (keys.length === 0) {
+    return false;
+  }
+
+  const incomingSig = (notification.signature_key || '').toLowerCase();
+
+  return keys.some((key) => {
+    const rawString = `${notification.order_id}${notification.status_code}${notification.gross_amount}${key}`;
+    const computedHash = crypto
+      .createHash('sha512')
+      .update(rawString)
+      .digest('hex')
+      .toLowerCase();
+    return computedHash === incomingSig;
+  });
 }
 
 /**

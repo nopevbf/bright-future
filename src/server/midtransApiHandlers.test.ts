@@ -71,6 +71,59 @@ describe('midtransApiHandlers', () => {
         })
       );
     });
+
+    it('MDT-WH-004: should return 200 for Midtrans Dashboard test notification ping without signature error or db update', async () => {
+      const testNotification = {
+        order_id: 'payment_notif_test_M326916377_2da9b11f-d09d-4dfa-8adf-ee8d4f4a678d',
+        status_code: '200',
+        gross_amount: '105000.00',
+        signature_key: 'dummy_dashboard_test_signature_34c2176b',
+        transaction_status: 'settlement',
+      };
+
+      const mockDbUpdate = vi.fn();
+      const result = await handleWebhookRequest(
+        testNotification,
+        dummyServerKey,
+        mockDbUpdate
+      );
+
+      expect(result.status).toBe(200);
+      expect(result.body.status).toBe('success');
+      expect(result.body.message).toMatch(/test notification/i);
+      expect(mockDbUpdate).not.toHaveBeenCalled();
+    });
+
+    it('MDT-WH-005: should accept notification signed with secondary key in multi-key config', async () => {
+      const secondaryKey = 'Mid-server-PRODKEY999';
+      const orderId = 'INV-PROD-001';
+      const statusCode = '200';
+      const grossAmount = '750000.00';
+      const signatureWithSecondary = crypto
+        .createHash('sha512')
+        .update(`${orderId}${statusCode}${grossAmount}${secondaryKey}`)
+        .digest('hex');
+
+      const notification = {
+        order_id: orderId,
+        status_code: statusCode,
+        gross_amount: grossAmount,
+        signature_key: signatureWithSecondary,
+        transaction_status: 'settlement',
+      };
+
+      const multiKeyConfig = `${dummyServerKey},${secondaryKey}`;
+      const mockDbUpdate = vi.fn().mockResolvedValue(true);
+      const result = await handleWebhookRequest(
+        notification,
+        multiKeyConfig,
+        mockDbUpdate
+      );
+
+      expect(result.status).toBe(200);
+      expect(result.body.status).toBe('success');
+      expect(mockDbUpdate).toHaveBeenCalled();
+    });
   });
 
   describe('handleSnapTokenRequest', () => {

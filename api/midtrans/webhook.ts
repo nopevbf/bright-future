@@ -41,7 +41,17 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ status: 'error', message: 'Method Not Allowed' });
   }
 
-  const serverKey = (process.env.MIDTRANS_SERVER_KEY || '').replace(/['"]/g, '').trim();
+  // Combine primary and optional sandbox server key to support multi-environment webhook validation
+  const rawKeys = [
+    process.env.MIDTRANS_SERVER_KEY,
+    process.env.MIDTRANS_SANDBOX_SERVER_KEY,
+  ].filter(Boolean);
+
+  const serverKey = rawKeys
+    .map((k) => (k || '').replace(/['"]/g, '').trim())
+    .filter(Boolean)
+    .join(',');
+
   const body = await parseBody(req);
 
   const result = await handleWebhookRequest(
